@@ -1,0 +1,69 @@
+package database
+
+const TYPE_DATAOBJECT = "DO"
+const TYPE_INSTALLATION = "I"
+const TYPE_EXECUTION = "E"
+
+const TYPE_DATAOBJECT_STATE = "SDO"
+const TYPE_INSTALLATION_STATE = "SI"
+const TYPE_EXECUTION_STATE = "SE"
+
+const TYPE_NAMESPACE = "NS"
+
+type Dependencies interface {
+	GetLinks() []ObjectId
+	GetVersion() string
+}
+
+type ExternalObject interface {
+	Object
+	Dependencies
+}
+
+type DataObject interface {
+	ExternalObject
+}
+
+type Installation interface {
+	ExternalObject
+}
+
+type Execution interface {
+	ExternalObject
+}
+
+type InternalObject[E ExternalObject] interface {
+	Object
+	Dependencies
+
+	GetActualVersion() string
+	GetTargetVersion() string
+	SetActualVersion(string)
+	SetTargetVersion(string)
+	SetTargetState(E) error
+
+	Lock(RunId) (bool, error)
+	Unlock() error
+}
+
+type DataObjectState interface {
+	InternalObject[DataObject]
+}
+
+type InstallationState interface {
+	InternalObject[Installation]
+}
+
+type ExecutionState interface {
+	InternalObject[Execution]
+}
+
+const NS_PHASE_LOCKING = "locking"
+const NS_PHASE_READY = "ready"
+
+type Namespace interface {
+	Object
+
+	SetPhaseLocking(RunId) (bool, error)
+	SetPhaseReady() error
+}

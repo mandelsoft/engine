@@ -12,8 +12,7 @@ import (
 type Node interface {
 	GetType() string
 	GetName() string
-	GetEffName() string
-	GetVersionedName() string
+	GetVersion() string
 	GetLinks() []Node
 
 	AddDep(n Node)
@@ -30,17 +29,6 @@ var _ Node = (*node)(nil)
 
 func NewNode(typ, name, version string) *node {
 	return &node{typ, name, version, nil}
-}
-
-func (n *node) GetEffName() string {
-	return fmt.Sprintf("%s/%s", n.typ, n.name)
-}
-
-func (n *node) GetVersionedName() string {
-	if n.version == "" {
-		return n.GetEffName()
-	}
-	return fmt.Sprintf("%s[%s]", n.GetEffName(), n.version)
 }
 
 func (n *node) GetName() string {
@@ -63,7 +51,7 @@ func (n *node) AddDep(d Node) {
 	var i int
 
 	for i = 0; i < len(n.links); i++ {
-		if strings.Compare(n.links[i].GetEffName(), d.GetEffName()) > 0 {
+		if strings.Compare(GetEffName(n.links[i]), GetEffName(d)) > 0 {
 			break
 		}
 	}
@@ -71,8 +59,20 @@ func (n *node) AddDep(d Node) {
 	n.links = append(append(n.links[:i], d), n.links[i:]...)
 }
 
+func GetEffName(n Node) string {
+	return fmt.Sprintf("%s/%s", n.GetType(), n.GetName())
+}
+
+func GetVersionedName(n Node) string {
+	v := n.GetVersion()
+	if v == "" {
+		return GetEffName(n)
+	}
+	return fmt.Sprintf("%s[%s]", GetEffName(n), v)
+}
+
 func getId(n Node, nodes map[string]Node) string {
-	eff := n.GetEffName()
+	eff := GetEffName(n)
 	if _, ok := nodes[eff]; ok {
 		return eff
 	}
@@ -83,12 +83,12 @@ func getId(n Node, nodes map[string]Node) string {
 	}
 
 	var graphs []string
-	sort.Slice(links, func(i, j int) bool { return strings.Compare(links[i].GetEffName(), links[j].GetEffName()) < 0 })
+	sort.Slice(links, func(i, j int) bool { return strings.Compare(GetEffName(links[i]), GetEffName(links[j])) < 0 })
 	for _, d := range links {
 		g := getId(d, nodes)
 		graphs = append(graphs, g)
 	}
-	return fmt.Sprintf("%s(%s)", n.GetEffName(), strings.Join(graphs, ","))
+	return fmt.Sprintf("%s(%s)", GetEffName(n), strings.Join(graphs, ","))
 }
 
 func GetId(n Node) string {
@@ -97,7 +97,7 @@ func GetId(n Node) string {
 	nodes := map[string]Node{}
 	g := getId(n, nodes)
 	for _, c := range nodes {
-		list = append(list, c.GetVersionedName())
+		list = append(list, GetVersionedName(c))
 	}
 	sort.Strings(list)
 	return g + ":" + strings.Join(list, ",")

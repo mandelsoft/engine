@@ -148,7 +148,7 @@ func (s *parser) parseGraph() (*node, error) {
 	}
 
 	n := NewNode(typ, name, "")
-	s.nodes[n.GetEffName()] = n
+	s.nodes[GetEffName(n)] = n
 
 	if s.Current() == '(' {
 		for {
@@ -182,9 +182,9 @@ func (s *parser) parseVersionList() error {
 		}
 
 		t := NewNode(typ, name, v)
-		n := s.nodes[t.GetEffName()]
+		n := s.nodes[GetEffName(t)]
 		if n == nil {
-			return fmt.Errorf("node %q not in graph", t.GetEffName())
+			return fmt.Errorf("node %q not in graph", GetEffName(t))
 		}
 		n.version = v
 
