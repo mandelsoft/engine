@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel/landscaper"
 )
 
 type ObjectId struct {
@@ -72,7 +73,7 @@ type Dependencies struct {
 	self  interface{}
 }
 
-var _ database.Dependencies = (*Dependencies)(nil)
+var _ landscaper.Dependencies = (*Dependencies)(nil)
 
 func NewDependencies(self interface{}) Dependencies {
 	return Dependencies{self: self}
@@ -113,7 +114,7 @@ func (d *Dependencies) AddDep(id database.ObjectId) {
 
 type dependencies[P any] interface {
 	database.Object
-	database.Dependencies
+	landscaper.Dependencies
 
 	setSelf(o interface{})
 	*P
@@ -128,7 +129,7 @@ func newVersionedObject[T any, P dependencies[T]](typ, name string) P {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type InternalObject[E database.ExternalObject] struct {
+type InternalObject[E landscaper.ExternalObject] struct {
 	Object
 	Dependencies
 
@@ -139,7 +140,7 @@ type InternalObject[E database.ExternalObject] struct {
 	TargetState   json.RawMessage
 }
 
-var _ database.InternalObject[database.ExternalObject] = (*InternalObject[database.ExternalObject])(nil)
+var _ landscaper.InternalObject[landscaper.ExternalObject] = (*InternalObject[landscaper.ExternalObject])(nil)
 
 func (i *InternalObject[E]) Lock(id database.RunId) (bool, error) {
 	i.lock.Lock()

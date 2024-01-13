@@ -1,4 +1,8 @@
-package database
+package landscaper
+
+import (
+	"github.com/mandelsoft/engine/pkg/database"
+)
 
 const TYPE_DATAOBJECT = "DO"
 const TYPE_INSTALLATION = "I"
@@ -11,12 +15,12 @@ const TYPE_EXECUTION_STATE = "SE"
 const TYPE_NAMESPACE = "NS"
 
 type Dependencies interface {
-	GetLinks() []ObjectId
+	GetLinks() []database.ObjectId
 	GetVersion() string
 }
 
 type ExternalObject interface {
-	Object
+	database.Object
 	Dependencies
 }
 
@@ -33,7 +37,7 @@ type Execution interface {
 }
 
 type InternalObject[E ExternalObject] interface {
-	Object
+	database.Object
 	Dependencies
 
 	GetActualVersion() string
@@ -42,7 +46,7 @@ type InternalObject[E ExternalObject] interface {
 	SetTargetVersion(string)
 	SetTargetState(E) error
 
-	Lock(RunId) (bool, error)
+	Lock(database.RunId) (bool, error)
 	Unlock() error
 }
 
@@ -62,8 +66,8 @@ const NS_PHASE_LOCKING = "locking"
 const NS_PHASE_READY = "ready"
 
 type Namespace interface {
-	Object
+	database.Object
 
-	SetPhaseLocking(RunId) (bool, error)
+	SetPhaseLocking(database.RunId) (bool, error)
 	SetPhaseReady() error
 }
