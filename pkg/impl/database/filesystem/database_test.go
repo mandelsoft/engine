@@ -21,6 +21,10 @@ var _ = Describe("database", func() {
 		db = Must(me.New(Scheme, "testdata", fs))
 	})
 
+	AfterEach(func() {
+		vfs.Cleanup(fs)
+	})
+
 	Context("list", func() {
 		It("flat ns", func() {
 			list := Must(db.ListObjects(TYPE_A, "ns1"))
