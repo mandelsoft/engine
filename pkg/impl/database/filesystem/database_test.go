@@ -1,6 +1,9 @@
 package filesystem_test
 
 import (
+	"context"
+	"sync"
+
 	"github.com/go-test/deep"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,11 +17,13 @@ import (
 
 var _ = Describe("database", func() {
 	var db database.Database
+	var reg database.HandlerRegistrationTest
 	var fs vfs.FileSystem
 
 	BeforeEach(func() {
 		fs = Must(TestFileSystem("testdata", false))
 		db = Must(me.New(Scheme, "testdata", fs))
+		reg = db.(database.HandlerRegistrationTest)
 	})
 
 	AfterEach(func() {
@@ -60,4 +65,46 @@ var _ = Describe("database", func() {
 
 		})
 	})
+
+	Context("event handler", func() {
+		It("gets events for all objects", func() {
+			h := &Handler{}
+			db.RegisterHandler(h, true, TYPE_A).Wait(context.Background())
+			Expect(h.ids).To(ConsistOf(
+				database.NewObjectId(TYPE_A, "ns1", "o1"),
+				database.NewObjectId(TYPE_A, "ns2", "o1"),
+			))
+		})
+
+		It("gets events for all actual objects before new ones", func() {
+			notify := make(chan struct{})
+
+			h := &Handler{}
+			s := reg.RegisterHandlerSync(notify, h, true, TYPE_A)
+			err := db.SetObject(NewA("ns3/sub1", "o2", "A-ns3/sub1-o2"))
+			notify <- struct{}{}
+			Expect(err).To(Succeed())
+
+			s.Wait(context.Background())
+
+			Expect(h.ids).To(ConsistOf(
+				database.NewObjectId(TYPE_A, "ns1", "o1"),
+				database.NewObjectId(TYPE_A, "ns2", "o1"),
+				database.NewObjectId(TYPE_A, "ns3/sub1", "o2"),
+			))
+		})
+	})
 })
+
+type Handler struct {
+	lock sync.Mutex
+	ids  []database.ObjectId
+}
+
+var _ database.EventHandler = (*Handler)(nil)
+
+func (h *Handler) HandleEvent(id database.ObjectId) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h.ids = append(h.ids, id)
+}

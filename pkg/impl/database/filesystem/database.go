@@ -14,11 +14,15 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type _HandlerRegistry = database.HandlerRegistrationTest
+
 type Database struct {
-	lock   sync.Mutex
-	scheme database.Scheme
-	path   string
-	fs     vfs.FileSystem
+	lock sync.Mutex
+	_HandlerRegistry
+	registry database.HandlerRegistry
+	scheme   database.Scheme
+	path     string
+	fs       vfs.FileSystem
 }
 
 var _ database.Database = (*Database)(nil)
@@ -31,16 +35,43 @@ func New(s database.Scheme, path string, fss ...vfs.FileSystem) (database.Databa
 		return nil, err
 	}
 
-	return &Database{scheme: s, path: path, fs: fs}, nil
+	d := &Database{scheme: s, path: path, fs: fs}
+	reg := database.NewHandlerRegistry(d)
+	d._HandlerRegistry, d.registry = reg.(_HandlerRegistry), reg
+	return d, nil
 }
 
 func (d *Database) ListObjects(typ, ns string) ([]database.Object, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	return d.listObjects(typ, ns, ns == "")
+	list, err := d.listObjectIds(typ, ns, ns == "")
+	if err != nil {
+		return nil, err
+	}
+	result := make([]database.Object, len(list), len(list))
+	for i, id := range list {
+		o, err := d.get(id)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = o
+	}
+	return result, err
 }
 
-func (d *Database) listObjects(typ, ns string, closure bool) ([]database.Object, error) {
+func (d *Database) ListObjectIds(typ, ns string, atomic ...func()) ([]database.ObjectId, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	list, err := d.listObjectIds(typ, ns, ns == "")
+	if err == nil {
+		for _, a := range atomic {
+			a()
+		}
+	}
+	return list, err
+}
+
+func (d *Database) listObjectIds(typ, ns string, closure bool) ([]database.ObjectId, error) {
 	if ns == "" {
 		return d.list(typ, ns, true, closure)
 	} else {
@@ -48,8 +79,8 @@ func (d *Database) listObjects(typ, ns string, closure bool) ([]database.Object,
 	}
 }
 
-func (d *Database) list(typ, ns string, dir, closure bool) ([]database.Object, error) {
-	var result []database.Object
+func (d *Database) list(typ, ns string, dir, closure bool) ([]database.ObjectId, error) {
+	var result []database.ObjectId
 
 	list, err := vfs.ReadDir(d.fs, d.Path(filepath.Join(typ, ns)))
 	if err != nil {
@@ -70,11 +101,7 @@ func (d *Database) list(typ, ns string, dir, closure bool) ([]database.Object, e
 		} else {
 			if !dir && strings.HasSuffix(e.Name(), ".yaml") {
 				id := database.NewObjectId(typ, ns, e.Name()[:len(e.Name())-5])
-				o, err := d.get(id)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, o)
+				result = append(result, id)
 			}
 		}
 	}
@@ -116,12 +143,13 @@ func (d *Database) SetObject(o database.Object) error {
 	if err != nil {
 		return err
 	}
-	return vfs.WriteFile(d.fs, path, data, 0o600)
-}
-
-func (d Database) RegisterEventHandler(EventHandler, ns string, types ...string) {
-	// TODO implement me
-	panic("implement me")
+	err = vfs.WriteFile(d.fs, path, data, 0o600)
+	if err != nil {
+		d.fs.Remove(path)
+		return err
+	}
+	d.registry.TriggerEvent(o)
+	return nil
 }
 
 func (d *Database) Path(path string) string {
