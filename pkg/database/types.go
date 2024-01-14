@@ -2,21 +2,23 @@ package database
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
-type RunId string
-
 type Scheme = runtime.Scheme[Object]
+type Encoding = runtime.Encoding[Object]
 
 func NewScheme() Scheme {
-	return runtime.NewScheme[Object]()
+	return runtime.NewYAMLScheme[Object]()
+}
+
+type ObjectMetaAccessor interface {
+	ObjectId
 }
 
 type Object interface {
-	ObjectId
+	ObjectMetaAccessor
 }
 
 type ObjectId interface {
@@ -26,28 +28,62 @@ type ObjectId interface {
 	runtime.Object
 }
 
-type TypedObject = objectid
-
-func NewTypedObject(typ, ns, name string) TypedObject {
-	return objectid{typ, ns, name}
+type ObjectRef struct {
+	runtime.ObjectMeta `json:",inline"`
+	Namespace          string `json:"namespace"`
+	Name               string `json:"name"`
 }
 
-type objectid struct {
-	Type      string
-	Namespace string
-	Name      string
+var _ ObjectId = (*ObjectRef)(nil)
+
+func NewObjectRef(typ, ns, name string) ObjectRef {
+	return ObjectRef{runtime.ObjectMeta{typ}, ns, name}
 }
 
-func (o *objectid) GetName() string {
+func NewObjectRefFor(id ObjectId) ObjectRef {
+	return ObjectRef{
+		ObjectMeta: runtime.ObjectMeta{id.GetType()},
+		Namespace:  id.GetNamespace(),
+		Name:       id.GetName(),
+	}
+}
+
+func (o *ObjectRef) GetName() string {
 	return o.Name
 }
 
-func (o *objectid) GetNamespace() string {
+func (o *ObjectRef) GetNamespace() string {
 	return o.Namespace
 }
 
+type ObjectMeta struct {
+	ObjectRef `json:",inline"`
+}
+
+var _ ObjectMetaAccessor = (*ObjectMeta)(nil)
+
+func NewObjectMeta(typ, ns, name string) ObjectMeta {
+	return ObjectMeta{NewObjectRef(typ, ns, name)}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type objectid struct {
+	kind      string
+	namespace string
+	name      string
+}
+
+func (o *objectid) GetName() string {
+	return o.name
+}
+
+func (o *objectid) GetNamespace() string {
+	return o.namespace
+}
+
 func (o *objectid) GetType() string {
-	return o.Type
+	return o.kind
 }
 
 func NewObjectId(typ, ns, name string) ObjectId {
@@ -56,14 +92,16 @@ func NewObjectId(typ, ns, name string) ObjectId {
 
 func NewObjectIdFor(id ObjectId) ObjectId {
 	return &objectid{
-		Type:      id.GetType(),
-		Namespace: id.GetNamespace(),
-		Name:      id.GetName(),
+		kind:      id.GetType(),
+		namespace: id.GetNamespace(),
+		name:      id.GetName(),
 	}
 }
 
 func EqualObjectId(a, b ObjectId) bool {
-	return reflect.DeepEqual(NewObjectIdFor(a), NewObjectIdFor(b))
+	return a.GetType() == b.GetType() &&
+		a.GetNamespace() == b.GetNamespace() &&
+		a.GetName() == b.GetName()
 }
 
 func StringId(a ObjectId) string {

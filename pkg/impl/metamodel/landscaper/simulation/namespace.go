@@ -1,26 +1,26 @@
 package simulation
 
 import (
-	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel"
 	"github.com/mandelsoft/engine/pkg/metamodel/landscaper"
 )
 
 type Namespace struct {
 	Object
 	Phase string
-	Owner database.RunId
+	Owner metamodel.RunId
 }
 
 var _ landscaper.Namespace = (*Namespace)(nil)
 
-func NewNamespace(name string) *Namespace {
+func NewNamespace(ns, name string) *Namespace {
 	return &Namespace{
-		Object: NewObject(landscaper.TYPE_NAMESPACE, name),
+		Object: NewObject(landscaper.TYPE_NAMESPACE, ns, name),
 		Phase:  landscaper.NS_PHASE_READY,
 	}
 }
 
-func (n *Namespace) SetPhaseLocking(id database.RunId) (bool, error) {
+func (n *Namespace) SetPhaseLocking(id metamodel.RunId) (bool, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 

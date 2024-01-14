@@ -7,69 +7,27 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel"
 	"github.com/mandelsoft/engine/pkg/metamodel/landscaper"
 )
 
-type ObjectId struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-}
-
-var _ database.ObjectId = (*ObjectId)(nil)
-
-func NewObjectId(typ, name string) *ObjectId {
-	return &ObjectId{
-		Type: typ,
-		Name: name,
-	}
-}
-
-func NewObjectIdFor(id database.ObjectId) *ObjectId {
-	return &ObjectId{
-		Type: id.GetType(),
-		Name: id.GetName(),
-	}
-}
-
-func (o *ObjectId) GetType() string {
-	return o.Type
-}
-
-func (o *ObjectId) GetName() string {
-	return o.Name
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 type Object struct {
 	lock sync.Mutex
-	ObjectId
+	database.ObjectMeta
 }
 
 var _ database.Object = (*Object)(nil)
 
-func NewObject(typ, name string) Object {
+func NewObject(typ, ns, name string) Object {
 	return Object{
-		ObjectId: ObjectId{
-			Type: typ,
-			Name: name,
-		},
-	}
-}
-
-func NewObjectForId(id database.ObjectId) Object {
-	return Object{
-		ObjectId: ObjectId{
-			Type: id.GetType(),
-			Name: id.GetName(),
-		},
+		ObjectMeta: database.NewObjectMeta(typ, ns, name),
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type Dependencies struct {
-	Links []ObjectId
+	Links []database.ObjectRef `json:"links,omitempty"`
 	self  interface{}
 }
 
@@ -102,13 +60,13 @@ func (d *Dependencies) GetVersion() string {
 }
 
 func (d *Dependencies) AddDep(id database.ObjectId) {
-	i := NewObjectIdFor(id)
+	i := database.NewObjectRefFor(id)
 	for _, e := range d.Links {
-		if e == *i {
+		if database.EqualObjectId(id, &e) {
 			return
 		}
 	}
-	d.Links = append(d.Links, *i)
+	d.Links = append(d.Links, i)
 	return
 }
 
@@ -133,7 +91,7 @@ type InternalObject[E landscaper.ExternalObject] struct {
 	Object
 	Dependencies
 
-	LockOwner database.RunId `json:"lock"`
+	LockOwner metamodel.RunId `json:"lock"`
 
 	ActualVersion string `json:"actualVersion"`
 	TargetVersion string `json:"targetVersion"`
@@ -142,7 +100,7 @@ type InternalObject[E landscaper.ExternalObject] struct {
 
 var _ landscaper.InternalObject[landscaper.ExternalObject] = (*InternalObject[landscaper.ExternalObject])(nil)
 
-func (i *InternalObject[E]) Lock(id database.RunId) (bool, error) {
+func (i *InternalObject[E]) Lock(id metamodel.RunId) (bool, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 

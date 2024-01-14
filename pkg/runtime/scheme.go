@@ -12,17 +12,17 @@ type Object interface {
 	GetType() string
 }
 
-type RuntimeObject struct {
+type ObjectMeta struct {
 	Type string `json:"type"`
 }
 
-var _ Object = (*RuntimeObject)(nil)
+var _ Object = (*ObjectMeta)(nil)
 
-func (o *RuntimeObject) GetType() string {
+func (o *ObjectMeta) GetType() string {
 	return o.Type
 }
 
-func (o *RuntimeObject) SetType(t string) {
+func (o *ObjectMeta) SetType(t string) {
 	o.Type = t
 }
 
@@ -38,7 +38,7 @@ type scheme[E Object] struct {
 
 var _ Scheme[Object] = (*scheme[Object])(nil)
 
-func NewScheme[E Object]() Scheme[E] {
+func NewYAMLScheme[E Object]() Scheme[E] {
 	return &scheme[E]{types: map[string]reflect.Type{}}
 }
 
@@ -48,11 +48,11 @@ func (s *scheme[E]) Register(name string, proto E) error {
 
 	t := reflect.TypeOf(proto)
 	if t.Kind() != reflect.Pointer {
-		return fmt.Errorf("proto type for %s must be pointer")
+		return fmt.Errorf("proto type for %s must be pointer", name)
 	}
 	t = t.Elem()
 	if t.Kind() != reflect.Struct {
-		return fmt.Errorf("proto type for %s must be pointer to struct")
+		return fmt.Errorf("proto type for %s must be pointer to struct", name)
 	}
 
 	s.types[name] = t
@@ -60,7 +60,7 @@ func (s *scheme[E]) Register(name string, proto E) error {
 }
 
 func (s *scheme[E]) Decode(data []byte) (E, error) {
-	var ty RuntimeObject
+	var ty ObjectMeta
 	var _nil E
 
 	err := yaml.Unmarshal(data, &ty)
@@ -95,7 +95,7 @@ func Register[T any, P ElementType[T], E Object](s Scheme[E], name string) error
 
 	p, ok := (any(&proto)).(E)
 	if !ok {
-		return fmt.Errorf("*%s does not implement scheme interface %s", TypeOf[T], TypeOf[E])
+		return fmt.Errorf("*%s does not implement scheme interface %s", TypeOf[T](), TypeOf[E]())
 	}
 	return s.Register(name, p)
 }
@@ -112,5 +112,5 @@ func MustRegister[T any, P ElementType[T], E Object](s Scheme[E], name string) {
 func t() {
 	var s Scheme[Object]
 
-	Register[RuntimeObject](s, "test")
+	Register[ObjectMeta](s, "test")
 }

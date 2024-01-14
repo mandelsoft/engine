@@ -20,14 +20,14 @@ type Database struct {
 	lock sync.Mutex
 	_HandlerRegistry
 	registry database.HandlerRegistry
-	scheme   database.Scheme
+	encoding database.Encoding
 	path     string
 	fs       vfs.FileSystem
 }
 
 var _ database.Database = (*Database)(nil)
 
-func New(s database.Scheme, path string, fss ...vfs.FileSystem) (database.Database, error) {
+func New(s database.Encoding, path string, fss ...vfs.FileSystem) (database.Database, error) {
 	fs := utils.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...)
 
 	err := fs.MkdirAll(path, 0o0700)
@@ -35,7 +35,7 @@ func New(s database.Scheme, path string, fss ...vfs.FileSystem) (database.Databa
 		return nil, err
 	}
 
-	d := &Database{scheme: s, path: path, fs: fs}
+	d := &Database{encoding: s, path: path, fs: fs}
 	reg := database.NewHandlerRegistry(d)
 	d._HandlerRegistry, d.registry = reg.(_HandlerRegistry), reg
 	return d, nil
@@ -120,7 +120,7 @@ func (d *Database) get(id database.Object) (database.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	o, err := d.scheme.Decode(data)
+	o, err := d.encoding.Decode(data)
 
 	if err != nil {
 		return nil, err
