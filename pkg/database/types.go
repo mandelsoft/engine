@@ -15,6 +15,7 @@ func NewScheme() Scheme {
 
 type ObjectMetaAccessor interface {
 	ObjectId
+	runtime.Object
 }
 
 type Object interface {
@@ -25,7 +26,7 @@ type ObjectId interface {
 	GetNamespace() string
 	GetName() string
 
-	runtime.Object
+	runtime.TypeAccessor
 }
 
 type ObjectRef struct {

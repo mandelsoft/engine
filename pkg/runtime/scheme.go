@@ -8,8 +8,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type Object interface {
+type TypeAccessor interface {
 	GetType() string
+}
+
+type Object interface {
+	TypeAccessor
+	SetType(string)
 }
 
 type ObjectMeta struct {
@@ -28,7 +33,8 @@ func (o *ObjectMeta) SetType(t string) {
 
 type Scheme[E Object] interface {
 	Register(name string, proto E) error
-	Decode(data []byte) (E, error)
+
+	Encoding[E]
 }
 
 type scheme[E Object] struct {
@@ -57,6 +63,28 @@ func (s *scheme[E]) Register(name string, proto E) error {
 
 	s.types[name] = t
 	return nil
+}
+
+func (s *scheme[E]) HasType(t string) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.types[t] != nil
+}
+
+func (s *scheme[E]) CreateObject(typ string) (E, error) {
+	var _nil E
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	t := s.types[typ]
+	if t == nil {
+		return _nil, fmt.Errorf("unknown object type %q", typ)
+	}
+
+	o := reflect.New(t).Interface().(E)
+	o.SetType(typ)
+	return o, nil
 }
 
 func (s *scheme[E]) Decode(data []byte) (E, error) {

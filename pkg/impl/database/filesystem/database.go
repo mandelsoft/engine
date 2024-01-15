@@ -114,7 +114,7 @@ func (d *Database) GetObject(id database.ObjectId) (database.Object, error) {
 	return d.get(id)
 }
 
-func (d *Database) get(id database.Object) (database.Object, error) {
+func (d *Database) get(id database.ObjectId) (database.Object, error) {
 	path := d.OPath(id)
 	data, err := vfs.ReadFile(d.fs, path)
 	if err != nil {

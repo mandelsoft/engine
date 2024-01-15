@@ -5,6 +5,8 @@ import (
 )
 
 type Encoding[T Object] interface {
+	HasType(t string) bool
+	CreateObject(typ string) (T, error)
 	Decode(data []byte) (T, error)
 }
 
@@ -14,7 +16,15 @@ type castingConverter[D, S Object] struct {
 
 var _ Encoding[Object] = (*castingConverter[Object, Object])(nil)
 
-func (c castingConverter[D, S]) Decode(data []byte) (D, error) {
+func (c *castingConverter[D, S]) HasType(typ string) bool {
+	return c.scheme.HasType(typ)
+}
+
+func (c *castingConverter[D, S]) CreateObject(typ string) (D, error) {
+	return c.CreateObject(typ)
+}
+
+func (c *castingConverter[D, S]) Decode(data []byte) (D, error) {
 	var _nil D
 
 	o, err := c.scheme.Decode(data)

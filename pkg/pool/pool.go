@@ -26,8 +26,8 @@ type Pool interface {
 	Run()
 
 	EnqueueCommand(cmd Command)
-	EnqueueCommandRateLimited(name Command)
-	EnqueueCommandAfter(name Command, duration time.Duration)
+	EnqueueCommandRateLimited(cmd Command)
+	EnqueueCommandAfter(cmd Command, duration time.Duration)
 
 	EnqueueKey(key database.ObjectId)
 	EnqueueKeyRateLimited(key database.ObjectId)
