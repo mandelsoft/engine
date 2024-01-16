@@ -6,6 +6,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel"
 )
 
+const TYPE_NAMESPACE = "Namespace"
+
 const TYPE_NODE = "Node"
 const TYPE_NODE_STATE = "NodeState"
 
@@ -28,6 +30,10 @@ type MetaModel interface {
 type MetaModelBase struct {
 }
 
-func (m *MetaModelBase) GetTypes() (external []metamodel.ExternalTypeSpecification, internal []metamodel.InternalTypeSpecification) {
-	return slices.Clone(externalTypes), slices.Clone(internalTypes)
+func (m *MetaModelBase) GetSpecification() metamodel.MetamodelSpecification {
+	return metamodel.MetamodelSpecification{
+		NamespaceType: TYPE_NAMESPACE,
+		ExternalTypes: slices.Clone(externalTypes),
+		InternalTypes: slices.Clone(internalTypes),
+	}
 }

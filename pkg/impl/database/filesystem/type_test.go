@@ -9,30 +9,32 @@ var Scheme = database.NewScheme()
 const TYPE_A = "A"
 
 type A struct {
-	database.ObjectMeta
+	database.GenerationObjectMeta
 
 	A string `json:"a,omitempty"`
 }
 
+var _ database.GenerationAccess = (*A)(nil)
+
 func NewA(ns, name string, s string) *A {
 	return &A{
-		ObjectMeta: database.NewObjectMeta(TYPE_A, ns, name),
-		A:          s,
+		GenerationObjectMeta: database.NewGenerationObjectMeta(TYPE_A, ns, name),
+		A:                    s,
 	}
 }
 
 const TYPE_B = "B"
 
 type B struct {
-	database.ObjectMeta
+	database.GenerationObjectMeta
 
 	B string `json:"b,omitempty"`
 }
 
 func NewB(ns, name string, s string) *B {
 	return &B{
-		ObjectMeta: database.NewObjectMeta(TYPE_B, ns, name),
-		B:          s,
+		GenerationObjectMeta: database.NewGenerationObjectMeta(TYPE_B, ns, name),
+		B:                    s,
 	}
 }
 

@@ -22,6 +22,36 @@ type Object interface {
 	ObjectMetaAccessor
 }
 
+// GenerationAccess is an optional Object interface
+// for objects featuring a generation number.
+// This is required for race condition detection
+// in updates.
+type GenerationAccess interface {
+	GetGeneration() int64
+	SetGeneration(int64)
+}
+
+var ErrModified = fmt.Errorf("object modified")
+
+type Generation struct {
+	Generation int64 `json:" eneration"`
+}
+
+func (g *Generation) GetGeneration() int64 {
+	return g.Generation
+}
+
+func (g *Generation) SetGeneration(i int64) {
+	g.Generation = i
+}
+
+func GetGeneration(o Object) int64 {
+	if g, ok := o.(GenerationAccess); ok {
+		return g.GetGeneration()
+	}
+	return -1
+}
+
 type ObjectId interface {
 	GetNamespace() string
 	GetName() string
@@ -61,10 +91,19 @@ type ObjectMeta struct {
 	ObjectRef `json:",inline"`
 }
 
+type GenerationObjectMeta struct {
+	ObjectRef `json:",inline"`
+	Generation
+}
+
 var _ ObjectMetaAccessor = (*ObjectMeta)(nil)
 
 func NewObjectMeta(typ, ns, name string) ObjectMeta {
 	return ObjectMeta{NewObjectRef(typ, ns, name)}
+}
+
+func NewGenerationObjectMeta(typ, ns, name string) GenerationObjectMeta {
+	return GenerationObjectMeta{ObjectRef: NewObjectRef(typ, ns, name)}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

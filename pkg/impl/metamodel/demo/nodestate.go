@@ -10,7 +10,7 @@ func init() {
 }
 
 type NodeState struct {
-	database.ObjectMeta
+	database.GenerationObjectMeta
 }
 
 var _ metamodel.Object = (*NodeState)(nil)

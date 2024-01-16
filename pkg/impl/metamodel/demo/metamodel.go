@@ -2,8 +2,13 @@ package demo
 
 import (
 	"github.com/mandelsoft/engine/pkg/metamodel"
+	"github.com/mandelsoft/engine/pkg/metamodel/default"
 	"github.com/mandelsoft/engine/pkg/metamodel/demo"
 )
+
+func init() {
+	metamodel.MustRegisterType[_default.Namespace](scheme)
+}
 
 var scheme = metamodel.NewScheme()
 

@@ -41,6 +41,11 @@ type Object interface {
 	Process(Request) Status
 }
 
+type GenerationObject interface {
+	Object
+	database.GenerationAccess
+}
+
 type RunAwareObject interface {
 	Object
 
@@ -98,9 +103,16 @@ func ExtSpec(tname string, inttype string, phase Phase, dependencies ...Dependen
 	}
 }
 
+type MetamodelSpecification struct {
+	NamespaceType string
+
+	ExternalTypes []ExternalTypeSpecification
+	InternalTypes []InternalTypeSpecification
+}
+
 type MetaModel interface {
 	GetEncoding() Encoding
-	GetTypes() (external []ExternalTypeSpecification, internal []InternalTypeSpecification)
+	GetSpecification() MetamodelSpecification
 }
 
 type State interface {

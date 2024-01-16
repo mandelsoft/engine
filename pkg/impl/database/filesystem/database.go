@@ -135,11 +135,36 @@ func (d *Database) get(id database.ObjectId) (database.Object, error) {
 func (d *Database) SetObject(o database.Object) error {
 	path := d.OPath(o)
 
-	data, err := yaml.Marshal(o)
+	err := d.fs.MkdirAll(filepath.Dir(path), 0o700)
 	if err != nil {
 		return err
 	}
-	err = d.fs.MkdirAll(filepath.Dir(path), 0o700)
+
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if g, ok := o.(database.GenerationAccess); ok {
+		gen := g.GetGeneration()
+		old, err := d.get(o)
+		if err != nil && !errors.Is(err, vfs.ErrNotExist) {
+			return err
+		}
+		if old != nil {
+			var ok bool
+			og, ok := old.(database.GenerationAccess)
+			if !ok {
+				return fmt.Errorf("incosistent types for read and write")
+			}
+			oldgen := og.GetGeneration()
+			if gen >= 0 && gen != oldgen {
+				return database.ErrModified
+			}
+			gen = oldgen
+		}
+		g.SetGeneration(gen + 1)
+	}
+
+	data, err := yaml.Marshal(o)
 	if err != nil {
 		return err
 	}

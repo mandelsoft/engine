@@ -20,10 +20,10 @@ func Validate(m MetaModel) error {
 
 	enc := m.GetEncoding()
 
-	ex, in := m.GetTypes()
+	spec := m.GetSpecification()
 
-	for _, e := range ex {
-		err := validateDep(in, e.Trigger)
+	for _, e := range spec.ExternalTypes {
+		err := validateDep(spec.InternalTypes, e.Trigger)
 		if err != nil {
 			return fmt.Errorf("external type %q: %w", e.Name, err)
 		}
@@ -32,16 +32,38 @@ func Validate(m MetaModel) error {
 		}
 
 		for _, d := range e.Dependencies {
-			err := validateDep(in, d)
+			err := validateDep(spec.InternalTypes, d)
 			if err != nil {
 				return fmt.Errorf("dependency of external type %q: %w", e.Name, err)
 			}
 		}
 	}
-	for _, i := range in {
+	for _, i := range spec.InternalTypes {
 		if !enc.HasType(i.Name) {
 			return fmt.Errorf("no encoding for internal type %q", i.Name)
 		}
+
+		o, err := enc.CreateObject(i.Name)
+		if err != nil {
+			return fmt.Errorf("error creating internal object %q: %w", i.Name, err)
+		}
+		if _, ok := o.(GenerationObject); !ok {
+			return fmt.Errorf("internal object %q must support generations to detect modification race conditions", i.Name)
+		}
+	}
+
+	if spec.NamespaceType == "" {
+		return fmt.Errorf("no namespace type specified")
+	}
+	if !enc.HasType(spec.NamespaceType) {
+		return fmt.Errorf("no encoding for namespace type %q", spec.NamespaceType)
+	}
+	ns, err := enc.CreateObject(spec.NamespaceType)
+	if err != nil {
+		return fmt.Errorf("error creating namespace object %q: %w", spec.NamespaceType, err)
+	}
+	if _, ok := ns.(Namespace); !ok {
+		return fmt.Errorf("namespace type %q does not implement namespace interface", spec.NamespaceType)
 	}
 	return nil
 }

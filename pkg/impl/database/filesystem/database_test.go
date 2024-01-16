@@ -94,6 +94,42 @@ var _ = Describe("database", func() {
 			))
 		})
 	})
+
+	Context("race condition detection", func() {
+		It("increments generation", func() {
+			id := database.NewObjectId(TYPE_A, "ns1", "o1")
+			o1 := Must(db.GetObject(id))
+			Expect(database.GetGeneration(o1)).To(Equal(int64(0)))
+
+			o1.(*A).A = "modified"
+			MustBeSuccessfull(db.SetObject(o1))
+			Expect(database.GetGeneration(o1)).To(Equal(int64(1)))
+
+			o1 = Must(db.GetObject(id))
+			Expect(database.GetGeneration(o1)).To(Equal(int64(1)))
+			Expect(o1.(*A).A).To(Equal("modified"))
+		})
+
+		It("detects race condition", func() {
+			id := database.NewObjectId(TYPE_A, "ns1", "o1")
+			o1 := Must(db.GetObject(id))
+			o2 := Must(db.GetObject(id))
+			Expect(database.GetGeneration(o1)).To(Equal(int64(0)))
+			Expect(database.GetGeneration(o2)).To(Equal(int64(0)))
+
+			o1.(*A).A = "modified"
+			o2.(*A).A = "first"
+
+			MustBeSuccessfull(db.SetObject(o2))
+			Expect(database.GetGeneration(o2)).To(Equal(int64(1)))
+
+			Expect(db.SetObject(o1)).To(MatchError("object modified"))
+
+			o1 = Must(db.GetObject(id))
+			Expect(database.GetGeneration(o1)).To(Equal(int64(1)))
+			Expect(o1.(*A).A).To(Equal("first"))
+		})
+	})
 })
 
 type Handler struct {
