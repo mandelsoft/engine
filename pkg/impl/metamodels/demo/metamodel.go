@@ -13,6 +13,6 @@ func init() {
 
 var scheme = common.NewScheme()
 
-func NewInstance(name string) model.ModelSpecification {
+func NewModelSpecification(name string) model.ModelSpecification {
 	return model.NewModelSpecification(name, demo.MetaModelSpecification(), scheme)
 }

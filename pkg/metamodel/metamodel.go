@@ -2,6 +2,7 @@ package metamodel
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -13,6 +14,9 @@ type MetaModel interface {
 	NamespaceType() string
 	InternalTypes() []string
 	ExternalTypes() []string
+	ElementTypes() []string
+
+	Dump(w io.Writer)
 }
 
 type metaModel struct {
@@ -98,6 +102,10 @@ func (m *metaModel) ExternalTypes() []string {
 	return utils.OrderedMapKeys(m.external)
 }
 
+func (m *metaModel) ElementTypes() []string {
+	return utils.OrderedMapKeys(m.elements)
+}
+
 func (m *metaModel) checkDep(d DependencyTypeSpecification) (ElementType, error) {
 	ti := m.internal[d.Type]
 	if ti == nil {
@@ -108,4 +116,33 @@ func (m *metaModel) checkDep(d DependencyTypeSpecification) (ElementType, error)
 		return nil, fmt.Errorf("phase %q not defined for type %q", d.Phase, d.Type)
 	}
 	return t, nil
+}
+
+func (m *metaModel) Dump(w io.Writer) {
+	fmt.Fprintf(w, "Namespace type: %s\n", m.namespace)
+	fmt.Fprintf(w, "External types:\n")
+	for _, n := range m.ExternalTypes() {
+		i := m.external[n]
+		fmt.Fprintf(w, "- %s  (-> %s)\n", n, i.Trigger().Name())
+		fmt.Fprintf(w, "  internal type: %s\n", i.Trigger().ObjType())
+		fmt.Fprintf(w, "  phase:         %s\n", i.Trigger().Phase())
+	}
+	fmt.Fprintf(w, "Internal types:\n")
+	for _, n := range m.InternalTypes() {
+		i := m.internal[n]
+		fmt.Fprintf(w, "- %s\n", n)
+		fmt.Fprintf(w, "  phases:\n")
+		for _, p := range i.intType.Phases() {
+			fmt.Fprintf(w, "  - %s\n", p)
+		}
+	}
+	fmt.Fprintf(w, "Element types:\n")
+	for _, n := range m.ElementTypes() {
+		i := m.elements[n]
+		fmt.Fprintf(w, "- %s\n", n)
+		fmt.Fprintf(w, "  dependencies:\n")
+		for _, d := range i.Dependencies() {
+			fmt.Fprintf(w, "  - %s\n", d.Name())
+		}
+	}
 }

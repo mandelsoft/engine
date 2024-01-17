@@ -18,6 +18,14 @@ func NewModelSpecification(name string, spec metamodel.MetaModelSpecification, s
 	return ModelSpecification{name, spec, scheme}
 }
 
+func (s *ModelSpecification) GetMetaModel() (metamodel.MetaModel, error) {
+	m, err := metamodel.NewMetaModel(s.Name, s.MetaModel)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (s *ModelSpecification) Validate() error {
 	enc := s.Scheme
 	m, err := metamodel.NewMetaModel(s.Name, s.MetaModel)
