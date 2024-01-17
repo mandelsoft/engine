@@ -2,22 +2,22 @@ package _default
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 )
 
 type Namespace struct {
 	database.GenerationObjectMeta
 
-	RunLock metamodel.RunId `json:"runLock"`
+	RunLock common.RunId `json:"runLock"`
 }
 
-var _ metamodel.Object = (*Namespace)(nil)
+var _ common.Object = (*Namespace)(nil)
 
-func (n *Namespace) Process(req metamodel.Request) metamodel.Status {
-	return metamodel.Status{}
+func (n *Namespace) Process(req common.Request) common.Status {
+	return common.Status{}
 }
 
-func (n *Namespace) TryLock(db database.Database, id metamodel.RunId) (bool, error) {
+func (n *Namespace) TryLock(db database.Database, id common.RunId) (bool, error) {
 	var on *Namespace
 
 	err := database.ErrModified

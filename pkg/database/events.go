@@ -17,8 +17,10 @@ type HandlerRegistrationTest interface {
 	HandlerRegistration
 	RegisterHandlerSync(t <-chan struct{}, h EventHandler, current bool, kind string, nss ...string) utils.Sync
 }
+
 type HandlerRegistry interface {
 	HandlerRegistration
+	EventHandler
 
 	TriggerEvent(id ObjectId)
 }
@@ -39,6 +41,10 @@ func NewHandlerRegistry(l ObjectLister) HandlerRegistry {
 		types:  map[string]namespaces{},
 		lister: l,
 	}
+}
+
+func (r *registry) HandleEvent(id ObjectId) {
+	r.TriggerEvent(id)
 }
 
 func (r *registry) RegisterHandler(h EventHandler, current bool, kind string, nss ...string) utils.Sync {
@@ -147,7 +153,15 @@ func (r *registry) getHandlers(id ObjectId) []*wrapper {
 	defer r.lock.Unlock()
 
 	var handlers []*wrapper
-	nsmap := r.types[id.GetType()]
+	nsmap := r.types[""]
+	if len(nsmap) != 0 {
+		if id.GetNamespace() != "" {
+			handlers = append(handlers, nsmap[id.GetNamespace()]...)
+		}
+		handlers = append(handlers, nsmap[""]...)
+	}
+
+	nsmap = r.types[id.GetType()]
 	if len(nsmap) == 0 {
 		return handlers
 	}

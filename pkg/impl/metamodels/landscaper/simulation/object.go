@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel"
-	"github.com/mandelsoft/engine/pkg/metamodel/landscaper"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	"github.com/mandelsoft/engine/pkg/metamodels/landscaper"
 )
 
 type Object struct {
@@ -91,7 +91,7 @@ type InternalObject[E landscaper.ExternalObject] struct {
 	Object
 	Dependencies
 
-	LockOwner metamodel.RunId `json:"lock"`
+	LockOwner common.RunId `json:"lock"`
 
 	ActualVersion string `json:"actualVersion"`
 	TargetVersion string `json:"targetVersion"`
@@ -100,7 +100,7 @@ type InternalObject[E landscaper.ExternalObject] struct {
 
 var _ landscaper.InternalObject[landscaper.ExternalObject] = (*InternalObject[landscaper.ExternalObject])(nil)
 
-func (i *InternalObject[E]) Lock(id metamodel.RunId) (bool, error) {
+func (i *InternalObject[E]) Lock(id common.RunId) (bool, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 

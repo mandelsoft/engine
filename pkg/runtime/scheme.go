@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"sigs.k8s.io/yaml"
@@ -85,6 +86,19 @@ func (s *scheme[E]) CreateObject(typ string) (E, error) {
 	o := reflect.New(t).Interface().(E)
 	o.SetType(typ)
 	return o, nil
+}
+
+func (s *scheme[E]) TypeNames() []string {
+	var names []string
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	for n := range s.types {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (s *scheme[E]) Decode(data []byte) (E, error) {

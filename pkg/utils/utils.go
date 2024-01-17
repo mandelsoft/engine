@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"cmp"
 	"reflect"
+	"slices"
 )
 
 func Optional[T any](args ...T) T {
@@ -22,4 +24,19 @@ func OptionalDefaulted[T any](def T, args ...T) T {
 		}
 	}
 	return def
+}
+
+func MapKeys[K comparable, V any](m map[K]V) []K {
+	r := []K{}
+
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
+}
+
+func OrderedMapKeys[K cmp.Ordered, V any](m map[K]V) []K {
+	r := MapKeys(m)
+	slices.Sort(r)
+	return r
 }

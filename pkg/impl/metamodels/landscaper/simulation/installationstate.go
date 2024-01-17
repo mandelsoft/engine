@@ -1,7 +1,7 @@
 package simulation
 
 import (
-	"github.com/mandelsoft/engine/pkg/metamodel/landscaper"
+	"github.com/mandelsoft/engine/pkg/metamodels/landscaper"
 )
 
 type InstallationState struct {

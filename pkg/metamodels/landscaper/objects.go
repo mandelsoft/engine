@@ -2,7 +2,7 @@ package landscaper
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 )
 
 const TYPE_DATAOBJECT = "DO"
@@ -47,7 +47,7 @@ type InternalObject[E ExternalObject] interface {
 	SetTargetVersion(string)
 	SetTargetState(E) error
 
-	Lock(metamodel.RunId) (bool, error)
+	Lock(common.RunId) (bool, error)
 	Unlock() error
 }
 
@@ -69,6 +69,6 @@ const NS_PHASE_READY = "ready"
 type Namespace interface {
 	database.Object
 
-	SetPhaseLocking(metamodel.RunId) (bool, error)
+	SetPhaseLocking(common.RunId) (bool, error)
 	SetPhaseReady() error
 }

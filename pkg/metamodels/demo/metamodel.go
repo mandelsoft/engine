@@ -14,26 +14,22 @@ const TYPE_NODE_STATE = "NodeState"
 const PHASE_UPDATING = "Updating"
 
 var externalTypes = []metamodel.ExternalTypeSpecification{
-	metamodel.ExtSpec(TYPE_NODE, TYPE_NODE_STATE, PHASE_UPDATING, metamodel.Dep(TYPE_NODE_STATE, PHASE_UPDATING)),
+	metamodel.ExtSpec(TYPE_NODE, TYPE_NODE_STATE, PHASE_UPDATING),
 }
 
 var internalTypes = []metamodel.InternalTypeSpecification{
-	metamodel.IntSpec(TYPE_NODE_STATE, PHASE_UPDATING),
+	metamodel.IntSpec(TYPE_NODE_STATE,
+		metamodel.PhaseSpec(PHASE_UPDATING, metamodel.Dep(TYPE_NODE_STATE, PHASE_UPDATING))),
 }
 
-type MetaModel interface {
-	metamodel.MetaModel
-
-	// additional methods.
-}
-
-type MetaModelBase struct {
-}
-
-func (m *MetaModelBase) GetSpecification() metamodel.MetamodelSpecification {
-	return metamodel.MetamodelSpecification{
+func MetaModelSpecification() metamodel.MetaModelSpecification {
+	return metamodel.MetaModelSpecification{
 		NamespaceType: TYPE_NAMESPACE,
 		ExternalTypes: slices.Clone(externalTypes),
 		InternalTypes: slices.Clone(internalTypes),
 	}
+}
+
+func NewMetaModel(name string) (metamodel.MetaModel, error) {
+	return metamodel.NewMetaModel(name, MetaModelSpecification())
 }
