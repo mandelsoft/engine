@@ -3,6 +3,7 @@ package metamodel
 import (
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -14,14 +15,14 @@ type MetaModel interface {
 	NamespaceType() string
 	InternalTypes() []string
 	ExternalTypes() []string
-	ElementTypes() []string
+	ElementTypes() []TypeId
 
 	Dump(w io.Writer)
 }
 
 type metaModel struct {
 	name     string
-	elements map[string]ElementType
+	elements map[TypeId]ElementType
 
 	internal  map[string]*intDef
 	external  map[string]ExternalObjectType
@@ -38,7 +39,7 @@ type intDef struct {
 func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 	m := &metaModel{
 		name:      name,
-		elements:  map[string]ElementType{},
+		elements:  map[TypeId]ElementType{},
 		internal:  map[string]*intDef{},
 		external:  map[string]ExternalObjectType{},
 		namespace: spec.NamespaceType,
@@ -51,7 +52,7 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 
 		for _, p := range i.Phases {
 			e := newElementType(i.Name, p.Name)
-			m.elements[e.Name()] = e
+			m.elements[e.id] = e
 			def.phases[p.Name] = e
 		}
 		def.intType = newInternalObjectType(i.Name, def.phases)
@@ -102,8 +103,11 @@ func (m *metaModel) ExternalTypes() []string {
 	return utils.OrderedMapKeys(m.external)
 }
 
-func (m *metaModel) ElementTypes() []string {
-	return utils.OrderedMapKeys(m.elements)
+func (m *metaModel) ElementTypes() []TypeId {
+	list := utils.MapKeys(m.elements)
+
+	slices.SortFunc(list, utils.CompareStringable[TypeId])
+	return list
 }
 
 func (m *metaModel) checkDep(d DependencyTypeSpecification) (ElementType, error) {
@@ -123,9 +127,9 @@ func (m *metaModel) Dump(w io.Writer) {
 	fmt.Fprintf(w, "External types:\n")
 	for _, n := range m.ExternalTypes() {
 		i := m.external[n]
-		fmt.Fprintf(w, "- %s  (-> %s)\n", n, i.Trigger().Name())
-		fmt.Fprintf(w, "  internal type: %s\n", i.Trigger().ObjType())
-		fmt.Fprintf(w, "  phase:         %s\n", i.Trigger().Phase())
+		fmt.Fprintf(w, "- %s  (-> %s)\n", n, i.Trigger().Id())
+		fmt.Fprintf(w, "  internal type: %s\n", i.Trigger().Id().Type())
+		fmt.Fprintf(w, "  phase:         %s\n", i.Trigger().Id().Phase())
 	}
 	fmt.Fprintf(w, "Internal types:\n")
 	for _, n := range m.InternalTypes() {
@@ -142,7 +146,7 @@ func (m *metaModel) Dump(w io.Writer) {
 		fmt.Fprintf(w, "- %s\n", n)
 		fmt.Fprintf(w, "  dependencies:\n")
 		for _, d := range i.Dependencies() {
-			fmt.Fprintf(w, "  - %s\n", d.Name())
+			fmt.Fprintf(w, "  - %s\n", d.Id())
 		}
 	}
 }

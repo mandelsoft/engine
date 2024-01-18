@@ -12,22 +12,48 @@ import (
 const DEFAULT_PHASE = common.Phase("PhaseUpdating")
 
 type Encoding = common.Encoding
+type Phase = common.Phase
+type ElementId = common.ElementId
+type ObjectId = common.ElementId
+
+type TypeId struct {
+	objtype string
+	phase   Phase
+}
+
+func NewTypeId(typ string, phase Phase) TypeId {
+	return TypeId{
+		objtype: typ,
+		phase:   phase,
+	}
+}
+
+func (o TypeId) Type() string {
+	return o.objtype
+}
+
+func (o TypeId) Phase() Phase {
+	return o.phase
+}
+
+func (o TypeId) String() string {
+	return fmt.Sprintf("%s:%s", o.objtype, o.phase)
+}
+
+type _typeidId = TypeId
 
 ///////////////////////////////////////////////////////////////////////////////
 
 type ElementType interface {
-	Name() string
+	Id() TypeId
 
-	ObjType() string
-	Phase() common.Phase
 	Dependencies() []ElementType
 
 	addDependency(d ElementType)
 }
 
 type elementType struct {
-	objtype      string
-	phase        common.Phase
+	id           TypeId
 	dependencies []ElementType
 }
 
@@ -35,21 +61,12 @@ var _ ElementType = (*elementType)(nil)
 
 func newElementType(objtype string, phase common.Phase) *elementType {
 	return &elementType{
-		objtype: objtype,
-		phase:   phase,
+		id: NewTypeId(objtype, phase),
 	}
 }
 
-func (e *elementType) Name() string {
-	return fmt.Sprintf("%s:%s", e.objtype, e.Phase())
-}
-
-func (e *elementType) ObjType() string {
-	return e.objtype
-}
-
-func (e *elementType) Phase() common.Phase {
-	return e.phase
+func (e *elementType) Id() TypeId {
+	return e.id
 }
 
 func (e *elementType) addDependency(d ElementType) {
@@ -64,7 +81,7 @@ func (e *elementType) Dependencies() []ElementType {
 }
 
 func CompareElementType(a, b ElementType) int {
-	return strings.Compare(a.Name(), b.Name())
+	return strings.Compare(a.Id().String(), b.Id().String())
 }
 
 ////////////////////////////////////////////////////////////////////////////////

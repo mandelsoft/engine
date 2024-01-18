@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"reflect"
 	"slices"
+	"strings"
 )
 
 func Optional[T any](args ...T) T {
@@ -39,4 +40,12 @@ func OrderedMapKeys[K cmp.Ordered, V any](m map[K]V) []K {
 	r := MapKeys(m)
 	slices.Sort(r)
 	return r
+}
+
+type stringable interface {
+	String() string
+}
+
+func CompareStringable[T stringable](a, b T) int {
+	return strings.Compare(a.String(), b.String())
 }

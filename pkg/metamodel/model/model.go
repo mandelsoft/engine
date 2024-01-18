@@ -5,8 +5,12 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
+
+type InternalObject = common.InternalObject
+type ExternalObject = common.ExternalObject
 
 type Model interface {
 	Database() database.Database
