@@ -24,6 +24,12 @@ func MustRegisterType[T any, P pointer[T]](s Scheme) {
 
 type RunId string
 
+type Element interface {
+	GetName() string
+	GetPhase() Phase
+	GetObject() InternalObject
+}
+
 type Request struct {
 	Element Element
 }
@@ -51,20 +57,4 @@ type RunAwareObject interface {
 type InternalObject interface {
 	Object
 	Process(Request) Status
-}
-
-type State interface {
-	GetDependencies() []Element
-	GetVersion() string
-}
-
-type Element interface {
-	GetName() string
-
-	GetPhase() Phase
-
-	GetObject() Object
-
-	GetCurrentState() State
-	GetTargetState() State
 }

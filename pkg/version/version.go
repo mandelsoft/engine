@@ -9,13 +9,16 @@ import (
 	"strings"
 )
 
+type ConfigurableNode interface {
+	Node
+	AddDep(n Node)
+}
+
 type Node interface {
 	GetType() string
 	GetName() string
 	GetVersion() string
 	GetLinks() []Node
-
-	AddDep(n Node)
 }
 
 type node struct {
@@ -25,7 +28,7 @@ type node struct {
 	links   []Node
 }
 
-var _ Node = (*node)(nil)
+var _ ConfigurableNode = (*node)(nil)
 
 func NewNode(typ, name, version string) *node {
 	return &node{typ, name, version, nil}
