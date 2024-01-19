@@ -6,11 +6,16 @@ import (
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
-type Scheme = runtime.Scheme[Object]
-type Encoding = runtime.Encoding[Object]
+type Scheme[O Object] interface {
+	runtime.Scheme[O]
+}
 
-func NewScheme() Scheme {
-	return runtime.NewYAMLScheme[Object]()
+type Encoding[O Object] interface {
+	runtime.Encoding[O]
+}
+
+func NewScheme[O Object]() Scheme[O] {
+	return runtime.NewYAMLScheme[O]()
 }
 
 type ObjectMetaAccessor interface {
@@ -32,6 +37,7 @@ type GenerationAccess interface {
 }
 
 var ErrModified = fmt.Errorf("object modified")
+var ErrNotExist = fmt.Errorf("object not found")
 
 type Generation struct {
 	Generation int64 `json:" eneration"`

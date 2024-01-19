@@ -3,6 +3,7 @@ package _default
 import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
 )
 
 type Namespace struct {
@@ -17,7 +18,7 @@ func (n *Namespace) Process(req common.Request) common.Status {
 	return common.Status{}
 }
 
-func (n *Namespace) TryLock(db database.Database, id common.RunId) (bool, error) {
+func (n *Namespace) TryLock(db objectbase.Objectbase, id common.RunId) (bool, error) {
 	var on *Namespace
 
 	err := database.ErrModified

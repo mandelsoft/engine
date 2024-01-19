@@ -13,12 +13,12 @@ import (
 var _ = Describe("meta model", func() {
 	It("validate", func() {
 
-		spec := demo.NewModelSpecification("test")
+		spec := demo.NewModelSpecification("test", nil)
 		Expect(spec.Validate()).To(Succeed())
 	})
 
 	It("evaluates", func() {
-		spec := demo.NewModelSpecification("test")
+		spec := demo.NewModelSpecification("test", nil)
 
 		buf := &bytes.Buffer{}
 		m := Must(spec.GetMetaModel())

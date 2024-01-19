@@ -14,6 +14,7 @@ type MetaModel interface {
 
 	NamespaceType() string
 	InternalTypes() []string
+	Phases(objtype string) []Phase
 	ExternalTypes() []string
 	ElementTypes() []TypeId
 
@@ -97,6 +98,14 @@ func (m *metaModel) NamespaceType() string {
 
 func (m *metaModel) InternalTypes() []string {
 	return utils.OrderedMapKeys(m.internal)
+}
+
+func (m *metaModel) Phases(objtype string) []Phase {
+	i := m.internal[objtype]
+	if i == nil {
+		return nil
+	}
+	return utils.OrderedMapKeys(i.phases)
 }
 
 func (m *metaModel) ExternalTypes() []string {

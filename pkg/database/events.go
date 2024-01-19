@@ -22,7 +22,7 @@ type HandlerRegistry interface {
 	HandlerRegistration
 	EventHandler
 
-	TriggerEvent(id ObjectId)
+	TriggerEvent(ObjectId)
 }
 
 type eventhandlers []*wrapper

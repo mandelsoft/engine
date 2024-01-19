@@ -16,18 +16,18 @@ import (
 
 type _HandlerRegistry = database.HandlerRegistrationTest
 
-type Database struct {
+type Database[O database.Object] struct {
 	lock sync.Mutex
 	_HandlerRegistry
 	registry database.HandlerRegistry
-	encoding database.Encoding
+	encoding database.Encoding[O]
 	path     string
 	fs       vfs.FileSystem
 }
 
-var _ database.Database = (*Database)(nil)
+var _ database.Database[database.Object] = (*Database[database.Object])(nil)
 
-func New(s database.Encoding, path string, fss ...vfs.FileSystem) (database.Database, error) {
+func New[O database.Object](s database.Encoding[O], path string, fss ...vfs.FileSystem) (database.Database[O], error) {
 	fs := utils.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...)
 
 	err := fs.MkdirAll(path, 0o0700)
@@ -35,20 +35,24 @@ func New(s database.Encoding, path string, fss ...vfs.FileSystem) (database.Data
 		return nil, err
 	}
 
-	d := &Database{encoding: s, path: path, fs: fs}
+	d := &Database[O]{encoding: s, path: path, fs: fs}
 	reg := database.NewHandlerRegistry(d)
 	d._HandlerRegistry, d.registry = reg.(_HandlerRegistry), reg
 	return d, nil
 }
 
-func (d *Database) ListObjects(typ, ns string) ([]database.Object, error) {
+func (d *Database[O]) SchemeTypes() database.SchemeTypes[O] {
+	return d.encoding
+}
+
+func (d *Database[O]) ListObjects(typ, ns string) ([]O, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	list, err := d.listObjectIds(typ, ns, ns == "")
 	if err != nil {
 		return nil, err
 	}
-	result := make([]database.Object, len(list), len(list))
+	result := make([]O, len(list), len(list))
 	for i, id := range list {
 		o, err := d.get(id)
 		if err != nil {
@@ -59,7 +63,7 @@ func (d *Database) ListObjects(typ, ns string) ([]database.Object, error) {
 	return result, err
 }
 
-func (d *Database) ListObjectIds(typ, ns string, atomic ...func()) ([]database.ObjectId, error) {
+func (d *Database[O]) ListObjectIds(typ, ns string, atomic ...func()) ([]database.ObjectId, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	list, err := d.listObjectIds(typ, ns, ns == "")
@@ -71,7 +75,7 @@ func (d *Database) ListObjectIds(typ, ns string, atomic ...func()) ([]database.O
 	return list, err
 }
 
-func (d *Database) listObjectIds(typ, ns string, closure bool) ([]database.ObjectId, error) {
+func (d *Database[O]) listObjectIds(typ, ns string, closure bool) ([]database.ObjectId, error) {
 	if ns == "" {
 		return d.list(typ, ns, true, closure)
 	} else {
@@ -79,7 +83,7 @@ func (d *Database) listObjectIds(typ, ns string, closure bool) ([]database.Objec
 	}
 }
 
-func (d *Database) list(typ, ns string, dir, closure bool) ([]database.ObjectId, error) {
+func (d *Database[O]) list(typ, ns string, dir, closure bool) ([]database.ObjectId, error) {
 	var result []database.ObjectId
 
 	list, err := vfs.ReadDir(d.fs, d.Path(filepath.Join(typ, ns)))
@@ -108,31 +112,36 @@ func (d *Database) list(typ, ns string, dir, closure bool) ([]database.ObjectId,
 	return result, nil
 }
 
-func (d *Database) GetObject(id database.ObjectId) (database.Object, error) {
+func (d *Database[O]) GetObject(id database.ObjectId) (O, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	return d.get(id)
 }
 
-func (d *Database) get(id database.ObjectId) (database.Object, error) {
+func (d *Database[O]) get(id database.ObjectId) (O, error) {
+	var _nil O
+
 	path := d.OPath(id)
 	data, err := vfs.ReadFile(d.fs, path)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, vfs.ErrNotExist) {
+			return _nil, database.ErrNotExist
+		}
+		return _nil, err
 	}
 	o, err := d.encoding.Decode(data)
 
 	if err != nil {
-		return nil, err
+		return _nil, err
 	}
 
 	if !database.EqualObjectId(o, id) {
-		return nil, fmt.Errorf("corrupted database: %s does not contain object with id %s", path, database.StringId(id))
+		return _nil, fmt.Errorf("corrupted database: %s does not contain object with id %s", path, database.StringId(id))
 	}
 	return o, nil
 }
 
-func (d *Database) SetObject(o database.Object) error {
+func (d *Database[O]) SetObject(o O) error {
 	path := d.OPath(o)
 
 	err := d.fs.MkdirAll(filepath.Dir(path), 0o700)
@@ -143,15 +152,15 @@ func (d *Database) SetObject(o database.Object) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if g, ok := o.(database.GenerationAccess); ok {
+	if g, ok := utils.TryCast[database.GenerationAccess](o); ok {
 		gen := g.GetGeneration()
 		old, err := d.get(o)
-		if err != nil && !errors.Is(err, vfs.ErrNotExist) {
+		if err != nil && !errors.Is(err, database.ErrNotExist) {
 			return err
 		}
-		if old != nil {
+		if err == nil {
 			var ok bool
-			og, ok := old.(database.GenerationAccess)
+			og, ok := utils.TryCast[database.GenerationAccess](old)
 			if !ok {
 				return fmt.Errorf("incosistent types for read and write")
 			}
@@ -177,10 +186,10 @@ func (d *Database) SetObject(o database.Object) error {
 	return nil
 }
 
-func (d *Database) Path(path string) string {
+func (d *Database[O]) Path(path string) string {
 	return filepath.Join(d.path, path)
 }
 
-func (d *Database) OPath(id database.ObjectId) string {
+func (d *Database[O]) OPath(id database.ObjectId) string {
 	return filepath.Join(d.path, Path(id))
 }

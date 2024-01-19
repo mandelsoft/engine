@@ -3,28 +3,27 @@ package model
 import (
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
-	"github.com/mandelsoft/engine/pkg/runtime"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
 )
 
 type InternalObject = common.InternalObject
 type ExternalObject = common.ExternalObject
 
 type Model interface {
-	Database() database.Database
+	Objectbase() objectbase.Objectbase
 	MetaModel() metamodel.MetaModel
 }
 
 type model struct {
-	db database.Database
+	db objectbase.Objectbase
 	mm metamodel.MetaModel
 }
 
 var _ Model = (*model)(nil)
 
-func NewModel(dbspec database.Specification, inst ModelSpecification) (Model, error) {
+func NewModel(db objectbase.Objectbase, inst ModelSpecification) (Model, error) {
 	err := inst.Validate()
 	if err != nil {
 		return nil, err
@@ -37,19 +36,10 @@ func NewModel(dbspec database.Specification, inst ModelSpecification) (Model, er
 		return nil, err
 	}
 
-	dbenc, err := runtime.ConvertEncoding[database.Object](inst.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	db, err := dbspec.Create(dbenc)
-	if err != nil {
-		return nil, err
-	}
 	return &model{db, mm}, nil
 }
 
-func (m *model) Database() database.Database {
+func (m *model) Objectbase() objectbase.Objectbase {
 	return m.db
 }
 

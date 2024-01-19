@@ -4,10 +4,14 @@ import (
 	"fmt"
 )
 
-type Encoding[T Object] interface {
+type SchemeTypes[T Object] interface {
 	TypeNames() []string
 	HasType(t string) bool
 	CreateObject(typ string) (T, error)
+}
+
+type Encoding[T Object] interface {
+	SchemeTypes[T]
 	Decode(data []byte) (T, error)
 }
 

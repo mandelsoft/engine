@@ -14,7 +14,7 @@ const DEFAULT_PHASE = common.Phase("PhaseUpdating")
 type Encoding = common.Encoding
 type Phase = common.Phase
 type ElementId = common.ElementId
-type ObjectId = common.ElementId
+type ObjectId = common.ObjectId
 
 type TypeId struct {
 	objtype string

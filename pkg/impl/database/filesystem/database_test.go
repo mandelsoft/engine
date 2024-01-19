@@ -16,13 +16,13 @@ import (
 )
 
 var _ = Describe("database", func() {
-	var db database.Database
+	var db database.Database[database.Object]
 	var reg database.HandlerRegistrationTest
 	var fs vfs.FileSystem
 
 	BeforeEach(func() {
 		fs = Must(TestFileSystem("testdata", false))
-		db = Must(me.New(Scheme, "testdata", fs))
+		db = Must(me.New[database.Object](Scheme, "testdata", fs))
 		reg = db.(database.HandlerRegistrationTest)
 	})
 

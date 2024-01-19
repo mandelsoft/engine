@@ -7,20 +7,20 @@ import (
 	"github.com/mandelsoft/vfs/pkg/vfs"
 )
 
-type Specification struct {
+type Specification[O database.Object] struct {
 	Path       string
 	FileSystem vfs.FileSystem
 }
 
-var _ database.Specification = (*Specification)(nil)
+var _ database.Specification[database.Object] = (*Specification[database.Object])(nil)
 
-func NewSpecification(path string, fss ...vfs.FileSystem) *Specification {
-	return &Specification{
+func NewSpecification[O database.Object](path string, fss ...vfs.FileSystem) *Specification[O] {
+	return &Specification[O]{
 		Path:       path,
 		FileSystem: utils.OptionalDefaulted(osfs.New(), fss...),
 	}
 }
 
-func (s *Specification) Create(enc database.Encoding) (database.Database, error) {
-	return New(enc, s.Path, s.FileSystem)
+func (s *Specification[O]) Create(enc database.Encoding[O]) (database.Database[O], error) {
+	return New[O](enc, s.Path, s.FileSystem)
 }

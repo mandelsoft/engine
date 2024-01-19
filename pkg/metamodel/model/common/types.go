@@ -59,3 +59,7 @@ type InternalObject interface {
 
 	Process(Request) Status
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+type Objectbase = database.Database[Object]

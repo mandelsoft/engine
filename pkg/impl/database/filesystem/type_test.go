@@ -4,7 +4,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 )
 
-var Scheme = database.NewScheme()
+var Scheme = database.NewScheme[database.Object]()
 
 const TYPE_A = "A"
 

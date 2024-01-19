@@ -1,18 +1,28 @@
 package database
 
+import (
+	"github.com/mandelsoft/engine/pkg/runtime"
+)
+
 type EventHandler interface {
-	HandleEvent(id ObjectId)
+	HandleEvent(ObjectId)
 }
 
 type ObjectLister interface {
 	ListObjectIds(typ string, ns string, atomic ...func()) ([]ObjectId, error)
 }
 
-type Database interface {
+type SchemeTypes[O Object] interface {
+	runtime.SchemeTypes[O]
+}
+
+type Database[O Object] interface {
+	SchemeTypes() SchemeTypes[O]
+
 	HandlerRegistration
 	ObjectLister
-	ListObjects(typ string, ns string) ([]Object, error)
+	ListObjects(typ string, ns string) ([]O, error)
 
-	GetObject(ObjectId) (Object, error)
-	SetObject(Object) error
+	GetObject(ObjectId) (O, error)
+	SetObject(O) error
 }

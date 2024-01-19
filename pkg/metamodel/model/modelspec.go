@@ -5,17 +5,18 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/metamodel"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
 type ModelSpecification struct {
-	Name      string
-	MetaModel metamodel.MetaModelSpecification
-	Scheme    metamodel.Encoding
+	Name       string
+	MetaModel  metamodel.MetaModelSpecification
+	Objectbase objectbase.Specification
 }
 
-func NewModelSpecification(name string, spec metamodel.MetaModelSpecification, scheme metamodel.Encoding) ModelSpecification {
-	return ModelSpecification{name, spec, scheme}
+func NewModelSpecification(name string, spec metamodel.MetaModelSpecification, specification objectbase.Specification) ModelSpecification {
+	return ModelSpecification{name, spec, specification}
 }
 
 func (s *ModelSpecification) GetMetaModel() (metamodel.MetaModel, error) {
@@ -27,7 +28,8 @@ func (s *ModelSpecification) GetMetaModel() (metamodel.MetaModel, error) {
 }
 
 func (s *ModelSpecification) Validate() error {
-	enc := s.Scheme
+	enc := s.Objectbase.SchemeTypes()
+
 	m, err := metamodel.NewMetaModel(s.Name, s.MetaModel)
 	if err != nil {
 		return err

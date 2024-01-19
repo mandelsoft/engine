@@ -9,6 +9,6 @@ type pointer[P any] interface {
 	*P
 }
 
-func MustRegisterType[T any, P pointer[T]](s Scheme) {
-	runtime.Register[T, P](s, runtime.TypeOf[T]().Name())
+func MustRegisterType[T any, O Object, P pointer[T]](s Scheme[O]) {
+	runtime.Register[T, P, O](s, runtime.TypeOf[T]().Name())
 }
