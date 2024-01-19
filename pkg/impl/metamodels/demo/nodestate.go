@@ -1,9 +1,9 @@
 package demo
 
 import (
-	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	_default "github.com/mandelsoft/engine/pkg/metamodel/model/default"
 )
 
 func init() {
@@ -11,12 +11,16 @@ func init() {
 }
 
 type NodeState struct {
-	database.GenerationObjectMeta
+	_default.InternalObject `json:",inline"`
 }
 
 var _ model.InternalObject = (*NodeState)(nil)
 
-func (n *NodeState) GetLinks() []string {
+func (n *NodeState) GetState() common.State {
+	return nil
+}
+
+func (n *NodeState) GetTargetState() common.State {
 	return nil
 }
 

@@ -93,6 +93,10 @@ func (o *ObjectRef) GetNamespace() string {
 	return o.Namespace
 }
 
+func (o *ObjectRef) String() string {
+	return fmt.Sprintf("%s/%s/%s", o.Type, o.Namespace, o.Name)
+}
+
 type ObjectMeta struct {
 	ObjectRef `json:",inline"`
 }

@@ -53,9 +53,18 @@ type RunAwareObject interface {
 	GetRunId() RunId
 }
 
+type State interface {
+	GetLinks(phase Phase) []ElementId
+}
+
 type InternalObject interface {
 	Object
-	GetLinks() []string
+	GetState() State
+	GetTargetState() State
+
+	ClearLock(Phase)
+	GetLock(Phase) RunId
+	TryLock(Phase, RunId) bool
 
 	Process(Request) Status
 }

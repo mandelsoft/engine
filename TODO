@@ -1,0 +1,2 @@
+- Validation of namespace names (// leads to strange errors)
+- Setup fails for inconsistent object base (cleanup /self healing ???)

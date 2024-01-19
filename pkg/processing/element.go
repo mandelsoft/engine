@@ -8,6 +8,9 @@ type ElementId = common.ElementId
 
 type Element interface {
 	common.Element
+
+	GetCurrentState() State
+	GetTargetState() State
 }
 
 type element struct {

@@ -5,6 +5,7 @@ import (
 )
 
 type State interface {
+	AddLink(ElementId)
 	GetLinks() []ElementId
 	GetVersion() string
 

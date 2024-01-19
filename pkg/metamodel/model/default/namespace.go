@@ -1,6 +1,8 @@
 package _default
 
 import (
+	"fmt"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
@@ -14,8 +16,15 @@ type Namespace struct {
 
 var _ common.Object = (*Namespace)(nil)
 
-func (n *Namespace) Process(req common.Request) common.Status {
-	return common.Status{}
+func (n *Namespace) GetNamespaceName() string {
+	if n.GetNamespace() == "" {
+		return n.GetName()
+	}
+	return fmt.Sprintf("%s/%s", n.GetNamespace(), n.GetName())
+}
+
+func (n *Namespace) GetLock() common.RunId {
+	return n.RunLock
 }
 
 func (n *Namespace) TryLock(db objectbase.Objectbase, id common.RunId) (bool, error) {

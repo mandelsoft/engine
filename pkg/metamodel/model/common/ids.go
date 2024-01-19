@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+
+	"github.com/mandelsoft/engine/pkg/database"
 )
 
 type ObjectId struct {
@@ -47,11 +49,15 @@ func NewElementId(typ, namespace, name string, phase Phase) ElementId {
 	return ElementId{
 		_objectId: ObjectId{
 			objtype:   typ,
-			objname:   name,
 			namespace: namespace,
+			objname:   name,
 		},
 		phase: phase,
 	}
+}
+
+func NewElementIdForPhase(oid database.ObjectId, ph Phase) ElementId {
+	return NewElementId(oid.GetType(), oid.GetNamespace(), oid.GetName(), ph)
 }
 
 func (e ElementId) Phase() Phase {
