@@ -15,6 +15,42 @@ type Encoding[T Object] interface {
 	Decode(data []byte) (T, error)
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+type castingTypes[D, S Object] struct {
+	types SchemeTypes[S]
+}
+
+var _ SchemeTypes[Object] = (*castingTypes[Object, Object])(nil)
+
+func (c *castingTypes[D, S]) TypeNames() []string {
+	return c.types.TypeNames()
+}
+
+func (c *castingTypes[D, S]) HasType(typ string) bool {
+	return c.types.HasType(typ)
+}
+
+func (c *castingTypes[D, S]) CreateObject(typ string) (D, error) {
+	var _nil D
+
+	o, err := c.types.CreateObject(typ)
+	if err != nil {
+		return _nil, err
+	}
+	var i interface{} = o
+	return i.(D), nil
+}
+
+func ConvertTypes[D, S Object](src SchemeTypes[S]) (SchemeTypes[D], error) {
+	if !TypeOf[S]().AssignableTo(TypeOf[D]()) {
+		return nil, fmt.Errorf("type %s is not assignable to %s", TypeOf[S](), TypeOf[D]())
+	}
+	return &castingTypes[D, S]{src}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type castingConverter[D, S Object] struct {
 	encoding Encoding[S]
 }
