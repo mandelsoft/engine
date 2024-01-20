@@ -7,7 +7,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 )
 
-func Modify[O Object, R any](ob Objectbase, o O, mod func(O) (R, bool)) (R, error) {
+func Modify[O Object, R any](ob Objectbase, obj *O, mod func(O) (R, bool)) (R, error) {
+	o := *obj
 	for {
 		r, modified := mod(o)
 		if modified {
@@ -27,6 +28,13 @@ func Modify[O Object, R any](ob Objectbase, o O, mod func(O) (R, bool)) (R, erro
 				return r, err
 			}
 		}
+		*obj = o
 		return r, nil
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func SetObjectName(ns, n string) Initializer {
+	return database.SetObjectName[Object](ns, n)
 }

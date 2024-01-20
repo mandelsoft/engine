@@ -4,21 +4,21 @@ import (
 	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/metamodel"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
+	"github.com/mandelsoft/engine/pkg/runtime"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
-
-type InternalObject = common.InternalObject
-type ExternalObject = common.ExternalObject
 
 type Model interface {
 	Objectbase() objectbase.Objectbase
 	MetaModel() metamodel.MetaModel
+	SchemeTypes() objectbase.SchemeTypes
 }
 
 type model struct {
-	db objectbase.Objectbase
-	mm metamodel.MetaModel
+	db    objectbase.Objectbase
+	mm    metamodel.MetaModel
+	types objectbase.SchemeTypes
 }
 
 var _ Model = (*model)(nil)
@@ -36,7 +36,11 @@ func NewModel(db objectbase.Objectbase, inst ModelSpecification) (Model, error) 
 		return nil, err
 	}
 
-	return &model{db, mm}, nil
+	return &model{db, mm, inst.Objectbase.SchemeTypes()}, nil
+}
+
+func (m *model) SchemeTypes() objectbase.SchemeTypes {
+	return m.types
 }
 
 func (m *model) Objectbase() objectbase.Objectbase {
@@ -45,4 +49,14 @@ func (m *model) Objectbase() objectbase.Objectbase {
 
 func (m *model) MetaModel() metamodel.MetaModel {
 	return m.mm
+}
+
+type pointer[P any] interface {
+	Object
+	*P
+}
+
+func MustRegisterType[T any, P pointer[T]](s Scheme) {
+	var i any = s
+	runtime.Register[T, P](i.(runtime.Scheme[Object]), utils.TypeOf[T]().Name()) // Goland
 }

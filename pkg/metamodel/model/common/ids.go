@@ -20,6 +20,14 @@ func NewObjectId(typ, namespace, name string) ObjectId {
 	}
 }
 
+func NewObjectIdFor(o Object) ObjectId {
+	return ObjectId{
+		objtype:   o.GetType(),
+		objname:   o.GetName(),
+		namespace: o.GetNamespace(),
+	}
+}
+
 func (o ObjectId) Type() string {
 	return o.objtype
 }
@@ -62,6 +70,10 @@ func NewElementIdForPhase(oid database.ObjectId, ph Phase) ElementId {
 
 func (e ElementId) Phase() Phase {
 	return e.phase
+}
+
+func (e ElementId) ObjectId() ObjectId {
+	return e._objectId
 }
 
 func (e ElementId) String() string {

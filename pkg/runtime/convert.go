@@ -2,20 +2,25 @@ package runtime
 
 import (
 	"fmt"
+
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
-type SchemeTypes[T Object] interface {
-	TypeNames() []string
-	HasType(t string) bool
-	CreateObject(typ string) (T, error)
-}
-
-type Encoding[T Object] interface {
-	SchemeTypes[T]
-	Decode(data []byte) (T, error)
-}
-
 ////////////////////////////////////////////////////////////////////////////////
+
+func converFunc[D, S Object](f Initializer[D]) Initializer[S] {
+	return func(o S) {
+		f(utils.Cast[D](o))
+	}
+}
+
+func convertFuncs[D, S Object](fs ...Initializer[D]) []Initializer[S] {
+	var r []Initializer[S]
+	for _, f := range fs {
+		r = append(r, converFunc[D, S](f))
+	}
+	return r
+}
 
 type castingTypes[D, S Object] struct {
 	types SchemeTypes[S]
@@ -31,20 +36,19 @@ func (c *castingTypes[D, S]) HasType(typ string) bool {
 	return c.types.HasType(typ)
 }
 
-func (c *castingTypes[D, S]) CreateObject(typ string) (D, error) {
+func (c *castingTypes[D, S]) CreateObject(typ string, init ...Initializer[D]) (D, error) {
 	var _nil D
 
-	o, err := c.types.CreateObject(typ)
+	o, err := c.types.CreateObject(typ, convertFuncs[D, S](init...)...)
 	if err != nil {
 		return _nil, err
 	}
-	var i interface{} = o
-	return i.(D), nil
+	return utils.Cast[D](o), nil
 }
 
 func ConvertTypes[D, S Object](src SchemeTypes[S]) (SchemeTypes[D], error) {
-	if !TypeOf[S]().AssignableTo(TypeOf[D]()) {
-		return nil, fmt.Errorf("type %s is not assignable to %s", TypeOf[S](), TypeOf[D]())
+	if !utils.TypeOf[S]().AssignableTo(utils.TypeOf[D]()) {
+		return nil, fmt.Errorf("type %s is not assignable to %s", utils.TypeOf[S](), utils.TypeOf[D]())
 	}
 	return &castingTypes[D, S]{src}, nil
 }
@@ -65,15 +69,14 @@ func (c *castingConverter[D, S]) HasType(typ string) bool {
 	return c.encoding.HasType(typ)
 }
 
-func (c *castingConverter[D, S]) CreateObject(typ string) (D, error) {
+func (c *castingConverter[D, S]) CreateObject(typ string, init ...Initializer[D]) (D, error) {
 	var _nil D
 
-	o, err := c.encoding.CreateObject(typ)
+	o, err := c.encoding.CreateObject(typ, convertFuncs[D, S](init...)...)
 	if err != nil {
 		return _nil, err
 	}
-	var i interface{} = o
-	return i.(D), nil
+	return utils.Cast[D](o), nil
 }
 
 func (c *castingConverter[D, S]) Decode(data []byte) (D, error) {
@@ -88,8 +91,8 @@ func (c *castingConverter[D, S]) Decode(data []byte) (D, error) {
 }
 
 func ConvertEncoding[D, S Object](src Encoding[S]) (Encoding[D], error) {
-	if !TypeOf[S]().AssignableTo(TypeOf[D]()) {
-		return nil, fmt.Errorf("type %s is not assignable to %s", TypeOf[S](), TypeOf[D]())
+	if !utils.TypeOf[S]().AssignableTo(utils.TypeOf[D]()) {
+		return nil, fmt.Errorf("type %s is not assignable to %s", utils.TypeOf[S](), utils.TypeOf[D]())
 	}
 	return &castingConverter[D, S]{src}, nil
 }

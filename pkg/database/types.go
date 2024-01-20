@@ -25,6 +25,8 @@ type ObjectMetaAccessor interface {
 
 type Object interface {
 	ObjectMetaAccessor
+	SetName(string)
+	SetNamespace(string)
 }
 
 // GenerationAccess is an optional Object interface
@@ -93,6 +95,14 @@ func (o *ObjectRef) GetNamespace() string {
 	return o.Namespace
 }
 
+func (o *ObjectRef) SetName(name string) {
+	o.Name = name
+}
+
+func (o *ObjectRef) SetNamespace(name string) {
+	o.Namespace = name
+}
+
 func (o *ObjectRef) String() string {
 	return fmt.Sprintf("%s/%s/%s", o.Type, o.Namespace, o.Name)
 }
@@ -102,7 +112,7 @@ type ObjectMeta struct {
 }
 
 type GenerationObjectMeta struct {
-	ObjectRef `json:",inline"`
+	ObjectMeta `json:",inline"`
 	Generation
 }
 
@@ -113,7 +123,7 @@ func NewObjectMeta(typ, ns, name string) ObjectMeta {
 }
 
 func NewGenerationObjectMeta(typ, ns, name string) GenerationObjectMeta {
-	return GenerationObjectMeta{ObjectRef: NewObjectRef(typ, ns, name)}
+	return GenerationObjectMeta{ObjectMeta: NewObjectMeta(typ, ns, name)}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

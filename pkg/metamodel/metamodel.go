@@ -18,6 +18,10 @@ type MetaModel interface {
 	ExternalTypes() []string
 	ElementTypes() []TypeId
 
+	GetExternalType(name string) ExternalObjectType
+	GetInternalType(name string) InternalObjectType
+	GetPhaseFor(ext string) *TypeId
+
 	Dump(w io.Writer)
 }
 
@@ -117,6 +121,26 @@ func (m *metaModel) ElementTypes() []TypeId {
 
 	slices.SortFunc(list, utils.CompareStringable[TypeId])
 	return list
+}
+
+func (m *metaModel) GetExternalType(name string) ExternalObjectType {
+	return m.external[name]
+}
+
+func (m *metaModel) GetInternalType(name string) InternalObjectType {
+	d := m.internal[name]
+	if d == nil {
+		return nil
+	}
+	return d.intType
+}
+
+func (m *metaModel) GetPhaseFor(ext string) *TypeId {
+	i := m.external[ext]
+	if i == nil {
+		return nil
+	}
+	return utils.Pointer(i.Trigger().Id())
 }
 
 func (m *metaModel) checkDep(d DependencyTypeSpecification) (ElementType, error) {

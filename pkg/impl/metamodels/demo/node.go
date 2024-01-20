@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	common.MustRegisterType[Node](scheme)
+	model.MustRegisterType[Node](scheme)
 }
 
 type Node struct {
@@ -16,6 +16,10 @@ type Node struct {
 
 var _ model.ExternalObject = (*Node)(nil)
 
-func (n *Node) Process(req common.Request) common.Status {
-	return common.Status{}
+func (n *Node) GetState() model.State {
+	return nil
+}
+
+func (n *Node) Process(req model.Request) common.Status {
+	return model.Status{}
 }

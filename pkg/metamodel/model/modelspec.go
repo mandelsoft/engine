@@ -6,7 +6,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
-	"github.com/mandelsoft/engine/pkg/runtime"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type ModelSpecification struct {
@@ -40,7 +40,7 @@ func (s *ModelSpecification) Validate() error {
 			return fmt.Errorf("error creating external object %q: %w", n, err)
 		}
 		if _, ok := o.(common.ExternalObject); !ok {
-			return fmt.Errorf("external object %q must support model interface for external objects %s", n, runtime.TypeOf[common.ExternalObject]())
+			return fmt.Errorf("external object %q must support model interface for external objects %s", n, utils.TypeOf[common.ExternalObject]())
 		}
 	}
 	for _, n := range m.InternalTypes() {
@@ -49,7 +49,7 @@ func (s *ModelSpecification) Validate() error {
 			return fmt.Errorf("error creating internal object %q: %w", n, err)
 		}
 		if _, ok := o.(common.InternalObject); !ok {
-			return fmt.Errorf("internal object %q must support model interface for internal objects %s", n, runtime.TypeOf[common.InternalObject]())
+			return fmt.Errorf("internal object %q must support model interface for internal objects %s", n, utils.TypeOf[common.InternalObject]())
 		}
 	}
 

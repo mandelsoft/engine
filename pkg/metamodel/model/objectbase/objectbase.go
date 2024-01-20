@@ -3,6 +3,7 @@ package objectbase
 import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
 type ObjectId = common.ObjectId
@@ -14,12 +15,11 @@ type Scheme = common.Scheme
 
 type Encoding = common.Encoding
 type Objectbase = common.Objectbase
-
-type SchemeTypes = database.SchemeTypes[Object]
+type SchemeTypes = common.SchemeTypes
+type Initializer = runtime.Initializer[Object]
 
 func NewScheme() Scheme {
-	var s any = database.NewScheme[Object]() // Goland
-	return s.(Scheme)
+	return database.NewScheme[Object]()
 }
 
 type pointer[P any] interface {

@@ -15,7 +15,7 @@ type Element interface {
 
 type element struct {
 	id     ElementId
-	object common.InternalObject
+	object *common.InternalObject
 
 	runid common.RunId
 
@@ -25,15 +25,25 @@ type element struct {
 
 var _ Element = (*element)(nil)
 
-func NewElement(phase common.Phase, obj common.InternalObject) *element {
-	return &element{
-		id:     common.NewElementId(obj.GetType(), obj.GetNamespace(), obj.GetName(), phase),
+func NewElement(phase common.Phase, obj *common.InternalObject) *element {
+	e := &element{
+		id:     common.NewElementId((*obj).GetType(), (*obj).GetNamespace(), (*obj).GetName(), phase),
 		object: obj,
+		runid:  (*obj).GetLock(phase),
 	}
+	e.current = NewState(e, ObjectState)
+
+	if (*obj).GetLock(phase) != "" {
+		t := (*obj).GetTargetState(phase)
+		if t != nil {
+			e.target = NewState(e, ObjectTargetState)
+		}
+	}
+	return e
 }
 
 func (e *element) GetNamespace() string {
-	return e.object.GetNamespace()
+	return (*e.object).GetNamespace()
 }
 
 func (e *element) Id() ElementId {
@@ -44,7 +54,7 @@ func (e element) GetPhase() common.Phase {
 	return e.id.Phase()
 }
 
-func (e *element) GetObject() common.InternalObject {
+func (e *element) GetObject() *common.InternalObject {
 	return e.object
 }
 

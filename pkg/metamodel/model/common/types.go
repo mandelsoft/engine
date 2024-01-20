@@ -6,27 +6,19 @@ import (
 )
 
 type Phase string
-type Encoding = runtime.Encoding[Object]
-type Scheme = runtime.Scheme[Object]
+type Encoding = database.Encoding[Object]
+type SchemeTypes = database.SchemeTypes[Object]
+type Scheme = database.Scheme[Object]
 
 func NewScheme() Scheme {
-	return runtime.NewYAMLScheme[Object]()
-}
-
-type pointer[P any] interface {
-	Object
-	*P
-}
-
-func MustRegisterType[T any, P pointer[T]](s Scheme) {
-	runtime.Register[T, P](s, runtime.TypeOf[T]().Name())
+	return runtime.NewYAMLScheme[Object]().(Scheme) // Goland
 }
 
 type RunId string
 
 type Element interface {
 	Id() ElementId
-	GetObject() InternalObject
+	GetObject() *InternalObject
 }
 
 type Request struct {
@@ -45,6 +37,8 @@ type Object interface {
 
 type ExternalObject interface {
 	Object
+
+	GetState() State
 }
 
 type RunAwareObject interface {
@@ -54,13 +48,15 @@ type RunAwareObject interface {
 }
 
 type State interface {
-	GetLinks(phase Phase) []ElementId
+	GetLinks() []ElementId
+	GetVersion() string
 }
 
 type InternalObject interface {
 	Object
-	GetState() State
-	GetTargetState() State
+
+	GetState(phase Phase) State
+	GetTargetState(phase Phase) State
 
 	ClearLock(Phase)
 	GetLock(Phase) RunId

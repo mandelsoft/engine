@@ -3,22 +3,37 @@ package demo_test
 import (
 	"bytes"
 
+	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodels/demo"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo"
+	me "github.com/mandelsoft/engine/pkg/impl/metamodels/demo"
 )
 
 var _ = Describe("meta model", func() {
 	It("validate", func() {
 
-		spec := demo.NewModelSpecification("test", nil)
+		spec := me.NewModelSpecification("test", nil)
 		Expect(spec.Validate()).To(Succeed())
 	})
 
+	It("initializes", func() {
+
+		spec := me.NewModelSpecification("test", nil)
+		types := spec.Objectbase.SchemeTypes()
+
+		o := Must(types.CreateObject(demo.TYPE_NODE, objectbase.SetObjectName("namespace", "test")))
+
+		Expect(o.GetName()).To(Equal("test"))
+		Expect(o.GetNamespace()).To(Equal("namespace"))
+		Expect(o.GetType()).To(Equal(demo.TYPE_NODE))
+
+	})
+
 	It("evaluates", func() {
-		spec := demo.NewModelSpecification("test", nil)
+		spec := me.NewModelSpecification("test", nil)
 
 		buf := &bytes.Buffer{}
 		m := Must(spec.GetMetaModel())

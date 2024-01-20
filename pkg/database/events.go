@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -182,7 +181,7 @@ func assure[T any, K comparable](m map[K]T, k K) T {
 	e := m[k]
 	if reflect.ValueOf(e).IsZero() {
 		var v reflect.Value
-		t := runtime.TypeOf[T]()
+		t := utils.TypeOf[T]()
 		if t.Kind() == reflect.Map {
 			v = reflect.MakeMap(t)
 		} else {
