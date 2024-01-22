@@ -1,4 +1,4 @@
-package hashmapped
+package wrapped
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
@@ -6,6 +6,10 @@ import (
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/wrapper"
 )
+
+func NewTypeScheme[W wrapper.Object[S], S database.Object](db database.SchemeTypes[S]) database.TypeScheme[W] {
+	return wrapper.NewTypeScheme[W, S](db)
+}
 
 type IdMapping[S database.Object] struct{}
 

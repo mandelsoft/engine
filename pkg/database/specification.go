@@ -1,5 +1,5 @@
 package database
 
 type Specification[O Object] interface {
-	Create(enc Encoding[O]) (Database[O], error)
+	Create(enc SchemeTypes[O]) (Database[O], error)
 }

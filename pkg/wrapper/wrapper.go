@@ -17,8 +17,13 @@ type Object[S database.Object] interface {
 
 type ObjectId = database.ObjectId
 
+type Wrapped[O database.Object] interface {
+	GetDatabase() database.Database[O]
+}
+
 type Database[O database.Object, W Object[S], S database.Object] interface {
 	database.Database[O]
+	Wrapped[S]
 }
 
 type IdMapping[S ObjectId] interface {
@@ -72,6 +77,10 @@ func (h *handler[O, W, S]) HandleEvent(sid database.ObjectId) {
 	if id.GetName() != "" {
 		h.db.events.TriggerEvent(id)
 	}
+}
+
+func (w *wrappingDatabase[O, W, S]) GetDatabase() database.Database[S] {
+	return w.db
 }
 
 func (w *wrappingDatabase[O, W, S]) SchemeTypes() database.SchemeTypes[O] {

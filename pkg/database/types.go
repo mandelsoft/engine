@@ -10,6 +10,10 @@ type Scheme[O Object] interface {
 	runtime.Scheme[O]
 }
 
+type TypeScheme[O Object] interface {
+	runtime.TypeScheme[O]
+}
+
 type Encoding[O Object] interface {
 	runtime.Encoding[O]
 }

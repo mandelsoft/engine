@@ -1,6 +1,8 @@
 package filesystem
 
 import (
+	"fmt"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/vfs/pkg/osfs"
@@ -21,6 +23,10 @@ func NewSpecification[O database.Object](path string, fss ...vfs.FileSystem) *Sp
 	}
 }
 
-func (s *Specification[O]) Create(enc database.Encoding[O]) (database.Database[O], error) {
-	return New[O](enc, s.Path, s.FileSystem)
+func (s *Specification[O]) Create(enc database.SchemeTypes[O]) (database.Database[O], error) {
+	if e, ok := enc.(database.Encoding[O]); !ok {
+		return nil, fmt.Errorf("encoding interface required for scheme types")
+	} else {
+		return New[O](e, s.Path, s.FileSystem)
+	}
 }

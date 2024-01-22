@@ -31,8 +31,8 @@ func (a *action) Command(p pool.Pool, context logging.Context, command pool.Comm
 	}
 }
 
-func EncodeElement(cmd string, id ElementId) string {
-	return fmt.Sprintf("%s:%s", cmd, id.String())
+func EncodeElement(cmd string, id ElementId) pool.Command {
+	return pool.Command(fmt.Sprintf("%s:%s", cmd, id.String()))
 }
 
 func DecodeElement(c pool.Command) (string, *ElementId) {

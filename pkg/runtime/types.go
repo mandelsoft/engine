@@ -73,11 +73,12 @@ func (s *types[E]) CreateObject(typ string, init ...Initializer[E]) (E, error) {
 		return _nil, fmt.Errorf("unknown object type %q", typ)
 	}
 
-	o := reflect.New(t).Interface().(E)
-	o.SetType(typ)
+	v := reflect.New(t)
+	o := v.Interface().(E)
 	for _, i := range init {
 		i(o)
 	}
+	o.SetType(typ)
 	return o, nil
 }
 

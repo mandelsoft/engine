@@ -18,7 +18,7 @@ type RunId string
 
 type Element interface {
 	Id() ElementId
-	GetObject() *InternalObject
+	GetObject() InternalObject
 }
 
 type Request struct {
@@ -58,11 +58,12 @@ type InternalObject interface {
 	GetState(phase Phase) State
 	GetTargetState(phase Phase) State
 
-	ClearLock(Phase)
 	GetLock(Phase) RunId
-	TryLock(Phase, RunId) bool
 
-	Process(Request) Status
+	ClearLock(Objectbase, Phase, RunId) (bool, error)
+	TryLock(Objectbase, Phase, RunId) (bool, error)
+
+	Process(Objectbase, Request) Status
 }
 
 ////////////////////////////////////////////////////////////////////////////////

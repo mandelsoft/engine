@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
@@ -15,17 +16,19 @@ import (
 	"github.com/mandelsoft/logging"
 )
 
+const CMD_EXT = "ext"
+
 type NamespaceInfo struct {
 	namespace common.Namespace
 	elements  map[ElementId]Element
-	internal  map[common.ObjectId]*common.InternalObject
+	internal  map[common.ObjectId]common.InternalObject
 }
 
 func NewNamespaceInfo(ns common.Namespace) *NamespaceInfo {
 	return &NamespaceInfo{
 		namespace: ns,
 		elements:  map[ElementId]Element{},
-		internal:  map[common.ObjectId]*common.InternalObject{},
+		internal:  map[common.ObjectId]common.InternalObject{},
 	}
 }
 
@@ -34,6 +37,8 @@ func (ni *NamespaceInfo) GetNamespaceName() string {
 }
 
 type Processor struct {
+	lock sync.Mutex
+
 	ctx     context.Context
 	logging logging.Context
 	m       model.Model
@@ -93,37 +98,25 @@ func (p *Processor) setupElements() error {
 		for _, _o := range objs {
 			o := _o.(model.InternalObject)
 			ons := o.GetNamespace()
-			ns := p.namespaces[ons]
-			if ns == nil {
-				b, err := p.ob.GetObject(database.NewObjectId(p.mm.NamespaceType(), ParentNamespace(ons), NamespaceName(ons)))
-				if err != nil {
-					return err
-				}
-				ns = NewNamespaceInfo(b.(common.Namespace))
-				p.namespaces[o.GetNamespace()] = ns
+			ns, err := p.assureNamespace(ons, true)
+			if err != nil {
+				return err
 			}
-			ns.internal[common.NewObjectIdFor(o)] = &o
+			ns.internal[common.NewObjectIdFor(o)] = o
 			curlock := ns.namespace.GetLock()
 
 			if curlock != "" {
 				// reset lock for all partially locked objects belonging to the locked run id.
-				_, err := objectbase.Modify(p.ob, &o, func(o common.InternalObject) (bool, bool) {
-					mod := false
-					for _, ph := range p.mm.Phases(o.GetType()) {
-						if o.GetLock(ph) == curlock {
-							o.ClearLock(ph)
-							mod = true
-						}
+				for _, ph := range p.mm.Phases(o.GetType()) {
+					_, err := o.ClearLock(p.ob, ph, curlock)
+					if err != nil {
+						return err
 					}
-					return mod, mod
-				})
-				if err != nil {
-					return err
 				}
 			}
 
 			for _, ph := range p.mm.Phases(o.GetType()) {
-				e := NewElement(ph, &o)
+				e := NewElement(ph, o)
 				ns.elements[e.id] = e
 			}
 		}
@@ -144,23 +137,68 @@ func (p *Processor) setupElements() error {
 	return nil
 }
 
-func (p *Processor) GetInternalObjectFor(e model.ExternalObject) (*metamodel.TypeId, *model.InternalObject, Element) {
+func (p *Processor) assureNamespace(name string, create bool) (*NamespaceInfo, error) {
+	ns := p.namespaces[name]
+	if ns == nil {
+		nns, nn := NamespaceId(name)
+		b, err := p.ob.GetObject(database.NewObjectId(p.mm.NamespaceType(), nns, nn))
+		if err != nil {
+			if !errors.Is(err, database.ErrNotExist) || !create {
+				return nil, err
+			}
+			b, err = p.ob.SchemeTypes().CreateObject(p.mm.NamespaceType(), objectbase.SetObjectName(nns, nn))
+			if err != nil {
+				return nil, err
+			}
+		}
+		ns = NewNamespaceInfo(b.(common.Namespace))
+		p.namespaces[name] = ns
+	}
+	return ns, nil
+}
+
+func (p *Processor) AssureElementObjectFor(e model.ExternalObject) (Element, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	t := p.mm.GetPhaseFor(e.GetType())
 	if t == nil {
-		return nil, nil, nil
+		return nil, fmt.Errorf("external object type %q not configured", e.GetType())
 	}
 
 	id := common.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), t.Phase())
 
-	ns := p.namespaces[id.Namespace()]
-	if ns == nil {
-		return t, nil, nil
+	ns, err := p.assureNamespace(id.Namespace(), true)
+	if err != nil {
+		return nil, err
 	}
+
 	elem := ns.elements[id]
 	if elem != nil {
-		return t, elem.GetObject(), elem
+		return elem, nil
 	}
-	return t, ns.internal[id.ObjectId()], nil
+
+	_i, err := p.ob.SchemeTypes().CreateObject(t.Type(), objectbase.SetObjectName(id.Namespace(), id.Name()))
+	if err != nil {
+		return nil, err
+	}
+
+	i := _i.(model.InternalObject)
+	elem = NewElement(t.Phase(), i)
+
+	ns.elements[id] = elem
+	ns.internal[common.NewObjectIdFor(i)] = i
+	return elem, nil
+}
+
+func (p *Processor) EnqueueKey(cmd string, id ElementId) {
+	k := EncodeElement("ext", id)
+	p.pool.EnqueueCommand(k)
+}
+
+func (p *Processor) Enqueue(cmd string, e Element) {
+	k := EncodeElement("ext", e.Id())
+	p.pool.EnqueueCommand(k)
 }
 
 func (p *Processor) processExternalObject(lctx logging.Context, id database.ObjectId) pool.Status {
@@ -174,17 +212,12 @@ func (p *Processor) processExternalObject(lctx logging.Context, id database.Obje
 	}
 	o := _o.(model.ExternalObject)
 
-	if t, i, _ := p.GetInternalObjectFor(o); i != nil {
-		// add new internal object
-		_i, err := p.m.SchemeTypes().CreateObject(t.Type())
-		if err != nil {
-			return pool.StatusFailed(err)
-		}
-		_ = _i
+	elem, err := p.AssureElementObjectFor(o)
+	if err != nil {
+		return pool.StatusFailed(err)
 	}
-	if a, ok := o.(common.RunAwareObject); ok {
-		_ = a
-	}
+
+	p.Enqueue(CMD_EXT, elem)
 	return pool.StatusCompleted(nil)
 }
 

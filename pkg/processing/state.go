@@ -48,5 +48,9 @@ func (s *state) GetLinks() []ElementId {
 }
 
 func (s *state) GetVersion() string {
-	return s.state(*s.element.GetObject(), s.element.Id().Phase()).GetVersion()
+	c := s.state(s.element.GetObject(), s.element.Id().Phase())
+	if c == nil {
+		return ""
+	}
+	return c.GetVersion()
 }
