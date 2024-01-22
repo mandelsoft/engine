@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/google/uuid"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 )
 
@@ -14,3 +15,7 @@ type Phase = common.Phase
 type State = common.State
 type Request = common.Request
 type Status = common.Status
+
+func NewRunId() RunId {
+	return RunId(uuid.New().String())
+}

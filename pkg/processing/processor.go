@@ -18,24 +18,6 @@ import (
 
 const CMD_EXT = "ext"
 
-type NamespaceInfo struct {
-	namespace common.Namespace
-	elements  map[ElementId]Element
-	internal  map[common.ObjectId]common.InternalObject
-}
-
-func NewNamespaceInfo(ns common.Namespace) *NamespaceInfo {
-	return &NamespaceInfo{
-		namespace: ns,
-		elements:  map[ElementId]Element{},
-		internal:  map[common.ObjectId]common.InternalObject{},
-	}
-}
-
-func (ni *NamespaceInfo) GetNamespaceName() string {
-	return ni.namespace.GetNamespaceName()
-}
-
 type Processor struct {
 	lock sync.Mutex
 
@@ -62,6 +44,34 @@ func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, work
 
 		namespaces: map[string]*NamespaceInfo{},
 	}, nil
+}
+
+func (p *Processor) GetNamespace(name string) *NamespaceInfo {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	n, _ := p.assureNamespace(name, false)
+	return n
+
+}
+func (p *Processor) assureNamespace(name string, create bool) (*NamespaceInfo, error) {
+	ns := p.namespaces[name]
+	if ns == nil {
+		nns, nn := NamespaceId(name)
+		b, err := p.ob.GetObject(database.NewObjectId(p.mm.NamespaceType(), nns, nn))
+		if err != nil {
+			if !errors.Is(err, database.ErrNotExist) || !create {
+				return nil, err
+			}
+			b, err = p.ob.SchemeTypes().CreateObject(p.mm.NamespaceType(), objectbase.SetObjectName(nns, nn))
+			if err != nil {
+				return nil, err
+			}
+		}
+		ns = NewNamespaceInfo(b.(common.Namespace))
+		p.namespaces[name] = ns
+	}
+	return ns, nil
 }
 
 func (p *Processor) Start() error {
@@ -137,26 +147,6 @@ func (p *Processor) setupElements() error {
 	return nil
 }
 
-func (p *Processor) assureNamespace(name string, create bool) (*NamespaceInfo, error) {
-	ns := p.namespaces[name]
-	if ns == nil {
-		nns, nn := NamespaceId(name)
-		b, err := p.ob.GetObject(database.NewObjectId(p.mm.NamespaceType(), nns, nn))
-		if err != nil {
-			if !errors.Is(err, database.ErrNotExist) || !create {
-				return nil, err
-			}
-			b, err = p.ob.SchemeTypes().CreateObject(p.mm.NamespaceType(), objectbase.SetObjectName(nns, nn))
-			if err != nil {
-				return nil, err
-			}
-		}
-		ns = NewNamespaceInfo(b.(common.Namespace))
-		p.namespaces[name] = ns
-	}
-	return ns, nil
-}
-
 func (p *Processor) AssureElementObjectFor(e model.ExternalObject) (Element, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -201,6 +191,23 @@ func (p *Processor) Enqueue(cmd string, e Element) {
 	p.pool.EnqueueCommand(k)
 }
 
+func (p *Processor) EnqueueNamespace(name string) {
+	p.pool.EnqueueCommand(pool.Command(name))
+}
+
+func (p *Processor) GetElement(id ElementId) Element {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	ns := p.namespaces[id.Namespace()]
+	if ns == nil {
+		return nil
+	}
+	return ns.elements[id]
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 func (p *Processor) processExternalObject(lctx logging.Context, id database.ObjectId) pool.Status {
 
 	_o, err := p.ob.GetObject(id)
@@ -218,9 +225,5 @@ func (p *Processor) processExternalObject(lctx logging.Context, id database.Obje
 	}
 
 	p.Enqueue(CMD_EXT, elem)
-	return pool.StatusCompleted(nil)
-}
-
-func (p *Processor) processElement(lctx logging.Context, cmd string, id ElementId) pool.Status {
 	return pool.StatusCompleted(nil)
 }

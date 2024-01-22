@@ -67,7 +67,7 @@ func (a *action) Command(p me.Pool, log logging.Context, command me.Command) me.
 					if n > 0 {
 						return me.StatusCompleted().RescheduleAfter(time.Second * time.Duration(n))
 					} else {
-						return me.StatusFailed()
+						return me.StatusRedo()
 					}
 				}
 			} else {

@@ -48,6 +48,32 @@ type _objectId = ObjectId
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type TypeId struct {
+	objtype string
+	phase   Phase
+}
+
+func NewTypeId(typ string, phase Phase) TypeId {
+	return TypeId{
+		objtype: typ,
+		phase:   phase,
+	}
+}
+
+func (o TypeId) Type() string {
+	return o.objtype
+}
+
+func (o TypeId) Phase() Phase {
+	return o.phase
+}
+
+func (o TypeId) String() string {
+	return fmt.Sprintf("%s:%s", o.objtype, o.phase)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type ElementId struct {
 	_objectId
 	phase Phase
@@ -74,6 +100,10 @@ func (e ElementId) Phase() Phase {
 
 func (e ElementId) ObjectId() ObjectId {
 	return e._objectId
+}
+
+func (e ElementId) TypeId() TypeId {
+	return TypeId{objtype: e.objtype, phase: e.phase}
 }
 
 func (e ElementId) String() string {

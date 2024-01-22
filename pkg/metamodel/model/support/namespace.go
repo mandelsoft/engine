@@ -38,6 +38,27 @@ func (n *Namespace) GetLock() common.RunId {
 	return utils.Cast[DBNamespace](n.GetBase()).GetRunLock()
 }
 
+func (n *Namespace) ClearLock(ob objectbase.Objectbase, id common.RunId) (bool, error) {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	db := n.GetDatabase(ob)
+	mod := func(o DBObject) (bool, bool) {
+		ns := utils.Cast[DBNamespace](o)
+		b := ns.GetRunLock()
+		if b != id {
+			return false, false
+		}
+		ns.SetRunLock("")
+		return true, true
+	}
+
+	o := n.GetBase()
+	r, err := database.Modify(db, &o, mod)
+	n.SetBase(o)
+	return r, err
+}
+
 func (n *Namespace) TryLock(ob objectbase.Objectbase, id common.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()

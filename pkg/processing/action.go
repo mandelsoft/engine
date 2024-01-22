@@ -24,6 +24,9 @@ func (a *action) Reconcile(p pool.Pool, context logging.Context, id database.Obj
 
 func (a *action) Command(p pool.Pool, context logging.Context, command pool.Command) pool.Status {
 	cmd, id := DecodeElement(command)
+	if cmd == "" {
+		a.proc.processNamespace(context, string(command))
+	}
 	if id != nil {
 		return a.proc.processElement(context, cmd, *id)
 	} else {

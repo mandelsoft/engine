@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"sort"
 
 	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -20,7 +21,9 @@ type MetaModel interface {
 
 	GetExternalType(name string) ExternalObjectType
 	GetInternalType(name string) InternalObjectType
+
 	GetPhaseFor(ext string) *TypeId
+	GetTriggerFor(id TypeId) []string
 
 	Dump(w io.Writer)
 }
@@ -153,6 +156,17 @@ func (m *metaModel) checkDep(d DependencyTypeSpecification) (ElementType, error)
 		return nil, fmt.Errorf("phase %q not defined for type %q", d.Phase, d.Type)
 	}
 	return t, nil
+}
+
+func (m *metaModel) GetTriggerFor(id TypeId) []string {
+	var r []string
+	for _, e := range m.external {
+		if e.Trigger().Id() == id {
+			r = append(r, e.Name())
+		}
+	}
+	sort.Strings(r)
+	return r
 }
 
 func (m *metaModel) Dump(w io.Writer) {

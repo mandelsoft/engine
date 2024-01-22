@@ -68,6 +68,10 @@ func StatusCompleted(err ...error) Status {
 	return Status{Completed: true, Error: utils.Optional(err...), Interval: -1}
 }
 
-func StatusFailed(err ...error) Status {
-	return Status{Completed: false, Error: utils.Optional(err...), Interval: -1}
+func StatusFailed(err error) Status {
+	return Status{Completed: false, Error: err, Interval: -1}
+}
+
+func StatusRedo() Status {
+	return Status{Completed: false, Error: nil, Interval: -1}
 }

@@ -18,6 +18,8 @@ type RunId string
 
 type Element interface {
 	Id() ElementId
+	GetNamespace() string
+	GetName() string
 	GetObject() InternalObject
 }
 

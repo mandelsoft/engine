@@ -1,7 +1,6 @@
 package metamodel
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -15,32 +14,7 @@ type Encoding = common.Encoding
 type Phase = common.Phase
 type ElementId = common.ElementId
 type ObjectId = common.ObjectId
-
-type TypeId struct {
-	objtype string
-	phase   Phase
-}
-
-func NewTypeId(typ string, phase Phase) TypeId {
-	return TypeId{
-		objtype: typ,
-		phase:   phase,
-	}
-}
-
-func (o TypeId) Type() string {
-	return o.objtype
-}
-
-func (o TypeId) Phase() Phase {
-	return o.phase
-}
-
-func (o TypeId) String() string {
-	return fmt.Sprintf("%s:%s", o.objtype, o.phase)
-}
-
-type _typeidId = TypeId
+type TypeId = common.TypeId
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -61,7 +35,7 @@ var _ ElementType = (*elementType)(nil)
 
 func newElementType(objtype string, phase common.Phase) *elementType {
 	return &elementType{
-		id: NewTypeId(objtype, phase),
+		id: common.NewTypeId(objtype, phase),
 	}
 }
 
