@@ -4,10 +4,12 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-test/deep"
+	. "github.com/mandelsoft/engine/pkg/impl/database/filesystem/testtypes"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/go-test/deep"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/vfs/pkg/vfs"
@@ -16,13 +18,13 @@ import (
 )
 
 var _ = Describe("database", func() {
-	var db database.Database[database.Object]
+	var db database.Database[Object]
 	var reg database.HandlerRegistrationTest
 	var fs vfs.FileSystem
 
 	BeforeEach(func() {
 		fs = Must(TestFileSystem("testdata", false))
-		db = Must(me.New[database.Object](Scheme, "testdata", fs))
+		db = Must(me.New[Object](Scheme.(database.Encoding[Object]), "testdata", fs)) // Goland
 		reg = db.(database.HandlerRegistrationTest)
 	})
 

@@ -1,6 +1,7 @@
 package wrapper
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -26,7 +27,7 @@ type Database[O database.Object, W Object[S], S database.Object] interface {
 	Wrapped[S]
 }
 
-type IdMapping[S ObjectId] interface {
+type IdMapping[S database.Object] interface {
 	// Namespace maps an outer namespace to an inner one.
 	// The inner one may contain objects from multiple outer namespaces.
 	Namespace(string) string
@@ -47,6 +48,7 @@ type wrappingDatabase[O database.Object, W Object[S], S database.Object] struct 
 }
 
 var _ Database[database.Object, Object[database.Object], database.Object] = (*wrappingDatabase[database.Object, Object[database.Object], database.Object])(nil)
+var _ database.HandlerRegistrationTest = (*wrappingDatabase[database.Object, Object[database.Object], database.Object])(nil)
 
 // NewDatabase provides a database.Database[O] introduction functional
 // wrappers (W) on top of technical objects (S) persisted in a database.
@@ -64,7 +66,7 @@ func NewDatabase[O database.Object, W Object[S], S database.Object](db database.
 	}
 	events := database.NewHandlerRegistry(r)
 	r.events = events
-	db.RegisterHandler(&handler[O, W, S]{r}, false, "")
+	db.RegisterHandler(&handler[O, W, S]{r}, false, "").Wait(context.Background())
 	return r, nil
 }
 
@@ -91,6 +93,10 @@ func (w *wrappingDatabase[O, W, S]) RegisterHandler(h database.EventHandler, cur
 	return w.events.RegisterHandler(h, current, kind, nss...)
 }
 
+func (w *wrappingDatabase[O, W, S]) RegisterHandlerSync(t <-chan struct{}, h database.EventHandler, current bool, kind string, nss ...string) utils.Sync {
+	return w.events.(database.HandlerRegistrationTest).RegisterHandlerSync(t, h, current, kind, nss...)
+}
+
 func (w *wrappingDatabase[O, W, S]) UnregisterHandler(h database.EventHandler, kind string, nss ...string) {
 	w.events.UnregisterHandler(h, kind, nss...)
 }
@@ -104,7 +110,7 @@ func (w *wrappingDatabase[O, W, S]) ListObjectIds(typ string, ns string, atomic 
 	r := []database.ObjectId{}
 	for _, sid := range list {
 		id := w.idmapping.Outbound(sid)
-		if id.GetNamespace() != ns {
+		if ns != "" && id.GetNamespace() != ns {
 			continue
 		}
 		r = append(r, id)
@@ -121,7 +127,7 @@ func (w *wrappingDatabase[O, W, S]) ListObjects(typ string, ns string) ([]O, err
 	r := []W{}
 	for _, b := range list {
 		id := w.idmapping.OutboundObject(b)
-		if id.GetNamespace() != ns {
+		if ns != "" && id.GetNamespace() != ns {
 			continue
 		}
 		e, err := w.create.CreateObject(typ, database.SetObjectName[W](id.GetNamespace(), id.GetName()))

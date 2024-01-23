@@ -1,0 +1,5 @@
+type: A
+namespace: ns2
+name: o1
+
+a: A-ns2-o1
