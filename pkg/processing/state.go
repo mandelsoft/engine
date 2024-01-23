@@ -3,8 +3,8 @@ package processing
 import (
 	"slices"
 
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
 )
 
 type State interface {

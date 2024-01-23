@@ -4,24 +4,24 @@ import (
 	"maps"
 	"sync"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/logging"
 )
 
 type NamespaceInfo struct {
 	lock      sync.Mutex
-	namespace common.Namespace
+	namespace common2.Namespace
 	elements  map[ElementId]Element
-	internal  map[common.ObjectId]common.InternalObject
+	internal  map[common2.ObjectId]common2.InternalObject
 
 	pendingLocks map[ElementId]Element
 }
 
-func NewNamespaceInfo(ns common.Namespace) *NamespaceInfo {
+func NewNamespaceInfo(ns common2.Namespace) *NamespaceInfo {
 	return &NamespaceInfo{
 		namespace: ns,
 		elements:  map[ElementId]Element{},
-		internal:  map[common.ObjectId]common.InternalObject{},
+		internal:  map[common2.ObjectId]common2.InternalObject{},
 	}
 }
 

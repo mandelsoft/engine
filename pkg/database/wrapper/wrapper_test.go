@@ -4,18 +4,18 @@ import (
 	"context"
 	"sync"
 
+	. "github.com/mandelsoft/engine/pkg/database/wrapper/testtypes"
 	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/engine/pkg/wrapper/support"
-	. "github.com/mandelsoft/engine/pkg/wrapper/testtypes"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/go-test/deep"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	me "github.com/mandelsoft/engine/pkg/database/wrapper"
+	"github.com/mandelsoft/engine/pkg/database/wrapper/support"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
 	dbtypes "github.com/mandelsoft/engine/pkg/impl/database/filesystem/testtypes"
-	me "github.com/mandelsoft/engine/pkg/wrapper"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 )
 

@@ -1,15 +1,15 @@
 package processing
 
 import (
+	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 )
 
-type ElementId = common.ElementId
+type ElementId = common2.ElementId
 
 type Element interface {
-	common.Element
+	common2.Element
 
 	GetLock() model.RunId
 	GetCurrentState() State
@@ -21,9 +21,9 @@ type Element interface {
 
 type element struct {
 	id     ElementId
-	object common.InternalObject
+	object common2.InternalObject
 
-	runid common.RunId
+	runid common2.RunId
 
 	current State
 	target  State
@@ -31,9 +31,9 @@ type element struct {
 
 var _ Element = (*element)(nil)
 
-func NewElement(phase common.Phase, obj common.InternalObject) *element {
+func NewElement(phase common2.Phase, obj common2.InternalObject) *element {
 	e := &element{
-		id:     common.NewElementId(obj.GetType(), obj.GetNamespace(), obj.GetName(), phase),
+		id:     common2.NewElementId(obj.GetType(), obj.GetNamespace(), obj.GetName(), phase),
 		object: obj,
 		runid:  obj.GetLock(phase),
 	}
@@ -60,11 +60,11 @@ func (e *element) Id() ElementId {
 	return e.id
 }
 
-func (e element) GetPhase() common.Phase {
+func (e element) GetPhase() common2.Phase {
 	return e.id.Phase()
 }
 
-func (e *element) GetObject() common.InternalObject {
+func (e *element) GetObject() common2.InternalObject {
 	return e.object
 }
 

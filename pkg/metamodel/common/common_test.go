@@ -3,10 +3,9 @@ package common_test
 import (
 	"fmt"
 
+	me "github.com/mandelsoft/engine/pkg/metamodel/common"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	me "github.com/mandelsoft/engine/pkg/metamodel/model/common"
 )
 
 var _ = Describe("version", func() {

@@ -2,16 +2,16 @@ package testtypes
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/database/wrapper"
+	"github.com/mandelsoft/engine/pkg/database/wrapper/support"
 	dbtypes "github.com/mandelsoft/engine/pkg/impl/database/filesystem/testtypes"
-	me "github.com/mandelsoft/engine/pkg/wrapper"
-	"github.com/mandelsoft/engine/pkg/wrapper/support"
 )
 
-var Scheme = me.NewTypeScheme[Object](dbtypes.Scheme)
+var Scheme = wrapper.NewTypeScheme[Object](dbtypes.Scheme)
 var scheme = Scheme.(database.TypeScheme[Object])
 
 type Object interface {
-	me.Object[dbtypes.Object]
+	wrapper.Object[dbtypes.Object]
 
 	GetData() string
 	SetData(string)

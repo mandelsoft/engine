@@ -3,7 +3,7 @@ package metamodel
 import (
 	"slices"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 )
 
 type TypeSpecification struct {

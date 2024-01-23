@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
+	"github.com/mandelsoft/engine/pkg/database/wrapper"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/wrapper"
 )
 
 type IdMapping[S DBObject] struct {

@@ -9,9 +9,9 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel"
+	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
+	objectbase2 "github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/pool"
 	"github.com/mandelsoft/logging"
 )
@@ -25,7 +25,7 @@ type Processor struct {
 	logging logging.Context
 	m       model.Model
 	mm      metamodel.MetaModel
-	ob      objectbase.Objectbase
+	ob      objectbase2.Objectbase
 	pool    pool.Pool
 	handler database.EventHandler
 
@@ -63,12 +63,12 @@ func (p *Processor) assureNamespace(name string, create bool) (*NamespaceInfo, e
 			if !errors.Is(err, database.ErrNotExist) || !create {
 				return nil, err
 			}
-			b, err = p.ob.SchemeTypes().CreateObject(p.mm.NamespaceType(), objectbase.SetObjectName(nns, nn))
+			b, err = p.ob.SchemeTypes().CreateObject(p.mm.NamespaceType(), objectbase2.SetObjectName(nns, nn))
 			if err != nil {
 				return nil, err
 			}
 		}
-		ns = NewNamespaceInfo(b.(common.Namespace))
+		ns = NewNamespaceInfo(b.(common2.Namespace))
 		p.namespaces[name] = ns
 	}
 	return ns, nil
@@ -112,7 +112,7 @@ func (p *Processor) setupElements() error {
 			if err != nil {
 				return err
 			}
-			ns.internal[common.NewObjectIdFor(o)] = o
+			ns.internal[common2.NewObjectIdFor(o)] = o
 			curlock := ns.namespace.GetLock()
 
 			if curlock != "" {
@@ -156,7 +156,7 @@ func (p *Processor) AssureElementObjectFor(e model.ExternalObject) (Element, err
 		return nil, fmt.Errorf("external object type %q not configured", e.GetType())
 	}
 
-	id := common.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), t.Phase())
+	id := common2.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), t.Phase())
 
 	ns, err := p.assureNamespace(id.Namespace(), true)
 	if err != nil {
@@ -168,7 +168,7 @@ func (p *Processor) AssureElementObjectFor(e model.ExternalObject) (Element, err
 		return elem, nil
 	}
 
-	_i, err := p.ob.SchemeTypes().CreateObject(t.Type(), objectbase.SetObjectName(id.Namespace(), id.Name()))
+	_i, err := p.ob.SchemeTypes().CreateObject(t.Type(), objectbase2.SetObjectName(id.Namespace(), id.Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (p *Processor) AssureElementObjectFor(e model.ExternalObject) (Element, err
 	elem = NewElement(t.Phase(), i)
 
 	ns.elements[id] = elem
-	ns.internal[common.NewObjectIdFor(i)] = i
+	ns.internal[common2.NewObjectIdFor(i)] = i
 	return elem, nil
 }
 

@@ -4,17 +4,17 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
-const DEFAULT_PHASE = common.Phase("PhaseUpdating")
+const DEFAULT_PHASE = common2.Phase("PhaseUpdating")
 
-type Encoding = common.Encoding
-type Phase = common.Phase
-type ElementId = common.ElementId
-type ObjectId = common.ObjectId
-type TypeId = common.TypeId
+type Encoding = common2.Encoding
+type Phase = common2.Phase
+type ElementId = common2.ElementId
+type ObjectId = common2.ObjectId
+type TypeId = common2.TypeId
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -33,9 +33,9 @@ type elementType struct {
 
 var _ ElementType = (*elementType)(nil)
 
-func newElementType(objtype string, phase common.Phase) *elementType {
+func newElementType(objtype string, phase common2.Phase) *elementType {
 	return &elementType{
-		id: common.NewTypeId(objtype, phase),
+		id: common2.NewTypeId(objtype, phase),
 	}
 }
 
@@ -92,18 +92,18 @@ func (o *externalObjectType) Trigger() ElementType {
 type InternalObjectType interface {
 	Name() string
 
-	Phases() []common.Phase
-	Element(common.Phase) ElementType
+	Phases() []common2.Phase
+	Element(common2.Phase) ElementType
 }
 
 type internalObjectType struct {
 	name   string
-	phases map[common.Phase]ElementType
+	phases map[common2.Phase]ElementType
 }
 
 var _ InternalObjectType = (*internalObjectType)(nil)
 
-func newInternalObjectType(name string, phases map[common.Phase]ElementType) *internalObjectType {
+func newInternalObjectType(name string, phases map[common2.Phase]ElementType) *internalObjectType {
 	return &internalObjectType{
 		name:   name,
 		phases: phases,
@@ -114,10 +114,10 @@ func (o *internalObjectType) Name() string {
 	return o.name
 }
 
-func (o *internalObjectType) Phases() []common.Phase {
+func (o *internalObjectType) Phases() []common2.Phase {
 	return utils.OrderedMapKeys(o.phases)
 }
 
-func (o *internalObjectType) Element(phase common.Phase) ElementType {
+func (o *internalObjectType) Element(phase common2.Phase) ElementType {
 	return o.phases[phase]
 }

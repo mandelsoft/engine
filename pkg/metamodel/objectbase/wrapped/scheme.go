@@ -2,7 +2,7 @@ package wrapped
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/wrapper"
+	"github.com/mandelsoft/engine/pkg/database/wrapper"
 )
 
 type pointer[P any, S database.Object] interface {

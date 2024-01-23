@@ -4,9 +4,9 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 

@@ -2,9 +2,9 @@ package demo
 
 import (
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 )
 
 func init() {

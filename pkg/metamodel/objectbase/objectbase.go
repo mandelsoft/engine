@@ -2,21 +2,21 @@ package objectbase
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/common"
+	"github.com/mandelsoft/engine/pkg/database/wrapper"
+	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/wrapper"
 )
 
-type ObjectId = common.ObjectId
+type ObjectId = common2.ObjectId
 
-type Object = common.Object
+type Object = common2.Object
 
 type EventHandler = database.EventHandler
-type Scheme = common.Scheme
+type Scheme = common2.Scheme
 
-type Encoding = common.Encoding
-type Objectbase = common.Objectbase
-type SchemeTypes = common.SchemeTypes
+type Encoding = common2.Encoding
+type Objectbase = common2.Objectbase
+type SchemeTypes = common2.SchemeTypes
 type Initializer = runtime.Initializer[Object]
 
 func NewScheme() Scheme {

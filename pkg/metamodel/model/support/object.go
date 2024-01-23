@@ -2,10 +2,10 @@ package support
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/database/wrapper"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/wrapper"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 )
 
 type DBObject interface {
