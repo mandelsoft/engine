@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/go-test/deep v1.1.0
 	github.com/google/uuid v1.3.0
+	github.com/gowebpki/jcs v1.0.1
 	github.com/mandelsoft/logging v0.0.0-20230905123808-7042ee3aae45
 	github.com/mandelsoft/vfs v0.4.0
 	github.com/onsi/ginkgo/v2 v2.13.0

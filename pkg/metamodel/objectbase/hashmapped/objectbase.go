@@ -8,7 +8,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
@@ -52,13 +52,25 @@ type DBObject interface {
 
 type Object[S DBObject] interface {
 	wrapper.Object[S]
-	objectbase.Object
+	common.Object
 }
 
 // NewObjectbase provides a new object base with hashed hierarchical namespaces
 // and functional wrappers (W).
-func NewObjectbase[W Object[S], S DBObject](db database.Database[S], types runtime.SchemeTypes[W]) (objectbase.Objectbase, error) {
-	return wrapper.NewDatabase[objectbase.Object, W, S](db, types, &IdMapping[S]{})
+func NewObjectbase[W Object[S], S DBObject](db database.Database[S], types runtime.SchemeTypes[W]) (common.Objectbase, error) {
+	odb, err := wrapper.NewDatabase[common.Object, W, S](db, types, &IdMapping[S]{})
+	if err != nil {
+		return nil, err
+	}
+	return &objectbase{odb}, nil
+}
+
+type objectbase struct {
+	database.Database[common.Object]
+}
+
+func (d *objectbase) CreateObject(id common.ObjectId) (common.Object, error) {
+	return d.SchemeTypes().CreateObject(id.Type(), SetObjectName(id.Namespace(), id.Name()))
 }
 
 func BaseNamespace(ns string) (string, string) {

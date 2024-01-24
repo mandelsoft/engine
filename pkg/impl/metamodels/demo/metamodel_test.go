@@ -49,10 +49,14 @@ Internal types:
 - NodeState
   phases:
   - Updating
+  trigger types:
+  - Node
 Element types:
 - NodeState:Updating
   dependencies:
   - NodeState:Updating
+  triggered by:
+  - Node
 `))
 	})
 })

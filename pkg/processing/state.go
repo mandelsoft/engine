@@ -1,56 +1,105 @@
 package processing
 
 import (
-	"slices"
-
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 )
 
-type State interface {
-	AddLink(ElementId)
-
-	GetLinks() []ElementId
-	GetVersion() string
+type CurrentState interface {
+	model.CurrentState
 }
 
-type objStateFunc func(o common.InternalObject, phase model.Phase) common.State
-
-func ObjectState(o common.InternalObject, phase model.Phase) common.State {
-	return o.GetState(phase)
+type TargetState interface {
+	model.TargetState
 }
 
-func ObjectTargetState(o common.InternalObject, phase model.Phase) common.State {
-	return o.GetTargetState(phase)
-}
+////////////////////////////////////////////////////////////////////////////////
 
-type state struct {
-	state   objStateFunc
+type cstate struct {
 	element Element
-	links   []ElementId
 }
 
-var _ State = (*state)(nil)
+var _ CurrentState = (*cstate)(nil)
 
-func NewState(e Element, s objStateFunc) State {
-	return &state{
-		state:   s,
+func NewCurrentState(e Element) CurrentState {
+	return &cstate{
 		element: e,
 	}
 }
 
-func (s *state) AddLink(id ElementId) {
-	s.links = append(s.links, id)
+func (s *cstate) objectState() model.CurrentState {
+	return s.element.GetObject().GetCurrentState(s.element.GetPhase())
 }
 
-func (s *state) GetLinks() []ElementId {
-	return slices.Clone(s.links)
-}
-
-func (s *state) GetVersion() string {
-	c := s.state(s.element.GetObject(), s.element.Id().Phase())
-	if c == nil {
-		return ""
+func (s *cstate) GetLinks() []ElementId {
+	state := s.objectState()
+	if state != nil {
+		return state.GetLinks()
 	}
-	return c.GetVersion()
+	return nil
+}
+
+func (s *cstate) GetInputVersion() string {
+	state := s.objectState()
+	if state != nil {
+		return state.GetInputVersion()
+	}
+	return ""
+}
+
+func (s *cstate) GetObjectVersion() string {
+	state := s.objectState()
+	if state != nil {
+		return state.GetObjectVersion()
+	}
+	return ""
+}
+
+func (s *cstate) GetOutputVersion() string {
+	state := s.objectState()
+	if state != nil {
+		return state.GetOutputVersion()
+	}
+	return ""
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type tstate struct {
+	element Element
+}
+
+var _ TargetState = (*tstate)(nil)
+
+func NewTargetState(e Element) TargetState {
+	return &tstate{
+		element: e,
+	}
+}
+
+func (s *tstate) objectState() model.TargetState {
+	return s.element.GetObject().GetTargetState(s.element.GetPhase())
+}
+
+func (s *tstate) GetLinks() []ElementId {
+	state := s.objectState()
+	if state != nil {
+		return state.GetLinks()
+	}
+	return nil
+}
+
+func (s *tstate) GetObjectVersion() string {
+	state := s.objectState()
+	if state != nil {
+		return state.GetObjectVersion()
+	}
+	return ""
+}
+
+func (s *tstate) GetInputVersion(i model.Inputs) string {
+	state := s.objectState()
+	if state != nil {
+		return state.GetInputVersion(i)
+	}
+	return ""
 }

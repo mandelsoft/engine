@@ -1,19 +1,20 @@
 package processing
 
 import (
-	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 )
 
-type ElementId = common2.ElementId
+type ElementId = common.ElementId
 
 type Element interface {
-	common2.Element
+	common.Element
 
 	GetLock() model.RunId
-	GetCurrentState() State
-	GetTargetState() State
+	GetCurrentState() CurrentState
+	GetTargetState() TargetState
+	SetTargetState(TargetState)
 
 	ClearLock(ob objectbase.Objectbase, id model.RunId) (bool, error)
 	TryLock(ob objectbase.Objectbase, id model.RunId) (bool, error)
@@ -21,31 +22,28 @@ type Element interface {
 
 type element struct {
 	id     ElementId
-	object common2.InternalObject
+	object common.InternalObject
 
-	runid common2.RunId
+	runid common.RunId
 
-	current State
-	target  State
+	current CurrentState
+	target  TargetState
 }
 
 var _ Element = (*element)(nil)
 
-func NewElement(phase common2.Phase, obj common2.InternalObject) *element {
+func NewElement(phase common.Phase, obj common.InternalObject) *element {
 	e := &element{
-		id:     common2.NewElementId(obj.GetType(), obj.GetNamespace(), obj.GetName(), phase),
+		id:     common.NewElementId(obj.GetType(), obj.GetNamespace(), obj.GetName(), phase),
 		object: obj,
 		runid:  obj.GetLock(phase),
 	}
-	e.current = NewState(e, ObjectState)
-
-	if obj.GetLock(phase) != "" {
-		t := obj.GetTargetState(phase)
-		if t != nil {
-			e.target = NewState(e, ObjectTargetState)
-		}
-	}
+	e.current = NewCurrentState(e)
 	return e
+}
+
+func (e *element) GetType() string {
+	return e.object.GetType()
 }
 
 func (e *element) GetName() string {
@@ -60,11 +58,11 @@ func (e *element) Id() ElementId {
 	return e.id
 }
 
-func (e element) GetPhase() common2.Phase {
+func (e *element) GetPhase() common.Phase {
 	return e.id.Phase()
 }
 
-func (e *element) GetObject() common2.InternalObject {
+func (e *element) GetObject() common.InternalObject {
 	return e.object
 }
 
@@ -72,12 +70,16 @@ func (e *element) GetLock() model.RunId {
 	return e.object.GetLock(e.GetPhase())
 }
 
-func (e *element) GetCurrentState() State {
+func (e *element) GetCurrentState() CurrentState {
 	return e.current
 }
 
-func (e *element) GetTargetState() State {
+func (e *element) GetTargetState() TargetState {
 	return e.target
+}
+
+func (e *element) SetTargetState(target TargetState) {
+	e.target = target
 }
 
 func (e *element) ClearLock(ob objectbase.Objectbase, id model.RunId) (bool, error) {

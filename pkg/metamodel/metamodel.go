@@ -23,7 +23,8 @@ type MetaModel interface {
 	GetInternalType(name string) InternalObjectType
 
 	GetPhaseFor(ext string) *TypeId
-	GetTriggerFor(id TypeId) []string
+	GetTriggeringTypesForElementType(id TypeId) []string
+	GetTriggeringTypesForInternalType(name string) []string
 
 	Dump(w io.Writer)
 }
@@ -40,8 +41,9 @@ type metaModel struct {
 var _ (MetaModel) = (*metaModel)(nil)
 
 type intDef struct {
-	intType InternalObjectType
-	phases  map[common.Phase]ElementType
+	intType  InternalObjectType
+	extTypes []string
+	phases   map[common.Phase]ElementType
 }
 
 func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
@@ -89,9 +91,24 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 			return nil, fmt.Errorf("trigger \"%s:%s\" of external type %q: %w",
 				d.Type, d.Phase, e.Name, err)
 		}
+		t.addTrigger(e.Name)
 		m.external[e.Name] = newExternalObjectType(e.Name, t)
 	}
 
+	for _, i := range m.internal {
+		for _, p := range i.phases {
+			for _, t := range p.TriggeredBy() {
+				if !slices.Contains(i.extTypes, t) {
+					i.extTypes = append(i.extTypes, t)
+				}
+			}
+			sort.Strings(i.extTypes)
+			if len(i.extTypes) == 0 {
+				return nil, fmt.Errorf("no trigger for any phase of internal type %q",
+					i.intType.Name())
+			}
+		}
+	}
 	return m, nil
 }
 
@@ -158,15 +175,20 @@ func (m *metaModel) checkDep(d DependencyTypeSpecification) (ElementType, error)
 	return t, nil
 }
 
-func (m *metaModel) GetTriggerFor(id TypeId) []string {
-	var r []string
-	for _, e := range m.external {
-		if e.Trigger().Id() == id {
-			r = append(r, e.Name())
-		}
+func (m *metaModel) GetTriggeringTypesForElementType(id TypeId) []string {
+	e := m.elements[id]
+	if e == nil {
+		return nil
 	}
-	sort.Strings(r)
-	return r
+	return e.TriggeredBy()
+}
+
+func (m *metaModel) GetTriggeringTypesForInternalType(name string) []string {
+	e := m.internal[name]
+	if e == nil {
+		return nil
+	}
+	return slices.Clone(e.extTypes)
 }
 
 func (m *metaModel) Dump(w io.Writer) {
@@ -186,6 +208,10 @@ func (m *metaModel) Dump(w io.Writer) {
 		for _, p := range i.intType.Phases() {
 			fmt.Fprintf(w, "  - %s\n", p)
 		}
+		fmt.Fprintf(w, "  trigger types:\n")
+		for _, p := range i.extTypes {
+			fmt.Fprintf(w, "  - %s\n", p)
+		}
 	}
 	fmt.Fprintf(w, "Element types:\n")
 	for _, n := range m.ElementTypes() {
@@ -194,6 +220,10 @@ func (m *metaModel) Dump(w io.Writer) {
 		fmt.Fprintf(w, "  dependencies:\n")
 		for _, d := range i.Dependencies() {
 			fmt.Fprintf(w, "  - %s\n", d.Id())
+		}
+		fmt.Fprintf(w, "  triggered by:\n")
+		for _, d := range i.TriggeredBy() {
+			fmt.Fprintf(w, "  - %s\n", d)
 		}
 	}
 }

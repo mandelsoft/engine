@@ -6,13 +6,19 @@ import (
 )
 
 func (p *Processor) processNamespace(lctx logging.Context, name string) pool.Status {
-	ns := p.GetNamespace(name)
-	if ns != nil {
-		log := lctx.Logger(logging.NewAttribute("namespace", name), logging.NewAttribute("runid", ns.namespace.GetLock()))
-		ns.lock.Lock()
-		defer ns.lock.Unlock()
-		err := ns.ClearLocks(log, p)
-		return pool.StatusCompleted(err)
+	var err error
+	ni := p.GetNamespace(name)
+	if ni != nil {
+		ni.lock.Lock()
+		defer ni.lock.Unlock()
+
+		if ni.pendingOperation != nil {
+			log := lctx.Logger(logging.NewAttribute("namespace", name), logging.NewAttribute("runid", ni.namespace.GetLock()))
+			err = ni.pendingOperation(log)
+			if err == nil {
+				ni.pendingOperation = nil
+			}
+		}
 	}
-	return pool.StatusCompleted()
+	return pool.StatusCompleted(err)
 }

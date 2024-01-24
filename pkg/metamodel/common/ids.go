@@ -7,41 +7,39 @@ import (
 )
 
 type ObjectId struct {
-	objtype   string
-	objname   string
-	namespace string
+	data database.ObjectRef
 }
 
 func NewObjectId(typ, namespace, name string) ObjectId {
 	return ObjectId{
-		objtype:   typ,
-		objname:   name,
-		namespace: namespace,
+		data: database.NewObjectRef(typ, namespace, name),
 	}
 }
 
 func NewObjectIdFor(o Object) ObjectId {
 	return ObjectId{
-		objtype:   o.GetType(),
-		objname:   o.GetName(),
-		namespace: o.GetNamespace(),
+		data: database.NewObjectRefFor(o),
 	}
 }
 
 func (o ObjectId) Type() string {
-	return o.objtype
+	return o.data.Type
 }
 
 func (o ObjectId) Namespace() string {
-	return o.namespace
+	return o.data.Namespace
 }
 
 func (o ObjectId) Name() string {
-	return o.objname
+	return o.data.Name
+}
+
+func (o ObjectId) DBId() database.ObjectId {
+	return &o.data
 }
 
 func (o ObjectId) String() string {
-	return fmt.Sprintf("%s/%s/%s", o.objtype, o.namespace, o.objname)
+	return fmt.Sprintf("%s/%s/%s", o.data.Type, o.data.Namespace, o.data.Name)
 }
 
 type _objectId = ObjectId
@@ -81,12 +79,8 @@ type ElementId struct {
 
 func NewElementId(typ, namespace, name string, phase Phase) ElementId {
 	return ElementId{
-		_objectId: ObjectId{
-			objtype:   typ,
-			namespace: namespace,
-			objname:   name,
-		},
-		phase: phase,
+		_objectId: NewObjectId(typ, namespace, name),
+		phase:     phase,
 	}
 }
 
@@ -103,7 +97,7 @@ func (e ElementId) ObjectId() ObjectId {
 }
 
 func (e ElementId) TypeId() TypeId {
-	return TypeId{objtype: e.objtype, phase: e.phase}
+	return TypeId{objtype: e.data.Type, phase: e.phase}
 }
 
 func (e ElementId) String() string {

@@ -7,6 +7,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -83,30 +84,20 @@ func (n *InternalObjectSupport) ClearLock(ob objectbase.Objectbase, phase common
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	db := n.GetDatabase(ob)
 	mod := func(o DBObject) (bool, bool) {
 		b := utils.Cast[InternalDBObject](o).ClearLock(phase, id)
 		return b, b
 	}
-
-	o := n.GetBase()
-	r, err := database.Modify(db, &o, mod)
-	n.SetBase(o)
-	return r, err
+	return wrapped.Modify(ob, n, mod)
 }
 
 func (n *InternalObjectSupport) TryLock(ob objectbase.Objectbase, phase common.Phase, id common.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	db := n.GetDatabase(ob)
 	mod := func(o DBObject) (bool, bool) {
 		b := utils.Cast[InternalDBObject](o).TryLock(phase, id)
 		return b, b
 	}
-
-	o := n.GetBase()
-	r, err := database.Modify(db, &o, mod)
-	n.SetBase(o)
-	return r, err
+	return wrapped.Modify(ob, n, mod)
 }

@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"cmp"
 	"reflect"
+	"slices"
+	"strings"
 )
 
 func TryCast[T, O any](o O) (T, bool) {
@@ -32,6 +35,39 @@ func ConvertSlice[D, S any](in []S) []D {
 	var r []D
 	for _, e := range in {
 		r = append(r, Cast[D](e))
+	}
+	return r
+}
+
+func MapKeys[K comparable, V any](m map[K]V) []K {
+	r := []K{}
+
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
+}
+
+func OrderedMapKeys[K cmp.Ordered, V any](m map[K]V) []K {
+	r := MapKeys(m)
+	slices.Sort(r)
+	return r
+}
+
+type stringable interface {
+	String() string
+}
+
+func CompareStringable[T stringable](a, b T) int {
+	return strings.Compare(a.String(), b.String())
+}
+
+func Join[S stringable](list []S) string {
+	sep := ""
+	r := ""
+	for _, e := range list {
+		r += sep + e.String()
+		sep = ", "
 	}
 	return r
 }
