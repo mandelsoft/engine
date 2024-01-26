@@ -1,9 +1,13 @@
 package db
 
 import (
+	"slices"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/metamodels/demo"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 func init() {
@@ -19,15 +23,17 @@ type Node struct {
 
 var _ database.Object = (*Node)(nil)
 
-const OP_ADD = "add"
-const OP_SUB = "sub"
-const OP_MUL = "mul"
-const OP_DIV = "div"
+type Operator string
+
+const OP_ADD = Operator("add")
+const OP_SUB = Operator("sub")
+const OP_MUL = Operator("mul")
+const OP_DIV = Operator("div")
 
 type NodeSpec struct {
-	Value    *int     `json:"value,omitempty"`
-	Operator *string  `json:"operator,omitempty"`
-	Operands []string `json:"operands,omitempty"`
+	Value    *int      `json:"value,omitempty"`
+	Operator *Operator `json:"operator,omitempty"`
+	Operands []string  `json:"operands,omitempty"`
 }
 
 type NodeStatus struct {
@@ -39,4 +45,23 @@ type NodeStatus struct {
 	EffectiveVersion string      `json:"effectiveVersion,omitempty"`
 
 	Result *int `json:"result,omitempty"`
+}
+
+func NewOperatorNode(ns, n string, op Operator, operands ...string) *Node {
+	return &Node{
+		GenerationObjectMeta: database.NewGenerationObjectMeta(demo.TYPE_NODE, ns, n),
+		Spec: NodeSpec{
+			Operator: utils.Pointer(op),
+			Operands: slices.Clone(operands),
+		},
+	}
+}
+
+func NewValueNode(ns, n string, value int) *Node {
+	return &Node{
+		GenerationObjectMeta: database.NewGenerationObjectMeta(demo.TYPE_NODE, ns, n),
+		Spec: NodeSpec{
+			Value: utils.Pointer(value),
+		},
+	}
 }

@@ -3,6 +3,7 @@ package processing
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -31,7 +32,17 @@ func CalcEffectiveVersion(inputs model.Inputs, objvers string) EffectiveVersion 
 	return EffectiveVersion(hex.EncodeToString(h[:]))
 }
 
-func (p *Processor) updateStatus(elem Element, status string, message string, args ...any) error {
+func GetResultState(args ...interface{}) model.ResultState {
+	for _, a := range args {
+		switch opt := a.(type) {
+		case model.ResultState:
+			return opt
+		}
+	}
+	return nil
+}
+
+func (p *Processor) updateStatus(log logging.Logger, elem Element, status string, message string, args ...any) error {
 	for _, t := range p.mm.GetTriggeringTypesForInternalType(elem.GetType()) {
 		oid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
 
@@ -47,14 +58,16 @@ func (p *Processor) updateStatus(elem Element, status string, message string, ar
 			ObservedVersion: nil,
 			Status:          &status,
 			Message:         &message,
-			InternalState:   nil,
+			ResultState:     nil,
 		}
 		for _, a := range args {
 			switch opt := a.(type) {
 			case model.RunId:
 				status.RunId = utils.Pointer(opt)
-			case model.InternalState:
-				status.InternalState = opt
+			case model.ResultState:
+				data, err := json.Marshal(opt)
+				log.Info("result", "result", string(data), "error", err)
+				status.ResultState = opt
 			case EffectiveVersion:
 				status.EffectiveVersion = utils.Pointer(string(opt))
 			default:
@@ -77,12 +90,12 @@ func (p *Processor) triggerChildren(ni *NamespaceInfo, elem Element, release boo
 	for _, e := range ni.elements {
 		if e.GetTargetState() != nil {
 			for _, l := range e.GetTargetState().GetLinks() {
-				p.EnqueueKey("", l)
+				p.EnqueueKey(CMD_ELEM, l)
 			}
 		}
 		if e.GetCurrentState() != nil {
 			for _, l := range e.GetCurrentState().GetLinks() {
-				p.EnqueueKey("", l)
+				p.EnqueueKey(CMD_ELEM, l)
 			}
 		}
 	}

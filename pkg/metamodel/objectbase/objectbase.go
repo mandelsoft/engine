@@ -44,9 +44,19 @@ func (d *objectbase) CreateObject(id ObjectId) (Object, error) {
 	return d.SchemeTypes().CreateObject(id.Type(), SetObjectName(id.Namespace(), id.Name()))
 }
 
+func (d *objectbase) GetDatabase() database.Database[Object] {
+	return d.Database
+}
+
 func GetDatabase[O database.Object](ob Objectbase) database.Database[O] {
 	if w, ok := ob.(wrapper.Wrapped[O]); ok {
 		return w.GetDatabase()
+	}
+	if w, ok := ob.(wrapper.Wrapped[Object]); ok {
+		db := w.GetDatabase()
+		if w, ok := db.(wrapper.Wrapped[O]); ok {
+			return w.GetDatabase()
+		}
 	}
 	return nil
 }

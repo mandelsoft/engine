@@ -29,7 +29,7 @@ func TypeOf[T any]() reflect.Type {
 }
 
 func ConvertSlice[D, S any](in []S) []D {
-	if TypeOf[D]() == TypeOf[D]() {
+	if TypeOf[D]() == TypeOf[S]() {
 		return Cast[[]D](in)
 	}
 	var r []D

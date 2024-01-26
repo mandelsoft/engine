@@ -22,19 +22,18 @@ import (
 type worker struct {
 	logging.Logger
 	dynlog logging.UnboundLogger
-	lctx   logging.Context
+	mctx   MessageContext
 	pool   *pool
 }
 
 func newWorker(p *pool, number int) *worker {
-
-	lctx := p.lctx.WithContext(logging.NewAttribute("worker", strconv.Itoa(number)))
-	lgr := logging.DynamicLogger(lctx)
+	mctx := MessageContext{logging.NewName(fmt.Sprintf("worker %d", number)), logging.NewAttribute("worker", strconv.Itoa(number))}
+	lgr := logging.DynamicLogger(p.lctx, mctx...)
 
 	return &worker{
 		Logger: lgr,
 		dynlog: lgr,
-		lctx:   lctx,
+		mctx:   mctx,
 		pool:   p,
 	}
 }
@@ -53,7 +52,7 @@ func (w *worker) internalErr(obj interface{}, err error) bool {
 }
 
 func (w *worker) loggerForKey(key string) func() {
-	w.Logger = w.lctx.Logger(logging.NewAttribute("resource", key))
+	w.Logger = w.dynlog.WithValues("resource", key)
 	return func() { w.Logger = w.dynlog }
 }
 
@@ -102,7 +101,7 @@ func (w *worker) processNextWorkItem() bool {
 		actions := w.pool.GetActions(cmd)
 		if actions != nil && len(actions) > 0 {
 			for _, action := range actions {
-				status := catch(func() Status { return action.Command(w.pool, w.lctx, cmd) })
+				status := catch(func() Status { return action.Command(w.pool, w.mctx, cmd) })
 				if !status.Completed {
 					ok = false
 				}
@@ -127,7 +126,7 @@ func (w *worker) processNextWorkItem() bool {
 		actions := w.pool.GetActions(ObjectType(rkey.GetType()))
 
 		for _, a := range actions {
-			status := catch(func() Status { return a.Reconcile(w.pool, w.lctx, rkey) })
+			status := catch(func() Status { return a.Reconcile(w.pool, w.mctx, rkey) })
 			if !status.Completed {
 				ok = false
 			}
@@ -176,7 +175,7 @@ func (w *worker) processNextWorkItem() bool {
 				if w.pool.Period() > 0 {
 					w.Info("stop reconciling", "key", obj)
 				} else {
-					w.Debug("stop reconcilin", "key", obj)
+					w.Debug("stop reconciling", "key", obj)
 				}
 			}
 		} else {

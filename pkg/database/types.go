@@ -46,7 +46,7 @@ var ErrModified = fmt.Errorf("object modified")
 var ErrNotExist = fmt.Errorf("object not found")
 
 type Generation struct {
-	Generation int64 `json:" eneration"`
+	Generation int64 `json:"generation"`
 }
 
 func (g *Generation) GetGeneration() int64 {
@@ -91,11 +91,11 @@ func NewObjectRefFor(id ObjectId) ObjectRef {
 	}
 }
 
-func (o *ObjectRef) GetName() string {
+func (o ObjectRef) GetName() string {
 	return o.Name
 }
 
-func (o *ObjectRef) GetNamespace() string {
+func (o ObjectRef) GetNamespace() string {
 	return o.Namespace
 }
 
@@ -107,7 +107,7 @@ func (o *ObjectRef) SetNamespace(name string) {
 	o.Namespace = name
 }
 
-func (o *ObjectRef) String() string {
+func (o ObjectRef) String() string {
 	return fmt.Sprintf("%s/%s/%s", o.Type, o.Namespace, o.Name)
 }
 
@@ -148,6 +148,10 @@ func (o *objectid) GetNamespace() string {
 
 func (o *objectid) GetType() string {
 	return o.kind
+}
+
+func (o *objectid) String() string {
+	return fmt.Sprintf("%s/%s/%s", o.kind, o.namespace, o.name)
 }
 
 func NewObjectId(typ, ns, name string) ObjectId {

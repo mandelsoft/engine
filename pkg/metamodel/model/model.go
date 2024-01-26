@@ -16,27 +16,31 @@ type Model interface {
 }
 
 type model struct {
-	db    objectbase.Objectbase
+	ob    objectbase.Objectbase
 	mm    metamodel.MetaModel
 	types objectbase.SchemeTypes
 }
 
 var _ Model = (*model)(nil)
 
-func NewModel(db objectbase.Objectbase, inst ModelSpecification) (Model, error) {
-	err := inst.Validate()
+func NewModel(spec ModelSpecification) (Model, error) {
+	err := spec.Validate()
 	if err != nil {
 		return nil, err
 	}
-	if inst.MetaModel.NamespaceType == "" {
+	if spec.MetaModel.NamespaceType == "" {
 		return nil, fmt.Errorf("no namespace type specified")
 	}
-	mm, err := metamodel.NewMetaModel(inst.Name, inst.MetaModel)
+	mm, err := metamodel.NewMetaModel(spec.Name, spec.MetaModel)
 	if err != nil {
 		return nil, err
 	}
 
-	return &model{db, mm, inst.Objectbase.SchemeTypes()}, nil
+	ob, err := spec.Objectbase.CreateObjectbase()
+	if err != nil {
+		return nil, err
+	}
+	return &model{ob, mm, spec.Objectbase.SchemeTypes()}, nil
 }
 
 func (m *model) SchemeTypes() objectbase.SchemeTypes {
@@ -44,7 +48,7 @@ func (m *model) SchemeTypes() objectbase.SchemeTypes {
 }
 
 func (m *model) Objectbase() objectbase.Objectbase {
-	return m.db
+	return m.ob
 }
 
 func (m *model) MetaModel() metamodel.MetaModel {

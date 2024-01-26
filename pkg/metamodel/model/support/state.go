@@ -1,37 +1,63 @@
 package support
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 
-	"github.com/gowebpki/jcs"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
-type ExternalState[O any] struct {
+// State is default state implementation for any type which
+// is json serializable.
+type State[O any] struct {
 	state O
+}
+
+func (s *State[O]) GetVersion() string {
+	return utils.HashData(s.state)
+}
+
+func (e *State[O]) GetState() O {
+	return e.state
+}
+
+func (s *State[O]) GetDescription() string {
+	data, err := json.Marshal(s.state)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ExternalState[O any] struct {
+	State[O]
 }
 
 var _ model.ExternalState = (*ExternalState[any])(nil)
 
 func NewExternalState[O any](o O) *ExternalState[O] {
-	return &ExternalState[O]{o}
+	return &ExternalState[O]{State[O]{o}}
 }
 
-func (e *ExternalState[O]) GetVersion() string {
-	data, err := json.Marshal(e.state)
-	if err != nil {
-		panic(err)
-	}
-	data, err = jcs.Transform(data)
-	if err != nil {
-		panic(err)
-	}
-	h := sha256.Sum256(data)
-	return hex.EncodeToString(h[:])
+////////////////////////////////////////////////////////////////////////////////
+
+type ResultState[O any] struct {
+	State[O]
 }
 
-func (e *ExternalState[O]) GetState() O {
-	return e.state
+var _ model.ResultState = (*ResultState[any])(nil)
+var _ json.Marshaler = (*ResultState[any])(nil)
+
+func NewResultState[O any](o O) *ResultState[O] {
+	return &ResultState[O]{State[O]{o}}
+}
+
+func (s *ResultState[O]) GetOutputVersion() string {
+	return s.GetVersion()
+}
+
+func (s *ResultState[O]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.GetState())
 }

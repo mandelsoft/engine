@@ -34,7 +34,7 @@ func (n *ElementLocks) GetLock(phase model.Phase) model.RunId {
 }
 
 func (n *ElementLocks) TryLock(phase model.Phase, id model.RunId) bool {
-	if len(n.ElementLocks) != 0 && n.ElementLocks[phase] != "" {
+	if len(n.ElementLocks) != 0 && n.ElementLocks[phase] != "" && n.ElementLocks[phase] != id {
 		return false
 	}
 	if n.ElementLocks == nil {
@@ -57,6 +57,8 @@ type InternalDBObject interface {
 
 	ClearLock(phase model.Phase, id model.RunId) bool
 	TryLock(phase model.Phase, id model.RunId) bool
+
+	CommitTargetState(phase model.Phase, commit *model.CommitInfo)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,12 +82,16 @@ func (n *InternalObjectSupport) GetLock(phase common.Phase) common.RunId {
 	return n.GetDBObject().GetLock(phase)
 }
 
-func (n *InternalObjectSupport) ClearLock(ob objectbase.Objectbase, phase common.Phase, id model.RunId) (bool, error) {
+func (n *InternalObjectSupport) ClearLock(ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(o DBObject) (bool, bool) {
-		b := utils.Cast[InternalDBObject](o).ClearLock(phase, id)
+	mod := func(_o DBObject) (bool, bool) {
+		o := utils.Cast[InternalDBObject](_o)
+		b := o.ClearLock(phase, id)
+		if b && commit != nil {
+			o.CommitTargetState(phase, commit)
+		}
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)

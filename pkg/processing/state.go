@@ -6,10 +6,12 @@ import (
 
 type CurrentState interface {
 	model.CurrentState
+	GetState() model.CurrentState
 }
 
 type TargetState interface {
 	model.TargetState
+	GetState() model.TargetState
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,12 +28,12 @@ func NewCurrentState(e Element) CurrentState {
 	}
 }
 
-func (s *cstate) objectState() model.CurrentState {
+func (s *cstate) GetState() model.CurrentState {
 	return s.element.GetObject().GetCurrentState(s.element.GetPhase())
 }
 
 func (s *cstate) GetLinks() []ElementId {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetLinks()
 	}
@@ -39,7 +41,7 @@ func (s *cstate) GetLinks() []ElementId {
 }
 
 func (s *cstate) GetInputVersion() string {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetInputVersion()
 	}
@@ -47,7 +49,7 @@ func (s *cstate) GetInputVersion() string {
 }
 
 func (s *cstate) GetObjectVersion() string {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetObjectVersion()
 	}
@@ -55,7 +57,7 @@ func (s *cstate) GetObjectVersion() string {
 }
 
 func (s *cstate) GetOutputVersion() string {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetOutputVersion()
 	}
@@ -76,12 +78,12 @@ func NewTargetState(e Element) TargetState {
 	}
 }
 
-func (s *tstate) objectState() model.TargetState {
+func (s *tstate) GetState() model.TargetState {
 	return s.element.GetObject().GetTargetState(s.element.GetPhase())
 }
 
 func (s *tstate) GetLinks() []ElementId {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetLinks()
 	}
@@ -89,7 +91,7 @@ func (s *tstate) GetLinks() []ElementId {
 }
 
 func (s *tstate) GetObjectVersion() string {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetObjectVersion()
 	}
@@ -97,7 +99,7 @@ func (s *tstate) GetObjectVersion() string {
 }
 
 func (s *tstate) GetInputVersion(i model.Inputs) string {
-	state := s.objectState()
+	state := s.GetState()
 	if state != nil {
 		return state.GetInputVersion(i)
 	}

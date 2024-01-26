@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 )
 
@@ -15,6 +16,8 @@ type NodeState struct {
 	Current CurrentState `json:"current"`
 	Target  *TargetState `json:"target,omitempty"`
 }
+
+var _ support.InternalDBObject = (*NodeState)(nil)
 
 type CurrentState struct {
 	Operands      []string `json:"operands"`
@@ -32,3 +35,20 @@ type TargetState struct {
 	ObjectVersion string   `json:"version"`
 	Spec          NodeSpec `json:"spec"`
 }
+
+func (n *NodeState) CommitTargetState(phase model.Phase, spec *model.CommitInfo) {
+	if n.Target != nil && spec != nil {
+		n.Current.Operands = n.Target.Spec.Operands
+		n.Current.InputVersion = spec.InputVersion
+		n.Current.ObjectVersion = n.Target.ObjectVersion
+		n.Current.OutputVersion = spec.State.(*ResultState).GetOutputVersion()
+		n.Current.Output.Value = spec.State.(*ResultState).GetState()
+	}
+	n.Target = nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ResultState = support.ResultState[int]
+
+var NewResultState = support.NewResultState[int]

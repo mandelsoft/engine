@@ -44,6 +44,10 @@ github.com/mandelsoft/filepath v0.0.0-20200909114706-3df73d378d55 h1:mFdiUG86O2i
 github.com/mandelsoft/filepath v0.0.0-20200909114706-3df73d378d55/go.mod h1:n4xEiUD2HNHnn2w5ZKF0qgjDecHVCWAl5DxZ7+pcFU8=
 github.com/mandelsoft/logging v0.0.0-20230905123808-7042ee3aae45 h1:BGJBqw9q1Brn3XAYcj52hhonjV7aHUftVJ3SuJpXQ/M=
 github.com/mandelsoft/logging v0.0.0-20230905123808-7042ee3aae45/go.mod h1:J/kRqdfAOQmMPfJeAcV2pfX1QLV9/NlAQdAJzpnaU+g=
+github.com/mandelsoft/logging v0.0.0-20240125234334-a4fc6c45fc1d h1:Dka1xcGj98rsrrKW2xkIel9oYJXwqH3hegqZ5epkx4w=
+github.com/mandelsoft/logging v0.0.0-20240125234334-a4fc6c45fc1d/go.mod h1:uZjvghg2UhIgvQVC8j1KdgaKbs8OhCI6+czpz+y/9Fk=
+github.com/mandelsoft/logging v0.0.0-20240126101632-848456b893df h1:20BFLESiEqvhmwHOWcJuk8FLrn0V0CCGQ3bluqLiYCw=
+github.com/mandelsoft/logging v0.0.0-20240126101632-848456b893df/go.mod h1:uZjvghg2UhIgvQVC8j1KdgaKbs8OhCI6+czpz+y/9Fk=
 github.com/mandelsoft/vfs v0.4.0 h1:BUx3XIQUhHYOVT/voRudLrYE1VLa+t35jBn6572d7fM=
 github.com/mandelsoft/vfs v0.4.0/go.mod h1:k83vb5I4cqRGJh3TUUVbf2oTF8FrYhvixQ+FwIAgP1Y=
 github.com/mattn/go-isatty v0.0.19 h1:JITubQf0MOLdlGRuRq+jtsDlekdYPia9ZFsB8h/APPA=

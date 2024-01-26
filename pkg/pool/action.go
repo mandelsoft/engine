@@ -5,12 +5,11 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/utils"
-	"github.com/mandelsoft/logging"
 )
 
 type Action interface {
-	Reconcile(Pool, logging.Context, database.ObjectId) Status
-	Command(Pool, logging.Context, Command) Status
+	Reconcile(Pool, MessageContext, database.ObjectId) Status
+	Command(Pool, MessageContext, Command) Status
 }
 
 type Command string

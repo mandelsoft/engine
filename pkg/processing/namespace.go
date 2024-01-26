@@ -50,12 +50,6 @@ func (ni *NamespaceInfo) AddElement(i model.InternalObject, phase model.Phase) E
 	return e
 }
 
-func (ni *NamespaceInfo) ClearLocks(log logging.Logger, p *Processor) error {
-	ni.lock.Lock()
-	defer ni.lock.Unlock()
-	return ni.clearLocks(log, p)
-}
-
 func (ni *NamespaceInfo) clearElementLock(log logging.Logger, p *Processor, elem Element, rid model.RunId) error {
 	// first: reset run id in in external objects
 	err := p.updateRunId(log, "reset", elem, "")
@@ -63,10 +57,13 @@ func (ni *NamespaceInfo) clearElementLock(log logging.Logger, p *Processor, elem
 		return err
 	}
 	// second, clear lock on internal object for given phase.
-	_, err = elem.ClearLock(p.ob, rid)
+	ok, err := elem.ClearLock(p.ob, rid, nil)
 	if err != nil {
 		log.Error("releasing lock {{runid}} for element {{element}} failed", "element", elem.Id(), "error", err)
 		return err
+	}
+	if ok {
+		p.pending.Add(-1)
 	}
 	return nil
 }
@@ -95,5 +92,6 @@ func (ni *NamespaceInfo) clearLocks(log logging.Logger, p *Processor) error {
 			ni.pendingElements = nil
 		}
 	}
-	return nil
+	_, err := ni.namespace.ClearLock(p.ob, ni.namespace.GetLock())
+	return err
 }

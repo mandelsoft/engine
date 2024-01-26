@@ -26,8 +26,8 @@ type Element interface {
 	GetObject() InternalObject
 }
 
-type InternalState interface {
-	Description() string
+type ResultState interface {
+	GetOutputVersion() string
 }
 
 type StatusUpdate struct {
@@ -43,15 +43,15 @@ type StatusUpdate struct {
 	Status *string
 	// Message is an explaining text for the state.
 	Message *string
-	// InternalState is some state info provided by the internal object.
-	InternalState InternalState
+	// ResultState is some state info provided by the internal object.
+	ResultState ResultState
 }
 
 type Request struct {
-	LogContext logging.Context
-	External   []ObjectId
-	Inputs     Inputs
-	Element    Element
+	Logger   logging.Logger
+	External []ObjectId
+	Inputs   Inputs
+	Element  Element
 }
 
 type Creation struct {
@@ -66,10 +66,10 @@ const STATUS_PROCESSING = processingStatus("Processing")
 const STATUS_FAILED = processingStatus("Failed")
 
 type Status struct {
-	Status        processingStatus
-	Creation      []Creation
-	InternalState InternalState
-	Error         error
+	Status      processingStatus
+	Creation    []Creation
+	ResultState ResultState
+	Error       error
 }
 
 type Object interface {
@@ -116,6 +116,11 @@ type TargetState interface {
 	GetInputVersion(Inputs) string
 }
 
+type CommitInfo struct {
+	InputVersion string
+	State        ResultState
+}
+
 type InternalObject interface {
 	Object
 
@@ -124,7 +129,7 @@ type InternalObject interface {
 
 	GetLock(Phase) RunId
 
-	ClearLock(Objectbase, Phase, RunId) (bool, error)
+	ClearLock(ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 	TryLock(Objectbase, Phase, RunId) (bool, error)
 
 	SetExternalState(ob Objectbase, ph Phase, typ string, ext ExternalState) error

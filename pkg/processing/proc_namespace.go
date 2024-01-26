@@ -5,7 +5,7 @@ import (
 	"github.com/mandelsoft/logging"
 )
 
-func (p *Processor) processNamespace(lctx logging.Context, name string) pool.Status {
+func (p *Processor) processNamespace(log logging.Logger, name string) pool.Status {
 	var err error
 	ni := p.GetNamespace(name)
 	if ni != nil {
@@ -13,7 +13,7 @@ func (p *Processor) processNamespace(lctx logging.Context, name string) pool.Sta
 		defer ni.lock.Unlock()
 
 		if ni.pendingOperation != nil {
-			log := lctx.Logger(logging.NewAttribute("namespace", name), logging.NewAttribute("runid", ni.namespace.GetLock()))
+			log := log.WithName(name).WithValues("namespace", name, "runid", ni.namespace.GetLock())
 			err = ni.pendingOperation(log)
 			if err == nil {
 				ni.pendingOperation = nil

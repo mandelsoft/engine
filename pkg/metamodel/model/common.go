@@ -8,6 +8,7 @@ import (
 type Scheme = common.Scheme
 type SchemeTypes = common.SchemeTypes
 type Object = common.Object
+type CommitInfo = common.CommitInfo
 type InternalObject = common.InternalObject
 type ExternalObject = common.ExternalObject
 type RunId = common.RunId
@@ -19,7 +20,7 @@ type CurrentState = common.CurrentState
 type TargetState = common.TargetState
 type Inputs = common.Inputs
 
-type InternalState = common.InternalState
+type ResultState = common.ResultState
 type StatusUpdate = common.StatusUpdate
 
 type Request = common.Request

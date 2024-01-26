@@ -16,7 +16,7 @@ type Element interface {
 	GetTargetState() TargetState
 	SetTargetState(TargetState)
 
-	ClearLock(ob objectbase.Objectbase, id model.RunId) (bool, error)
+	ClearLock(ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error)
 	TryLock(ob objectbase.Objectbase, id model.RunId) (bool, error)
 }
 
@@ -82,8 +82,8 @@ func (e *element) SetTargetState(target TargetState) {
 	e.target = target
 }
 
-func (e *element) ClearLock(ob objectbase.Objectbase, id model.RunId) (bool, error) {
-	return e.GetObject().ClearLock(ob, e.id.Phase(), id)
+func (e *element) ClearLock(ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+	return e.GetObject().ClearLock(ob, e.id.Phase(), id, commit)
 }
 
 func (e *element) TryLock(ob objectbase.Objectbase, id model.RunId) (bool, error) {

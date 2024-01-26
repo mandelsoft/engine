@@ -31,12 +31,12 @@ func NewStringMatcher(s string) Matcher {
 
 type StringMatcher string
 
-func (this StringMatcher) Match(s string) bool {
-	return string(this) == s
+func (m StringMatcher) Match(s string) bool {
+	return string(m) == s
 }
 
-func (this StringMatcher) String() string {
-	return string(this)
+func (m StringMatcher) String() string {
+	return string(m)
 }
 
 func (g *glob) String() string {

@@ -1,8 +1,6 @@
 package demo
 
 import (
-	"fmt"
-
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
@@ -35,8 +33,8 @@ func (n *Node) UpdateStatus(ob objectbase.Objectbase, elem model.ElementId, upda
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
 		support.UpdateField(&o.Status.State, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
-		if update.InternalState != nil {
-			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.InternalState.(InternalState).output), &mod)
+		if update.ResultState != nil {
+			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*db.ResultState).GetState()), &mod)
 		}
 		return mod, mod
 	})
@@ -44,13 +42,3 @@ func (n *Node) UpdateStatus(ob objectbase.Objectbase, elem model.ElementId, upda
 }
 
 type ExternalNodeState = support.ExternalState[*db.NodeSpec]
-
-type InternalState struct {
-	output int
-}
-
-var _ model.InternalState = InternalState{}
-
-func (i InternalState) Description() string {
-	return fmt.Sprintf("%d", i.output)
-}

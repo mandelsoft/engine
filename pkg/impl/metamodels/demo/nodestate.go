@@ -48,20 +48,21 @@ func (n *NodeState) SetExternalState(ob objectbase.Objectbase, phase model.Phase
 			t.Spec = *s
 			t.ObjectVersion = state.GetVersion()
 		}
+		_o.(*db.NodeState).Target = t
 		return mod, mod
 	})
 	return err
 }
 
 func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
-	log := req.LogContext.Logger()
+	log := req.Logger
 
 	err := n.Validate()
 	if err != nil {
 		return model.Status{
-			Status:        common.STATUS_FAILED, // final failure
-			InternalState: nil,
-			Error:         err,
+			Status:      common.STATUS_FAILED, // final failure
+			ResultState: nil,
+			Error:       err,
 		}
 	}
 
@@ -82,8 +83,9 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 	s := n.GetTargetState(req.Element.GetPhase()).(*TargetState)
 	op := s.GetOperator()
 
-	out := operands[0]
+	out := 0
 	if op != nil {
+		out = operands[0]
 		switch *op {
 		case db.OP_ADD:
 			for _, v := range operands[1:] {
@@ -113,8 +115,8 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 	}
 
 	return model.Status{
-		Status:        common.STATUS_COMPLETED,
-		InternalState: InternalState{out},
+		Status:      common.STATUS_COMPLETED,
+		ResultState: db.NewResultState(out),
 	}
 }
 
@@ -203,7 +205,12 @@ func (c *TargetState) get() *db.NodeState {
 func (c *TargetState) GetLinks() []common.ElementId {
 	var r []model.ElementId
 
-	for _, o := range c.get().Target.Spec.Operands {
+	t := c.get().Target
+	if t == nil {
+		return nil
+	}
+
+	for _, o := range t.Spec.Operands {
 		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, demo.PHASE_UPDATING))
 	}
 	return r
@@ -217,7 +224,7 @@ func (c *TargetState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetState) GetOperator() *string {
+func (c *TargetState) GetOperator() *db.Operator {
 	return c.get().Target.Spec.Operator
 }
 

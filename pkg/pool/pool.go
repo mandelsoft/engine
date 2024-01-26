@@ -13,6 +13,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+var REALM = logging.DefineRealm("engine/pool", "processing worker pool for engine")
+
 var poolkey = ""
 
 type Pool interface {
@@ -34,6 +36,8 @@ type Pool interface {
 	EnqueueKeyAfter(key database.ObjectId, duration time.Duration)
 }
 
+type MessageContext []logging.MessageContext
+
 type pool struct {
 	logging.UnboundLogger
 	name      string
@@ -47,8 +51,9 @@ type pool struct {
 }
 
 func NewPool(ctx context.Context, lctx logging.Context, name string, size int, period time.Duration) Pool {
+	lctx = lctx.WithContext(REALM, logging.NewAttribute("pool", name))
 	pool := &pool{
-		UnboundLogger: logging.DynamicLogger(lctx, logging.NewAttribute("pool", name)),
+		UnboundLogger: logging.DynamicLogger(lctx),
 		name:          name,
 		size:          size,
 		period:        period,
@@ -99,6 +104,10 @@ func (p *pool) Period() time.Duration {
 	return p.period
 }
 
+func (p *pool) QueueLength() int {
+	return p.workqueue.Len()
+}
+
 func (p *pool) Tick() {
 	healthz.Tick(p.Key())
 }
@@ -128,7 +137,7 @@ func (p *pool) Run() {
 
 	<-p.ctx.Done()
 	p.workqueue.ShutDown()
-	p.Info("waiting for ppol workers to shutdown", "name", p.name)
+	p.Info("waiting for pool workers to shutdown", "name", p.name)
 	ctxutil.WaitGroupWait(p.ctx, 120*time.Second)
 	healthz.End(p.Key())
 }
