@@ -96,6 +96,8 @@ type ExternalState interface {
 	GetVersion() string
 }
 
+type ExternalStates map[string]ExternalState
+
 type LinkState interface {
 	GetLinks() []ElementId
 }
@@ -132,7 +134,7 @@ type InternalObject interface {
 	ClearLock(ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 	TryLock(Objectbase, Phase, RunId) (bool, error)
 
-	SetExternalState(ob Objectbase, ph Phase, typ string, ext ExternalState) error
+	SetExternalState(ob Objectbase, ph Phase, ext ExternalStates) error
 
 	Process(Objectbase, Request) Status
 }

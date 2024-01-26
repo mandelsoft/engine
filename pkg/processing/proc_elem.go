@@ -3,7 +3,6 @@ package processing
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
@@ -72,6 +71,7 @@ func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Sta
 	if len(types) > 0 {
 		log.Info("checking state of external objects for element {{element}}")
 		changed := false
+		cur := e.GetCurrentState().GetObjectVersion()
 		for _, t := range types {
 			id := database.NewObjectId(t, e.GetNamespace(), e.GetName())
 			log := log.WithValues("extid", id)
@@ -81,12 +81,10 @@ func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Sta
 				continue
 			}
 
-			cur := e.GetCurrentState().GetObjectVersion()
 			o := _o.(model.ExternalObject)
-
 			v := o.GetState().GetVersion()
 			if v == cur {
-				log.Info("state of external object {{extid}} not changed")
+				log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
 			} else {
 				changed = true
 				log.Info("state of {{extid}} changed from {{current}} to {{target}}", "current", cur, "target", v)
@@ -223,7 +221,7 @@ func (p *Processor) notifyCompletedState(log logging.Logger, ni *NamespaceInfo, 
 	log.Info("completed processing of element {{element}}", "output")
 	p.updateStatus(log, e, "Completed", msg, append(args, model.RunId(""))...)
 	p.pending.Add(-1)
-	p.triggerChildren(ni, e, true)
+	p.triggerChildren(log, ni, e, true)
 	return nil
 }
 
@@ -260,7 +258,7 @@ func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
 	if e.GetObject().GetTargetState(e.GetPhase()) == nil {
 		log.Info("target state for internal object of {{element}} already set for actual phase")
 	} else {
-		found := false
+		extstate := common.ExternalStates{}
 		if len(ext) > 0 {
 			log.Info("setting state of external objects for element {{element}}")
 			for _, id := range ext {
@@ -289,18 +287,16 @@ func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
 					log.Error("cannot update status for external object {{extid}}", "error", err)
 					return err
 				}
-				err = e.GetObject().SetExternalState(p.ob, e.GetPhase(), o.GetType(), state)
-				if err != nil {
-					log.Error("cannot update external state for internal object from {{extid}}", "error", err)
-					return err
-				}
-				log.Info("internal object hardens state of {{extid}} to {{version}}", "version", v)
-				found = true
+				extstate[id.Type()] = state
 			}
-		}
-		if !found {
-			log.Error("no external object or state found for {{element}}")
-			return fmt.Errorf("no external object or state found for %q", e.Id())
+			err := e.GetObject().SetExternalState(p.ob, e.GetPhase(), extstate)
+			if err != nil {
+				log.Error("cannot update external state for internal object from {{extid}}", "error", err)
+				return err
+			}
+			for t, s := range extstate {
+				log.Info("internal object hardens state for phase {{phase}} from type {{type}} to {{version}}", "type", t, "version", s.GetVersion())
+			}
 		}
 	}
 	return nil
@@ -344,21 +340,6 @@ func (p *Processor) lockGraph(log logging.Logger, elem Element) (*model.RunId, e
 		return nil, err
 	}
 	return &id, nil
-}
-
-func (p *Processor) getChildren(ns *NamespaceInfo, elem Element) []Element {
-	var r []Element
-	id := elem.Id()
-	for _, e := range ns.elements {
-		state := e.GetCurrentState()
-		if state != nil {
-			if slices.Contains(state.GetLinks(), id) {
-				r = append(r, e)
-			}
-
-		}
-	}
-	return r
 }
 
 func (p *Processor) _tryLockGraph(log logging.Logger, ns *NamespaceInfo, elem Element, elems map[ElementId]Element) (bool, error) {

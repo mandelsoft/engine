@@ -35,19 +35,24 @@ func (n *NodeState) GetTargetState(phase model.Phase) model.TargetState {
 	return &TargetState{n}
 }
 
-func (n *NodeState) SetExternalState(ob objectbase.Objectbase, phase model.Phase, typ string, state common.ExternalState) error {
-	s := state.(*ExternalNodeState).GetState()
+func (n *NodeState) SetExternalState(ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.NodeState).Target
-
 		if t == nil {
 			t = &db.TargetState{}
 		}
-		mod := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != state.GetVersion()
-		if mod {
-			t.Spec = *s
-			t.ObjectVersion = state.GetVersion()
+
+		mod := false
+		for _, _s := range state { // we have just one external object here, but just for demonstration
+			s := _s.(*ExternalNodeState).GetState()
+			m := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != _s.GetVersion()
+			if m {
+				t.Spec = *s
+				t.ObjectVersion = _s.GetVersion()
+			}
+			mod = mod || m
 		}
+
 		_o.(*db.NodeState).Target = t
 		return mod, mod
 	})

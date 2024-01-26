@@ -1,6 +1,8 @@
 package demo
 
 import (
+	"fmt"
+
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
@@ -29,7 +31,13 @@ func (n *Node) UpdateStatus(ob objectbase.Objectbase, elem model.ElementId, upda
 		mod := false
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
 		support.UpdateField(&o.Status.EffectiveVersion, update.EffectiveVersion, &mod)
+		if update.ObservedVersion != nil {
+			fmt.Printf("\nUpdate observed version for Node %s to %s\n", n.GetName(), *update.ObservedVersion)
+		}
 		support.UpdateField(&o.Status.ObservedVersion, update.ObservedVersion, &mod)
+		if update.DetectedVersion != nil {
+			fmt.Printf("\nUpdate detected version for Node %s to %s\n", n.GetName(), *update.DetectedVersion)
+		}
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
 		support.UpdateField(&o.Status.State, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)

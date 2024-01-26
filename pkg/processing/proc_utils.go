@@ -82,20 +82,41 @@ func (p *Processor) updateStatus(log logging.Logger, elem Element, status string
 	return nil
 }
 
-func (p *Processor) triggerChildren(ni *NamespaceInfo, elem Element, release bool) {
+func (p *Processor) getChildren(ns *NamespaceInfo, elem Element) []Element {
+	var r []Element
+	id := elem.Id()
+	for _, e := range ns.elements {
+		state := e.GetCurrentState()
+		if state != nil {
+			if slices.Contains(state.GetLinks(), id) {
+				r = append(r, e)
+			}
+		}
+	}
+	return r
+}
+
+func (p *Processor) triggerChildren(log logging.Logger, ni *NamespaceInfo, elem Element, release bool) {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
 	// TODO: dependency check must be synchronized with this trigger
 
+	id := elem.Id()
+	log.Debug("triggering children for {{element}} (checking {{amount}} elements in namespace)", "amount", len(ni.elements))
 	for _, e := range ni.elements {
 		if e.GetTargetState() != nil {
 			for _, l := range e.GetTargetState().GetLinks() {
-				p.EnqueueKey(CMD_ELEM, l)
+				if l == id {
+					log.Debug("trigger waiting element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					p.EnqueueKey(CMD_ELEM, e.Id())
+				}
 			}
-		}
-		if e.GetCurrentState() != nil {
+		} else if e.GetCurrentState() != nil {
 			for _, l := range e.GetCurrentState().GetLinks() {
-				p.EnqueueKey(CMD_ELEM, l)
+				if l == id {
+					log.Debug("trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					p.EnqueueKey(CMD_ELEM, e.Id())
+				}
 			}
 		}
 	}

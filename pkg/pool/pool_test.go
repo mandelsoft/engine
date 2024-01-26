@@ -30,7 +30,7 @@ type action struct {
 
 var _ me.Action = (*action)(nil)
 
-func (a *action) Reconcile(p me.Pool, l logging.Context, id database.ObjectId) me.Status {
+func (a *action) Reconcile(p me.Pool, l me.MessageContext, id database.ObjectId) me.Status {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -40,7 +40,7 @@ func (a *action) Reconcile(p me.Pool, l logging.Context, id database.ObjectId) m
 	return me.StatusCompleted()
 }
 
-func (a *action) Command(p me.Pool, log logging.Context, command me.Command) me.Status {
+func (a *action) Command(p me.Pool, log me.MessageContext, command me.Command) me.Status {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 

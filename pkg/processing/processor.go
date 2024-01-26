@@ -254,25 +254,3 @@ func (p *Processor) GetElement(id ElementId) Element {
 	}
 	return ns.elements[id]
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-func (p *Processor) processExternalObject(log logging.Logger, id database.ObjectId) pool.Status {
-
-	_o, err := p.ob.GetObject(id)
-	if err != nil {
-		if errors.Is(err, database.ErrNotExist) {
-			// TODO: object deleted
-		}
-		return pool.StatusFailed(err)
-	}
-	o := _o.(model.ExternalObject)
-
-	elem, err := p.AssureElementObjectFor(log, o)
-	if err != nil {
-		return pool.StatusFailed(err)
-	}
-
-	p.Enqueue(CMD_EXT, elem)
-	return pool.StatusCompleted(nil)
-}

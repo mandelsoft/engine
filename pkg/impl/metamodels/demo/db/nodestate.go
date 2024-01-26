@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
@@ -40,6 +42,7 @@ func (n *NodeState) CommitTargetState(phase model.Phase, spec *model.CommitInfo)
 	if n.Target != nil && spec != nil {
 		n.Current.Operands = n.Target.Spec.Operands
 		n.Current.InputVersion = spec.InputVersion
+		fmt.Printf("\nCommit object version for NodeState %s\n", n.Name)
 		n.Current.ObjectVersion = n.Target.ObjectVersion
 		n.Current.OutputVersion = spec.State.(*ResultState).GetOutputVersion()
 		n.Current.Output.Value = spec.State.(*ResultState).GetState()

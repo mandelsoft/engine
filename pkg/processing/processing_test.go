@@ -9,6 +9,7 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/testutils"
+	"github.com/mandelsoft/engine/pkg/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -105,7 +106,7 @@ var _ = Describe("Processing", func() {
 			Expect(*nan.(*db.Node).Status.Result).To(Equal(11))
 		})
 
-		FIt("node with two operands (wrong order)", func() {
+		It("node with two operands (wrong order)", func() {
 			lctx.Logger().Info("starting {{path}}", "path", "testdata", "other", "some value")
 			lctx.Logger().Debug("debug logs enabled")
 			// os.Stdout.Write(logbuf.Bytes())
@@ -131,8 +132,19 @@ var _ = Describe("Processing", func() {
 				}
 			}
 
+			fmt.Printf("*** modify object A ***\n")
+			dbo := (support.DBObject)(n5)
+			_ = Must(database.Modify(odb, &dbo, func(o support.DBObject) (bool, bool) {
+				o.(*db.Node).Spec.Value = utils.Pointer(6)
+				return true, true
+			}))
+
+			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
+
+			n := Must(odb.GetObject(na))
+			result = n.(*db.Node).Status.Result
 			Expect(result).NotTo(BeNil())
-			Expect(*result).To(Equal(11))
+			Expect(*result).To(Equal(12))
 		})
 	})
 })
