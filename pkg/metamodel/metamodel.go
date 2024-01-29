@@ -92,7 +92,7 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 				d.Type, d.Phase, e.Name, err)
 		}
 		t.addTrigger(e.Name)
-		m.external[e.Name] = newExternalObjectType(e.Name, t)
+		m.external[e.Name] = newExternalObjectType(e.Name, t, e.ForeignControlled)
 	}
 
 	for _, i := range m.internal {

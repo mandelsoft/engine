@@ -6,7 +6,7 @@ require (
 	github.com/go-test/deep v1.1.0
 	github.com/google/uuid v1.3.0
 	github.com/gowebpki/jcs v1.0.1
-	github.com/mandelsoft/logging v0.0.0-20240126101632-848456b893df
+	github.com/mandelsoft/logging v0.0.0-20240128165740-4a5af0d2a5ef
 	github.com/mandelsoft/vfs v0.4.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.29.0

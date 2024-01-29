@@ -20,21 +20,21 @@ import (
 // It is basically a single go routine with a state for subsequent methods
 // called from w go routine
 type worker struct {
-	logging.Logger
+	logging.UnboundLogger
 	dynlog logging.UnboundLogger
-	mctx   MessageContext
 	pool   *pool
 }
 
 func newWorker(p *pool, number int) *worker {
-	mctx := MessageContext{logging.NewName(fmt.Sprintf("worker %d", number)), logging.NewAttribute("worker", strconv.Itoa(number))}
-	lgr := logging.DynamicLogger(p.lctx, mctx...)
+	lgr := logging.DynamicLogger(p.lctx,
+		logging.NewName(fmt.Sprintf("worker %d", number)),
+		logging.NewAttribute("worker", strconv.Itoa(number)),
+	)
 
 	return &worker{
-		Logger: lgr,
-		dynlog: lgr,
-		mctx:   mctx,
-		pool:   p,
+		UnboundLogger: lgr,
+		dynlog:        lgr,
+		pool:          p,
 	}
 }
 
@@ -52,8 +52,8 @@ func (w *worker) internalErr(obj interface{}, err error) bool {
 }
 
 func (w *worker) loggerForKey(key string) func() {
-	w.Logger = w.dynlog.WithValues("resource", key)
-	return func() { w.Logger = w.dynlog }
+	w.UnboundLogger = w.dynlog.WithContext(logging.NewAttribute("resource-key", key), logging.NewName(key))
+	return func() { w.UnboundLogger = w.dynlog }
 }
 
 func catch(f func() Status) (result Status) {
@@ -88,6 +88,11 @@ func (w *worker) processNextWorkItem() bool {
 
 	defer w.loggerForKey(key)()
 
+	reqlog := w.dynlog
+	if w.pool.useKeyName {
+		reqlog = w.UnboundLogger
+	}
+
 	cmd, rkey, err := DecodeKey(key)
 
 	if err != nil {
@@ -101,7 +106,7 @@ func (w *worker) processNextWorkItem() bool {
 		actions := w.pool.GetActions(cmd)
 		if actions != nil && len(actions) > 0 {
 			for _, action := range actions {
-				status := catch(func() Status { return action.Command(w.pool, w.mctx, cmd) })
+				status := catch(func() Status { return action.Command(w.pool, reqlog, cmd) })
 				if !status.Completed {
 					ok = false
 				}
@@ -126,7 +131,7 @@ func (w *worker) processNextWorkItem() bool {
 		actions := w.pool.GetActions(ObjectType(rkey.GetType()))
 
 		for _, a := range actions {
-			status := catch(func() Status { return a.Reconcile(w.pool, w.mctx, rkey) })
+			status := catch(func() Status { return a.Reconcile(w.pool, reqlog, rkey) })
 			if !status.Completed {
 				ok = false
 			}

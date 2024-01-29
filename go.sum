@@ -48,6 +48,12 @@ github.com/mandelsoft/logging v0.0.0-20240125234334-a4fc6c45fc1d h1:Dka1xcGj98rs
 github.com/mandelsoft/logging v0.0.0-20240125234334-a4fc6c45fc1d/go.mod h1:uZjvghg2UhIgvQVC8j1KdgaKbs8OhCI6+czpz+y/9Fk=
 github.com/mandelsoft/logging v0.0.0-20240126101632-848456b893df h1:20BFLESiEqvhmwHOWcJuk8FLrn0V0CCGQ3bluqLiYCw=
 github.com/mandelsoft/logging v0.0.0-20240126101632-848456b893df/go.mod h1:uZjvghg2UhIgvQVC8j1KdgaKbs8OhCI6+czpz+y/9Fk=
+github.com/mandelsoft/logging v0.0.0-20240126210003-11ef48a680f8 h1:m10sYSM/SZ+IPgC73GQf1iRN1lrx8MLVgqMidymPAPA=
+github.com/mandelsoft/logging v0.0.0-20240126210003-11ef48a680f8/go.mod h1:uZjvghg2UhIgvQVC8j1KdgaKbs8OhCI6+czpz+y/9Fk=
+github.com/mandelsoft/logging v0.0.0-20240128122744-ed4dbf49b462 h1:09kroJvMAREHVEyJYW2Ds0vls1ETyfOftR9P0wyU2HQ=
+github.com/mandelsoft/logging v0.0.0-20240128122744-ed4dbf49b462/go.mod h1:uZjvghg2UhIgvQVC8j1KdgaKbs8OhCI6+czpz+y/9Fk=
+github.com/mandelsoft/logging v0.0.0-20240128165740-4a5af0d2a5ef h1:Vo+mEslqn/ygunVdMiMkTgRXPuo9SEQ6Mw9d2nY+oH4=
+github.com/mandelsoft/logging v0.0.0-20240128165740-4a5af0d2a5ef/go.mod h1:uO460C1lIB3IOOgrbXhAlz3AKsOv4T2K6ALBn3PwuSg=
 github.com/mandelsoft/vfs v0.4.0 h1:BUx3XIQUhHYOVT/voRudLrYE1VLa+t35jBn6572d7fM=
 github.com/mandelsoft/vfs v0.4.0/go.mod h1:k83vb5I4cqRGJh3TUUVbf2oTF8FrYhvixQ+FwIAgP1Y=
 github.com/mattn/go-isatty v0.0.19 h1:JITubQf0MOLdlGRuRq+jtsDlekdYPia9ZFsB8h/APPA=

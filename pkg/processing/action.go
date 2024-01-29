@@ -9,6 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/pool"
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/logging"
 )
 
 const ACTION_CMD = "element"
@@ -20,16 +21,17 @@ type action struct {
 var _ pool.Action = (*action)(nil)
 
 func (a *action) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.ObjectId) pool.Status {
-	return a.proc.processExternalObject(a.proc.logging.Logger(ctx...), id)
+	return a.proc.processExternalObject(a.proc.logging.Logger(logging.ExcludeFromMessageContext[logging.Realm](ctx)), id)
 }
 
 func (a *action) Command(p pool.Pool, ctx pool.MessageContext, command pool.Command) pool.Status {
+	ctx = logging.ExcludeFromMessageContext[logging.Realm](ctx)
 	cmd, ns, id := DecodeCommand(command)
 	if cmd == CMD_NS {
-		a.proc.processNamespace(a.proc.logging.Logger(ctx...), ns)
+		a.proc.processNamespace(a.proc.logging.Logger(ctx), ns)
 	}
 	if id != nil {
-		return a.proc.processElement(a.proc.logging.Logger(ctx...), cmd, *id)
+		return a.proc.processElement(a.proc.logging.Logger(ctx), cmd, *id)
 	} else {
 		return pool.StatusFailed(fmt.Errorf("invalid processor command %q", command))
 	}

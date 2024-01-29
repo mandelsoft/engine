@@ -40,7 +40,7 @@ type Processor struct {
 }
 
 func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, worker int) (*Processor, error) {
-	pool := pool.NewPool(ctx, lctx, m.MetaModel().Name(), worker, 0)
+	pool := pool.NewPool(ctx, lctx, m.MetaModel().Name(), worker, 0, false)
 	return &Processor{
 		ctx:     ctx,
 		logging: lctx.WithContext(REALM),

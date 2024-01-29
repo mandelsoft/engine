@@ -9,6 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/healthz"
+	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -36,21 +37,22 @@ type Pool interface {
 	EnqueueKeyAfter(key database.ObjectId, duration time.Duration)
 }
 
-type MessageContext []logging.MessageContext
+type MessageContext logging.MessageContext
 
 type pool struct {
 	logging.UnboundLogger
-	name      string
-	size      int
-	ctx       context.Context
-	lctx      logging.Context
-	period    time.Duration
-	workqueue Queue
-	actions   *actionMapping
-	key       string
+	name       string
+	size       int
+	ctx        context.Context
+	lctx       logging.Context
+	period     time.Duration
+	workqueue  Queue
+	actions    *actionMapping
+	useKeyName bool
+	key        string
 }
 
-func NewPool(ctx context.Context, lctx logging.Context, name string, size int, period time.Duration) Pool {
+func NewPool(ctx context.Context, lctx logging.Context, name string, size int, period time.Duration, useKeyName ...bool) Pool {
 	lctx = lctx.WithContext(REALM, logging.NewAttribute("pool", name))
 	pool := &pool{
 		UnboundLogger: logging.DynamicLogger(lctx),
@@ -58,6 +60,7 @@ func NewPool(ctx context.Context, lctx logging.Context, name string, size int, p
 		size:          size,
 		period:        period,
 		lctx:          lctx,
+		useKeyName:    utils.Optional(useKeyName...),
 		key:           fmt.Sprintf("pool %s", name),
 		workqueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
 			Name: name,

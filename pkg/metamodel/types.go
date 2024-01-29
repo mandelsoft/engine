@@ -72,19 +72,22 @@ func CompareElementType(a, b ElementType) int {
 type ExternalObjectType interface {
 	Name() string
 	Trigger() ElementType
+	IsForeignControlled() bool
 }
 
 type externalObjectType struct {
 	name    string
 	trigger ElementType
+	foreign bool
 }
 
 var _ ExternalObjectType = (*externalObjectType)(nil)
 
-func newExternalObjectType(name string, trigger ElementType) *externalObjectType {
+func newExternalObjectType(name string, trigger ElementType, foreign bool) *externalObjectType {
 	return &externalObjectType{
 		name:    name,
 		trigger: trigger,
+		foreign: foreign,
 	}
 }
 
@@ -94,6 +97,10 @@ func (o *externalObjectType) Name() string {
 
 func (o *externalObjectType) Trigger() ElementType {
 	return o.trigger
+}
+
+func (o *externalObjectType) IsForeignControlled() bool {
+	return o.foreign
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -48,10 +48,9 @@ type StatusUpdate struct {
 }
 
 type Request struct {
-	Logger   logging.Logger
-	External []ObjectId
-	Inputs   Inputs
-	Element  Element
+	Logger  logging.Logger
+	Inputs  Inputs
+	Element Element
 }
 
 type Creation struct {

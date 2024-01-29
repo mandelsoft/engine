@@ -13,15 +13,14 @@ import (
 )
 
 func (p *Processor) processElement(log logging.Logger, cmd string, id ElementId) pool.Status {
-	log = log.WithValues("namespace", id.Namespace(), "element", id).WithName(id.String())
-	log.Info("processing element {{element}}")
+	nlog := log.WithValues("namespace", id.Namespace(), "element", id).WithName(id.String())
 	elem := p.GetElement(id)
 	if elem == nil {
 		if cmd != CMD_EXT {
 			return pool.StatusFailed(fmt.Errorf("unknown element %q", id))
 		}
 		var status pool.Status
-		elem, status = p.handleNew(log, id)
+		elem, status = p.handleNew(nlog, id)
 		if elem == nil {
 			return status
 		}
@@ -30,16 +29,17 @@ func (p *Processor) processElement(log logging.Logger, cmd string, id ElementId)
 	runid := elem.GetLock()
 	if runid == "" {
 		if cmd == CMD_EXT {
-			return p.handleExternalChange(log, elem)
+			return p.handleExternalChange(nlog, elem)
 		}
 	} else {
-		return p.handleRun(log.WithValues("runid", runid), elem)
+		log = log.WithValues("namespace", id.Namespace(), "element", id, "runid", runid).WithName(string(runid)).WithName(elem.Id().String())
+		return p.handleRun(log, elem)
 	}
 	return pool.StatusCompleted()
 }
 
 func (p *Processor) handleNew(log logging.Logger, id ElementId) (Element, pool.Status) {
-
+	log.Info("processing new element {{element}}")
 	_i, err := p.ob.GetObject(id.DBId())
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
@@ -67,6 +67,7 @@ type Value struct {
 }
 
 func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Status {
+	log.Info("processing external element trigger for {{element}}")
 	types := p.mm.GetTriggeringTypesForElementType(e.Id().TypeId())
 	if len(types) > 0 {
 		log.Info("checking state of external objects for element {{element}}")
@@ -109,15 +110,13 @@ func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Sta
 }
 
 func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
+
 	ni := p.GetNamespace(e.GetNamespace())
 
 	var missing, waiting []ElementId
 	var inputs model.Inputs
 
-	var ext []model.ObjectId
-	for _, t := range p.mm.GetTriggeringTypesForElementType(e.Id().TypeId()) {
-		ext = append(ext, common.NewObjectId(t, e.GetNamespace(), e.GetName()))
-	}
+	log.Info("processing element {{element}}")
 
 	if e.GetTargetState() == nil {
 		// check current dependencies (target state not yet fixed)
@@ -157,10 +156,9 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 	// now we can process the phase
 	log.Info("executing phase {{phase}} of internal object {{intid}}", "phase", e.GetPhase(), "intid", e.Id().ObjectId())
 	status := e.GetObject().Process(p.ob, model.Request{
-		Logger:   log,
-		External: ext,
-		Element:  e,
-		Inputs:   inputs,
+		Logger:  log,
+		Element: e,
+		Inputs:  inputs,
 	})
 
 	if status.Error != nil {
@@ -249,19 +247,17 @@ func (p *Processor) notifyWaitingState(log logging.Logger, e Element, missing, w
 }
 
 func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
-	// determie potential external objects
-	var ext []model.ObjectId
-	for _, t := range p.mm.GetTriggeringTypesForElementType(e.Id().TypeId()) {
-		ext = append(ext, common.NewObjectId(t, e.GetNamespace(), e.GetName()))
-	}
+	// determine potential external objects
+	exttypes := p.mm.GetTriggeringTypesForElementType(e.Id().TypeId())
 
 	if e.GetObject().GetTargetState(e.GetPhase()) == nil {
 		log.Info("target state for internal object of {{element}} already set for actual phase")
 	} else {
 		extstate := common.ExternalStates{}
-		if len(ext) > 0 {
-			log.Info("setting state of external objects for element {{element}}")
-			for _, id := range ext {
+		if len(exttypes) > 0 {
+			log.Info("hardening state for external object types {{trigger-types}}", "trigger-types", exttypes)
+			for _, t := range exttypes {
+				id := common.NewObjectId(t, e.GetNamespace(), e.GetName())
 				log := log.WithValues("extid", id)
 				_o, err := p.ob.GetObject(database.NewObjectId(id.Type(), id.Namespace(), id.Name()))
 				if err != nil {

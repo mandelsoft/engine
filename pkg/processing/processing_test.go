@@ -50,7 +50,7 @@ var _ = Describe("Processing", func() {
 		MustBeSuccessfull(spec.Validate())
 
 		logbuf = bytes.NewBuffer(nil)
-		logcfg := logrusl.Human()
+		logcfg := logrusl.Human(true)
 		// logcfg=logcfg.WithWriter(logbuf)
 		logging.DefaultContext().SetBaseLogger(logrusr.New(logcfg.NewLogrus()))
 

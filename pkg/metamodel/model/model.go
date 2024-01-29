@@ -62,5 +62,5 @@ type pointer[P any] interface {
 
 func MustRegisterType[T any, P pointer[T]](s Scheme) {
 	var i any = s
-	runtime.Register[T, P](i.(runtime.Scheme[Object]), utils.TypeOf[T]().Name()) // Goland
+	runtime.Register[T, P](i.(runtime.TypeScheme[Object]), utils.TypeOf[T]().Name()) // Goland
 }

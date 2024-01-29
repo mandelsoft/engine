@@ -48,7 +48,16 @@ func Dep(typ string, phase common.Phase) DependencyTypeSpecification {
 type ExternalTypeSpecification struct {
 	TypeSpecification
 
+	// Trigger describes the type/phase which should be triggered on state change.
 	Trigger DependencyTypeSpecification
+	// ForeignControlled indicates that the object is controlled by another
+	// controller. Its state therefore describes the actual external status
+	// provided by this controller and not teh object specification.
+	// This object MUST provide information, whether the status reflects the
+	// requested target state described by the object specification.
+	// This will be evaluated by the implementation of the internal object
+	// implementing the triggered phase.
+	ForeignControlled bool
 }
 
 func ExtSpec(tname string, inttype string, phase common.Phase) ExternalTypeSpecification {
