@@ -18,6 +18,7 @@ type ElementType interface {
 
 	Dependencies() []ElementType
 	TriggeredBy() []string
+	HasDependency(name TypeId) bool
 
 	addDependency(d ElementType)
 	addTrigger(t string)
@@ -57,6 +58,15 @@ func (e *elementType) addTrigger(typ string) {
 
 func (e *elementType) Dependencies() []ElementType {
 	return slices.Clone(e.dependencies)
+}
+
+func (e *elementType) HasDependency(name TypeId) bool {
+	for _, d := range e.dependencies {
+		if d.Id() == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *elementType) TriggeredBy() []string {

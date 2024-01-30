@@ -7,7 +7,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodels/demo"
+	"github.com/mandelsoft/engine/pkg/metamodels/multidemo"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -38,6 +38,7 @@ type NodeSpec struct {
 }
 
 type NodeStatus struct {
+	Phase            model.Phase             `json:"phase,omitempty"`
 	Status           common.ProcessingStatus `json:"status,omitempty"`
 	Message          string                  `json:"message,omitempty"`
 	RunId            model.RunId             `json:"runid,omitempty"`
@@ -50,7 +51,7 @@ type NodeStatus struct {
 
 func NewOperatorNode(ns, n string, op Operator, operands ...string) *Node {
 	return &Node{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(demo.TYPE_NODE, ns, n),
+		GenerationObjectMeta: database.NewGenerationObjectMeta(multidemo.TYPE_NODE, ns, n),
 		Spec: NodeSpec{
 			Operator: utils.Pointer(op),
 			Operands: slices.Clone(operands),
@@ -60,7 +61,7 @@ func NewOperatorNode(ns, n string, op Operator, operands ...string) *Node {
 
 func NewValueNode(ns, n string, value int) *Node {
 	return &Node{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(demo.TYPE_NODE, ns, n),
+		GenerationObjectMeta: database.NewGenerationObjectMeta(multidemo.TYPE_NODE, ns, n),
 		Spec: NodeSpec{
 			Value: utils.Pointer(value),
 		},

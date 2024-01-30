@@ -121,7 +121,14 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 	if e.GetTargetState() == nil {
 		// check current dependencies (target state not yet fixed)
 		log.Info("checking current links")
-		missing, waiting, inputs = p.checkReady(ni, e.GetCurrentState().GetLinks())
+		links := e.GetCurrentState().GetLinks()
+
+		for _, l := range links {
+			if !p.mm.HasDependency(e.Id().TypeId(), l.TypeId()) {
+				return pool.StatusFailed(fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+			}
+		}
+		missing, waiting, inputs = p.checkReady(ni, links)
 
 		if p.notifyWaitingState(log, e, missing, waiting, inputs) {
 			return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
@@ -134,7 +141,13 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 
 		// checking target dependencies after fixing the target state
 		log.Info("checking target links and get actual inputs")
-		missing, waiting, inputs = p.checkReady(ni, e.GetObject().GetTargetState(e.GetPhase()).GetLinks())
+		links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
+		for _, l := range links {
+			if !p.mm.HasDependency(e.Id().TypeId(), l.TypeId()) {
+				return pool.StatusFailed(fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+			}
+		}
+		missing, waiting, inputs = p.checkReady(ni, links)
 		if p.notifyWaitingState(log, e, missing, waiting, inputs) {
 			return pool.StatusCompleted(fmt.Errorf("still waiting for effective predecessors"))
 		}
@@ -162,14 +175,13 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 	})
 
 	if status.Error != nil {
+		p.updateStatus(log, e, status.Status, status.Error.Error())
 		if status.Status == common.STATUS_FAILED {
 			// non-recoverable error, wait for new change in external object state
 			log.Error("processing provides non recoverable error", "error", status.Error)
-			p.updateStatus(log, e, "Failed", status.Error.Error())
 			return pool.StatusFailed(status.Error)
 		}
 		log.Error("processing provides error", "error", status.Error)
-		p.updateStatus(log, e, "Processing", status.Error.Error())
 		return pool.StatusCompleted(status.Error)
 	} else {
 		// if no error is provided, check for requested object creation.
@@ -217,7 +229,7 @@ func (p *Processor) notifyCompletedState(log logging.Logger, ni *NamespaceInfo, 
 		return err
 	}
 	log.Info("completed processing of element {{element}}", "output")
-	p.updateStatus(log, e, "Completed", msg, append(args, model.RunId(""))...)
+	p.updateStatus(log, e, common.STATUS_COMPLETED, msg, append(args, model.RunId(""))...)
 	p.pending.Add(-1)
 	p.triggerChildren(log, ni, e, true)
 	return nil
@@ -237,9 +249,9 @@ func (p *Processor) notifyWaitingState(log logging.Logger, e Element, missing, w
 		}
 		log.Info("inputs not ready", keys...)
 		if len(missing) > 0 {
-			p.updateStatus(log, e, "Waiting", fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), nil, e.GetLock())
+			p.updateStatus(log, e, common.STATUS_WAITING, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), nil, e.GetLock())
 		} else {
-			p.updateStatus(log, e, "Pending", fmt.Sprintf("waiting for %s", utils.Join(waiting)), e.GetLock())
+			p.updateStatus(log, e, common.STATUS_PENDING, fmt.Sprintf("waiting for %s", utils.Join(waiting)), e.GetLock())
 		}
 		return true
 	}
@@ -275,8 +287,8 @@ func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
 					RunId:           utils.Pointer(e.GetLock()),
 					DetectedVersion: &v,
 					ObservedVersion: nil,
-					Status:          utils.Pointer("Preparing"),
-					Message:         utils.Pointer(""),
+					Status:          utils.Pointer(common.STATUS_PREPARING),
+					Message:         utils.Pointer("preparing target state"),
 					ResultState:     nil,
 				})
 				if err != nil {

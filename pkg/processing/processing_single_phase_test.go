@@ -9,7 +9,6 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/engine/pkg/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -29,9 +28,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	mm "github.com/mandelsoft/engine/pkg/metamodels/demo"
 	"github.com/mandelsoft/engine/pkg/processing"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
-
-const NS = "testspace"
 
 var _ = Describe("Processing", func() {
 	var wg *sync.WaitGroup

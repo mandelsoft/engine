@@ -42,7 +42,7 @@ func GetResultState(args ...interface{}) model.ResultState {
 	return nil
 }
 
-func (p *Processor) updateStatus(log logging.Logger, elem Element, status string, message string, args ...any) error {
+func (p *Processor) updateStatus(log logging.Logger, elem Element, status common.ProcessingStatus, message string, args ...any) error {
 	for _, t := range p.mm.GetTriggeringTypesForInternalType(elem.GetType()) {
 		oid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
 

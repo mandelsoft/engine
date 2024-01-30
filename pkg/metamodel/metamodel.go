@@ -21,6 +21,8 @@ type MetaModel interface {
 
 	GetExternalType(name string) ExternalObjectType
 	GetInternalType(name string) InternalObjectType
+	GetElementType(name TypeId) ElementType
+	HasDependency(s, d TypeId) bool
 
 	GetPhaseFor(ext string) *TypeId
 	GetTriggeringTypesForElementType(id TypeId) []string
@@ -102,11 +104,11 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 					i.extTypes = append(i.extTypes, t)
 				}
 			}
-			sort.Strings(i.extTypes)
-			if len(i.extTypes) == 0 {
-				return nil, fmt.Errorf("no trigger for any phase of internal type %q",
-					i.intType.Name())
-			}
+		}
+		sort.Strings(i.extTypes)
+		if len(i.extTypes) == 0 {
+			return nil, fmt.Errorf("no trigger for any phase of internal type %q",
+				i.intType.Name())
 		}
 	}
 	return m, nil
@@ -153,6 +155,22 @@ func (m *metaModel) GetInternalType(name string) InternalObjectType {
 		return nil
 	}
 	return d.intType
+}
+
+func (m *metaModel) GetElementType(name TypeId) ElementType {
+	d := m.internal[name.Type()]
+	if d == nil {
+		return nil
+	}
+	return d.phases[name.Phase()]
+}
+
+func (m *metaModel) HasDependency(s, d TypeId) bool {
+	src := m.GetElementType(s)
+	if src == nil {
+		return false
+	}
+	return src.HasDependency(d)
 }
 
 func (m *metaModel) GetPhaseFor(ext string) *TypeId {

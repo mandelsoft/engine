@@ -40,7 +40,7 @@ type StatusUpdate struct {
 	// EffectiveVersion is the graph version reached.
 	EffectiveVersion *string
 	// Status is a state value.
-	Status *string
+	Status *ProcessingStatus
 	// Message is an explaining text for the state.
 	Message *string
 	// ResultState is some state info provided by the internal object.
@@ -58,14 +58,17 @@ type Creation struct {
 	Phase    Phase
 }
 
-type processingStatus string
+type ProcessingStatus string
 
-const STATUS_COMPLETED = processingStatus("Completed")
-const STATUS_PROCESSING = processingStatus("Processing")
-const STATUS_FAILED = processingStatus("Failed")
+const STATUS_WAITING = ProcessingStatus("Waiting")
+const STATUS_PENDING = ProcessingStatus("Pending")
+const STATUS_PREPARING = ProcessingStatus("Preparing")
+const STATUS_PROCESSING = ProcessingStatus("Processing")
+const STATUS_COMPLETED = ProcessingStatus("Completed")
+const STATUS_FAILED = ProcessingStatus("Failed")
 
 type Status struct {
-	Status      processingStatus
+	Status      ProcessingStatus
 	Creation    []Creation
 	ResultState ResultState
 	Error       error
