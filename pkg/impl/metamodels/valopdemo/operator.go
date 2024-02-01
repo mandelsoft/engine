@@ -1,4 +1,4 @@
-package multidemo
+package valopdemo
 
 import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
@@ -8,28 +8,28 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
-	wrapped.MustRegisterType[Node](scheme)
+	wrapped.MustRegisterType[Operator](scheme)
 }
 
-type Node struct {
+type Operator struct {
 	support.ExternalObjectSupport
 }
 
-var _ model.ExternalObject = (*Node)(nil)
+var _ model.ExternalObject = (*Operator)(nil)
 
-func (n *Node) GetState() model.ExternalState {
-	return support.NewExternalState[*db.NodeSpec](&n.GetBase().(*db.Node).Spec)
+func (n *Operator) GetState() model.ExternalState {
+	return support.NewExternalState[*db.OperatorSpec](&n.GetBase().(*db.Operator).Spec)
 }
 
-func (n *Node) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
+func (n *Operator) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
 	log := lctx.Logger(db.REALM).WithValues("name", n.GetName())
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
-		o := _o.(*db.Node)
+		o := _o.(*db.Operator)
 		mod := false
 		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.Phase()), &mod)
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
@@ -55,4 +55,4 @@ func (n *Node) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem 
 	return err
 }
 
-type ExternalNodeState = support.ExternalState[*db.NodeSpec]
+type ExternalOperatorState = support.ExternalState[*db.OperatorSpec]

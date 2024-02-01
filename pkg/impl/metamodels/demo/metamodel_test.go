@@ -3,13 +3,14 @@ package demo_test
 import (
 	"bytes"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/metamodels/demo"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
+
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/demo"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
 
 var _ = Describe("meta model", func() {
@@ -24,11 +25,11 @@ var _ = Describe("meta model", func() {
 		spec := me.NewModelSpecification("test", nil)
 		types := spec.Objectbase.SchemeTypes()
 
-		o := Must(types.CreateObject(demo.TYPE_NODE, objectbase.SetObjectName("namespace", "test")))
+		o := Must(types.CreateObject(mymetamodel.TYPE_NODE, objectbase.SetObjectName("namespace", "test")))
 
 		Expect(o.GetName()).To(Equal("test"))
 		Expect(o.GetNamespace()).To(Equal("namespace"))
-		Expect(o.GetType()).To(Equal(demo.TYPE_NODE))
+		Expect(o.GetType()).To(Equal(mymetamodel.TYPE_NODE))
 
 	})
 

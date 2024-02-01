@@ -7,25 +7,22 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
-	"github.com/mandelsoft/engine/pkg/utils"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
-	database.MustRegisterType[Node, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Operator, support.DBObject](Scheme) // Goland requires second type parameter
 }
 
-type Node struct {
+type Operator struct {
 	database.GenerationObjectMeta
 
-	Spec   NodeSpec   `json:"spec"`
-	Status NodeStatus `json:"status"`
+	Spec   OperatorSpec   `json:"spec"`
+	Status OperatorStatus `json:"status"`
 }
 
-type Value = Node
-type Operator = Node
-
-var _ database.Object = (*Node)(nil)
+var _ database.Object = (*Operator)(nil)
 
 type OperatorName string
 
@@ -34,13 +31,12 @@ const OP_SUB = OperatorName("sub")
 const OP_MUL = OperatorName("mul")
 const OP_DIV = OperatorName("div")
 
-type NodeSpec struct {
-	Value    *int          `json:"value,omitempty"`
-	Operator *OperatorName `json:"operator,omitempty"`
-	Operands []string      `json:"operands,omitempty"`
+type OperatorSpec struct {
+	Operator OperatorName `json:"operator"`
+	Operands []string     `json:"operands,omitempty"`
 }
 
-type NodeStatus struct {
+type OperatorStatus struct {
 	Phase            model.Phase             `json:"phase,omitempty"`
 	Status           common.ProcessingStatus `json:"status,omitempty"`
 	Message          string                  `json:"message,omitempty"`
@@ -52,21 +48,12 @@ type NodeStatus struct {
 	Result *int `json:"result,omitempty"`
 }
 
-func NewOperatorNode(ns, n string, op OperatorName, operands ...string) *Node {
-	return &Node{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_NODE, ns, n),
-		Spec: NodeSpec{
-			Operator: utils.Pointer(op),
+func NewOperatorNode(ns, n string, op OperatorName, operands ...string) *Operator {
+	return &Operator{
+		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_OPERATOR, ns, n),
+		Spec: OperatorSpec{
+			Operator: op,
 			Operands: slices.Clone(operands),
-		},
-	}
-}
-
-func NewValueNode(ns, n string, value int) *Node {
-	return &Node{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_NODE, ns, n),
-		Spec: NodeSpec{
-			Value: utils.Pointer(value),
 		},
 	}
 }

@@ -305,7 +305,7 @@ func (p *Processor) hardenTargetState(lctx common.Logging, log logging.Logger, e
 				return err
 			}
 			for t, s := range extstate {
-				log.Info("internal object hardens state for phase {{phase}} from type {{type}} to {{version}}", "type", t, "version", s.GetVersion())
+				log.Info("internal object hardened state for phase {{phase}} from type {{type}} to {{version}}", "phase", e.GetPhase(), "type", t, "version", s.GetVersion())
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-package multidemo_test
+package valopdemo_test
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 
-	me "github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
+	me "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 var _ = Describe("meta model", func() {
@@ -25,11 +25,11 @@ var _ = Describe("meta model", func() {
 		spec := me.NewModelSpecification("test", nil)
 		types := spec.Objectbase.SchemeTypes()
 
-		o := Must(types.CreateObject(mymetamodel.TYPE_NODE, objectbase.SetObjectName("namespace", "test")))
+		o := Must(types.CreateObject(mymetamodel.TYPE_OPERATOR, objectbase.SetObjectName("namespace", "test")))
 
 		Expect(o.GetName()).To(Equal("test"))
 		Expect(o.GetNamespace()).To(Equal("namespace"))
-		Expect(o.GetType()).To(Equal(mymetamodel.TYPE_NODE))
+		Expect(o.GetType()).To(Equal(mymetamodel.TYPE_OPERATOR))
 
 	})
 
@@ -43,26 +43,39 @@ var _ = Describe("meta model", func() {
 		Expect("\n" + buf.String()).To(Equal(`
 Namespace type: Namespace
 External types:
-- Node  (-> NodeState:Gathering)
-  internal type: NodeState
+- Operator  (-> OperatorState:Gathering)
+  internal type: OperatorState
   phase:         Gathering
+- Value  (-> ValueState:Propagating)
+  internal type: ValueState
+  phase:         Propagating
 Internal types:
-- NodeState
+- OperatorState
   phases:
   - Calculating
   - Gathering
   trigger types:
-  - Node
+  - Operator
+- ValueState
+  phases:
+  - Propagating
+  trigger types:
+  - Value
 Element types:
-- NodeState:Calculating
+- OperatorState:Calculating
   dependencies:
-  - NodeState:Gathering
+  - OperatorState:Gathering
   triggered by:
-- NodeState:Gathering
+- OperatorState:Gathering
   dependencies:
-  - NodeState:Calculating
+  - ValueState:Propagating
   triggered by:
-  - Node
+  - Operator
+- ValueState:Propagating
+  dependencies:
+  - OperatorState:Calculating
+  triggered by:
+  - Value
 `))
 	})
 })

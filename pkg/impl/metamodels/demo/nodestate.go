@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/metamodels/demo"
+
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
 
 func init() {
@@ -126,7 +127,7 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 }
 
 func (n *NodeState) Validate() error {
-	_s := n.GetTargetState(demo.PHASE_UPDATING)
+	_s := n.GetTargetState(mymetamodel.PHASE_UPDATING)
 	if _s == nil {
 		return nil
 	}
@@ -174,7 +175,7 @@ func (c *CurrentState) GetLinks() []model.ElementId {
 	var r []model.ElementId
 
 	for _, o := range c.get().Current.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, demo.PHASE_UPDATING))
+		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
 }
@@ -216,7 +217,7 @@ func (c *TargetState) GetLinks() []common.ElementId {
 	}
 
 	for _, o := range t.Spec.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, demo.PHASE_UPDATING))
+		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
 }
@@ -229,7 +230,7 @@ func (c *TargetState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetState) GetOperator() *db.Operator {
+func (c *TargetState) GetOperator() *db.OperatorName {
 	return c.get().Target.Spec.Operator
 }
 

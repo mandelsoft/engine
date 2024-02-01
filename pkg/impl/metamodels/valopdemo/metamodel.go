@@ -1,4 +1,4 @@
-package multidemo
+package valopdemo
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
@@ -6,8 +6,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {

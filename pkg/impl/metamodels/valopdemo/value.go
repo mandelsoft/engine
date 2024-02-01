@@ -1,4 +1,4 @@
-package demo
+package valopdemo
 
 import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
@@ -8,46 +8,46 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
 )
 
 func init() {
-	wrapped.MustRegisterType[Node](scheme)
+	wrapped.MustRegisterType[Value](scheme)
 }
 
-type Node struct {
+type Value struct {
 	support.ExternalObjectSupport
 }
 
-var _ model.ExternalObject = (*Node)(nil)
+var _ model.ExternalObject = (*Value)(nil)
 
-func (n *Node) GetState() model.ExternalState {
-	return support.NewExternalState[*db.NodeSpec](&n.GetBase().(*db.Node).Spec)
+func (n *Value) GetState() model.ExternalState {
+	return support.NewExternalState[*db.ValueSpec](&n.GetBase().(*db.Value).Spec)
 }
 
-func (n *Node) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
+func (n *Value) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
 	log := lctx.Logger(db.REALM).WithValues("name", n.GetName())
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
-		o := _o.(*db.Node)
+		o := _o.(*db.Value)
 		mod := false
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
 		support.UpdateField(&o.Status.EffectiveVersion, update.EffectiveVersion, &mod)
 		if update.ObservedVersion != nil {
-			log.Debug("Update observed version for Node {{name}} to {{state}}", "state", *update.ObservedVersion)
+			log.Debug("Update observed version for Value {{name}} to {{state}}", "state", *update.ObservedVersion)
 		}
 		support.UpdateField(&o.Status.ObservedVersion, update.ObservedVersion, &mod)
 		if update.DetectedVersion != nil {
-			log.Debug("Update detected version for Node {{name}} to {{state}}", "state", *update.DetectedVersion)
+			log.Debug("Update detected version for Value {{name}} to {{state}}", "state", *update.DetectedVersion)
 		}
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
 		support.UpdateField(&o.Status.Status, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
 		if update.ResultState != nil {
-			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*db.ResultState).GetState()), &mod)
+			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*db.ValueResultState).GetState().Value), &mod)
 		}
 		return mod, mod
 	})
 	return err
 }
 
-type ExternalNodeState = support.ExternalState[*db.NodeSpec]
+type ExternalValueState = support.ExternalState[*db.ValueSpec]

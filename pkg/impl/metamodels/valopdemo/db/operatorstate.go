@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	database.MustRegisterType[NodeState, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[OperatorState, support.DBObject](Scheme) // Goland requires second type parameter
 }
 
-type NodeState struct {
+type OperatorState struct {
 	support.InternalDBObjectSupport `json:",inline"`
 
 	// shared state for all phases.
@@ -33,15 +33,15 @@ type NodeState struct {
 	} `json: "calculation"`
 }
 
-var _ support.InternalDBObject = (*NodeState)(nil)
+var _ support.InternalDBObject = (*OperatorState)(nil)
 
 type ObjectCurrentState struct {
 	Operands []string `json:"operands"`
 }
 
 type ObjectTargetState struct {
-	Spec          NodeSpec `json:"spec"`
-	ObjectVersion string   `json:"objectVersion"`
+	Spec          OperatorSpec `json:"spec"`
+	ObjectVersion string       `json:"objectVersion"`
 }
 
 type GatherCurrentState struct {
@@ -74,13 +74,13 @@ type CalculationTargetState struct {
 	ObjectVersion string `json:"version"`
 }
 
-func (n *NodeState) CommitTargetState(lctx common.Logging, phase model.Phase, spec *model.CommitInfo) {
+func (n *OperatorState) CommitTargetState(lctx common.Logging, phase model.Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM).WithValues("name", n.Name, "phase", phase)
 	switch phase {
 	case mymetamodel.PHASE_GATHER:
 		if n.Gather.Target != nil && spec != nil {
 			// update phase specific state
-			log.Info("commit phase {{phase}} for NodeState {{name}}")
+			log.Info("commit phase {{phase}} for OperatorState {{name}}")
 			log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
 			log.Info("  object version {{objvers}}", "objvers", n.Gather.Target.ObjectVersion)
 			log.Info("  output version {{outvers}}", "outvers", spec.State.(*GatherResultState).GetOutputVersion())
@@ -96,7 +96,7 @@ func (n *NodeState) CommitTargetState(lctx common.Logging, phase model.Phase, sp
 	case mymetamodel.PHASE_CALCULATION:
 		if n.Calculation.Target != nil && spec != nil {
 			// update state specific
-			log.Info("commit phase {{phase}} for NodeState {{name}}")
+			log.Info("commit phase {{phase}} for OperatorState {{name}}")
 			log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
 			log.Info("  object version {{objvers}}", "objvers", n.Calculation.Target.ObjectVersion)
 			log.Info("  output version {{outvers}}", "outvers", spec.State.(*CalcResultState).GetOutputVersion())

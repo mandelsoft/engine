@@ -1,4 +1,4 @@
-package multidemo
+package valopdemo
 
 import (
 	"fmt"
@@ -11,15 +11,15 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/logging"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
-	wrapped.MustRegisterType[NodeState](scheme)
+	wrapped.MustRegisterType[OperatorState](scheme)
 }
 
-type NodeState struct {
+type OperatorState struct {
 	support.InternalObjectSupport
 }
 
@@ -27,9 +27,9 @@ type NodeStateCurrent struct {
 	Result int `json:"result"`
 }
 
-var _ model.InternalObject = (*NodeState)(nil)
+var _ model.InternalObject = (*OperatorState)(nil)
 
-func (n *NodeState) GetCurrentState(phase model.Phase) model.CurrentState {
+func (n *OperatorState) GetCurrentState(phase model.Phase) model.CurrentState {
 	switch phase {
 	case mymetamodel.PHASE_GATHER:
 		return &CurrentGatherState{n}
@@ -39,7 +39,7 @@ func (n *NodeState) GetCurrentState(phase model.Phase) model.CurrentState {
 	return nil
 }
 
-func (n *NodeState) GetTargetState(phase model.Phase) model.TargetState {
+func (n *OperatorState) GetTargetState(phase model.Phase) model.TargetState {
 	switch phase {
 	case mymetamodel.PHASE_GATHER:
 		return &TargetGatherState{n}
@@ -49,18 +49,18 @@ func (n *NodeState) GetTargetState(phase model.Phase) model.TargetState {
 	return nil
 }
 
-func (n *NodeState) SetExternalState(lctx common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
+func (n *OperatorState) SetExternalState(lctx common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
 	log := lctx.Logger(db.REALM).WithValues("name", n.GetName(), "phase", phase)
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
-		o := _o.(*db.NodeState)
+		o := _o.(*db.OperatorState)
 		mod := false
 		for _, s := range state {
-			n.setExternalObjectState(log, o, s.(*ExternalNodeState), &mod)
+			n.setExternalObjectState(log, o, s.(*ExternalOperatorState), &mod)
 			switch phase {
 			case mymetamodel.PHASE_GATHER:
 				n.setExternalGatherState(log, o, &mod)
 			case mymetamodel.PHASE_CALCULATION:
-				n.setExternalCalcState(log, o, s.(*ExternalNodeState), &mod)
+				n.setExternalCalcState(log, o, s.(*ExternalOperatorState), &mod)
 			}
 		}
 		return mod, mod
@@ -68,12 +68,12 @@ func (n *NodeState) SetExternalState(lctx common.Logging, ob objectbase.Objectba
 	return err
 }
 
-func (n *NodeState) setExternalObjectState(log logging.Logger, o *db.NodeState, state *ExternalNodeState, mod *bool) {
+func (n *OperatorState) setExternalObjectState(log logging.Logger, o *db.OperatorState, state *ExternalOperatorState, mod *bool) {
 	t := o.Target
 	if t != nil {
 		return // keep state from first touched phase
 	}
-	log.Info("set common target state for NodeState {{name}}")
+	log.Info("set common target state for OperatorState {{name}}")
 	t = &db.ObjectTargetState{}
 
 	s := state.GetState()
@@ -87,18 +87,18 @@ func (n *NodeState) setExternalObjectState(log logging.Logger, o *db.NodeState, 
 	o.Target = t
 }
 
-func (n *NodeState) setExternalGatherState(log logging.Logger, o *db.NodeState, mod *bool) {
+func (n *OperatorState) setExternalGatherState(log logging.Logger, o *db.OperatorState, mod *bool) {
 	t := o.Gather.Target
 	if t == nil {
 		t = &db.GatherTargetState{}
 	}
 
-	log.Info("set target state for phase {{phase}} of NodeState {{name}}")
+	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
 	support.UpdateField(&t.ObjectVersion, &o.Target.ObjectVersion, mod)
 	o.Gather.Target = t
 }
 
-func (n *NodeState) setExternalCalcState(log logging.Logger, o *db.NodeState, state *ExternalNodeState, mod *bool) {
+func (n *OperatorState) setExternalCalcState(log logging.Logger, o *db.OperatorState, state *ExternalOperatorState, mod *bool) {
 	t := o.Calculation.Target
 	if t == nil {
 		t = &db.CalculationTargetState{}
@@ -109,7 +109,7 @@ func (n *NodeState) setExternalCalcState(log logging.Logger, o *db.NodeState, st
 	o.Calculation.Target = t
 }
 
-func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
+func (n *OperatorState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
 	switch req.Element.GetPhase() {
 	case mymetamodel.PHASE_GATHER:
 		return n.processGather(ob, req)
@@ -122,7 +122,7 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 	}
 }
 
-func (n *NodeState) processGather(ob objectbase.Objectbase, req model.Request) model.Status {
+func (n *OperatorState) processGather(ob objectbase.Objectbase, req model.Request) model.Status {
 	log := req.Logging.Logger(db.REALM)
 
 	err := n.Validate()
@@ -136,7 +136,7 @@ func (n *NodeState) processGather(ob objectbase.Objectbase, req model.Request) m
 	links := n.GetTargetState(req.Element.GetPhase()).GetLinks()
 	operands := make([]db.Operand, len(links))
 	for iid, e := range req.Inputs {
-		s := e.(*CurrentCalcState)
+		s := e.(*CurrentState)
 		for i, oid := range links {
 			if iid == oid {
 				operands[i] = db.Operand{
@@ -153,7 +153,7 @@ func (n *NodeState) processGather(ob objectbase.Objectbase, req model.Request) m
 		operands = []db.Operand{
 			{
 				Origin: common.NewObjectIdFor(req.Element.GetObject()),
-				Value:  *n.GetTargetState(req.Element.GetPhase()).(*TargetGatherState).GetValue(),
+				Value:  0,
 			},
 		}
 	}
@@ -163,7 +163,7 @@ func (n *NodeState) processGather(ob objectbase.Objectbase, req model.Request) m
 	}
 }
 
-func (n *NodeState) processCalc(ob objectbase.Objectbase, req model.Request) model.Status {
+func (n *OperatorState) processCalc(ob objectbase.Objectbase, req model.Request) model.Status {
 	log := req.Logging.Logger(db.REALM)
 
 	err := n.Validate()
@@ -183,34 +183,30 @@ func (n *NodeState) processCalc(ob objectbase.Objectbase, req model.Request) mod
 	op := s.GetOperator()
 
 	out := operands[0].Value
-	if op != nil {
-		log.Info("calculate {{operator}} {{operands}}", "operator", *op, "operands", operands)
-		switch *op {
-		case db.OP_ADD:
-			for _, v := range operands[1:] {
-				out += v.Value
-			}
-		case db.OP_SUB:
-			for _, v := range operands[1:] {
-				out -= v.Value
-			}
-		case db.OP_MUL:
-			for _, v := range operands[1:] {
-				out *= v.Value
-			}
-		case db.OP_DIV:
-			for i, v := range operands[1:] {
-				if v.Value == 0 {
-					return model.Status{
-						Status: common.STATUS_FAILED,
-						Error:  fmt.Errorf("division by zero for operand %d[%s]", i, operands[i+1].Origin),
-					}
-				}
-				out /= v.Value
-			}
+	log.Info("calculate {{operator}} {{operands}}", "operator", op, "operands", operands)
+	switch op {
+	case db.OP_ADD:
+		for _, v := range operands[1:] {
+			out += v.Value
 		}
-	} else {
-		log.Info("use input value {{input}}}", "input", out)
+	case db.OP_SUB:
+		for _, v := range operands[1:] {
+			out -= v.Value
+		}
+	case db.OP_MUL:
+		for _, v := range operands[1:] {
+			out *= v.Value
+		}
+	case db.OP_DIV:
+		for i, v := range operands[1:] {
+			if v.Value == 0 {
+				return model.Status{
+					Status: common.STATUS_FAILED,
+					Error:  fmt.Errorf("division by zero for operand %d[%s]", i, operands[i+1].Origin),
+				}
+			}
+			out /= v.Value
+		}
 	}
 
 	return model.Status{
@@ -219,7 +215,7 @@ func (n *NodeState) processCalc(ob objectbase.Objectbase, req model.Request) mod
 	}
 }
 
-func (n *NodeState) Validate() error {
+func (n *OperatorState) Validate() error {
 	_s := n.GetTargetState(mymetamodel.PHASE_GATHER)
 	if _s == nil {
 		return nil
@@ -227,29 +223,20 @@ func (n *NodeState) Validate() error {
 	s := _s.(*TargetGatherState)
 
 	op := s.GetOperator()
-	if op != nil && s.GetValue() != nil {
-		return fmt.Errorf("only operator or value can be specified")
-	}
-	if op == nil && s.GetValue() == nil {
-		return fmt.Errorf("operator or value must be specified")
+	if op == "" {
+		return fmt.Errorf("operator missing")
 	}
 
-	if op != nil {
-		if len(s.GetLinks()) == 0 {
-			return fmt.Errorf("operator node requires at least one operand")
-		}
-		switch *op {
-		case db.OP_ADD:
-		case db.OP_SUB:
-		case db.OP_DIV:
-		case db.OP_MUL:
-		default:
-			return fmt.Errorf("unknown operator %q", *op)
-		}
-	} else {
-		if len(s.GetLinks()) != 0 {
-			return fmt.Errorf("operands only possible for operator node")
-		}
+	if len(s.GetLinks()) == 0 {
+		return fmt.Errorf("operator node requires at least one operand")
+	}
+	switch op {
+	case db.OP_ADD:
+	case db.OP_SUB:
+	case db.OP_DIV:
+	case db.OP_MUL:
+	default:
+		return fmt.Errorf("unknown operator %q", op)
 	}
 	return nil
 }
@@ -257,20 +244,20 @@ func (n *NodeState) Validate() error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type CurrentGatherState struct {
-	n *NodeState
+	n *OperatorState
 }
 
 var _ model.CurrentState = (*CurrentGatherState)(nil)
 
 func (c *CurrentGatherState) get() *db.GatherCurrentState {
-	return &c.n.GetBase().(*db.NodeState).Gather.Current
+	return &c.n.GetBase().(*db.OperatorState).Gather.Current
 }
 
 func (c *CurrentGatherState) GetLinks() []model.ElementId {
 	var r []model.ElementId
 
-	for _, o := range c.n.GetBase().(*db.NodeState).Current.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
+	for _, o := range c.n.GetBase().(*db.OperatorState).Current.Operands {
+		r = append(r, common.NewElementId(mymetamodel.TYPE_VALUE_STATE, c.n.GetNamespace(), o, mymetamodel.PHASE_PROPAGATE))
 	}
 	return r
 }
@@ -292,13 +279,13 @@ func (c *CurrentGatherState) GetOutput() []db.Operand {
 }
 
 type CurrentCalcState struct {
-	n *NodeState
+	n *OperatorState
 }
 
 var _ model.CurrentState = (*CurrentCalcState)(nil)
 
 func (c *CurrentCalcState) get() *db.CalculationCurrentState {
-	return &c.n.GetBase().(*db.NodeState).Calculation.Current
+	return &c.n.GetBase().(*db.OperatorState).Calculation.Current
 }
 
 func (c *CurrentCalcState) GetLinks() []model.ElementId {
@@ -324,25 +311,25 @@ func (c *CurrentCalcState) GetOutput() int {
 ////////////////////////////////////////////////////////////////////////////////
 
 type TargetGatherState struct {
-	n *NodeState
+	n *OperatorState
 }
 
 var _ model.TargetState = (*TargetGatherState)(nil)
 
 func (c *TargetGatherState) get() *db.GatherTargetState {
-	return c.n.GetBase().(*db.NodeState).Gather.Target
+	return c.n.GetBase().(*db.OperatorState).Gather.Target
 }
 
 func (c *TargetGatherState) GetLinks() []common.ElementId {
 	var r []model.ElementId
 
-	t := c.n.GetBase().(*db.NodeState).Target
+	t := c.n.GetBase().(*db.OperatorState).Target
 	if t == nil {
 		return nil
 	}
 
 	for _, o := range t.Spec.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
+		r = append(r, common.NewElementId(mymetamodel.TYPE_VALUE_STATE, c.n.GetNamespace(), o, mymetamodel.PHASE_PROPAGATE))
 	}
 	return r
 }
@@ -355,22 +342,18 @@ func (c *TargetGatherState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetGatherState) GetOperator() *db.OperatorName {
-	return c.n.GetBase().(*db.NodeState).Target.Spec.Operator
-}
-
-func (c *TargetGatherState) GetValue() *int {
-	return c.n.GetBase().(*db.NodeState).Target.Spec.Value
+func (c *TargetGatherState) GetOperator() db.OperatorName {
+	return c.n.GetBase().(*db.OperatorState).Target.Spec.Operator
 }
 
 type TargetCalcState struct {
-	n *NodeState
+	n *OperatorState
 }
 
 var _ model.TargetState = (*TargetCalcState)(nil)
 
 func (c *TargetCalcState) get() *db.CalculationTargetState {
-	return c.n.GetBase().(*db.NodeState).Calculation.Target
+	return c.n.GetBase().(*db.OperatorState).Calculation.Target
 }
 
 func (c *TargetCalcState) GetLinks() []common.ElementId {
@@ -385,6 +368,6 @@ func (c *TargetCalcState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetCalcState) GetOperator() *db.OperatorName {
-	return c.n.GetBase().(*db.NodeState).Target.Spec.Operator
+func (c *TargetCalcState) GetOperator() db.OperatorName {
+	return c.n.GetBase().(*db.OperatorState).Target.Spec.Operator
 }
