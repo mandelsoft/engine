@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	demo "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
@@ -35,7 +36,7 @@ type NodeState struct {
 var _ support.InternalDBObject = (*NodeState)(nil)
 
 type ObjectCurrentState struct {
-	ObjectVersion string `json:"objectVersion"`
+	Operands []string `json:"operands"`
 }
 
 type ObjectTargetState struct {
@@ -73,11 +74,17 @@ type CalculationTargetState struct {
 	ObjectVersion string `json:"version"`
 }
 
-func (n *NodeState) CommitTargetState(phase model.Phase, spec *model.CommitInfo) {
+func (n *NodeState) CommitTargetState(lctx common.Logging, phase model.Phase, spec *model.CommitInfo) {
+	log := lctx.Logger(REALM).WithValues("name", n.Name, "phase", phase)
 	switch phase {
 	case demo.PHASE_GATHER:
 		if n.Gather.Target != nil && spec != nil {
 			// update phase specific state
+			log.Info("commit phase {{phase}} for NodeState {{name}}")
+			log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
+			log.Info("  object version {{objvers}}", "objvers", n.Gather.Target.ObjectVersion)
+			log.Info("  output version {{outvers}}", "outvers", spec.State.(*GatherResultState).GetOutputVersion())
+			log.Info("  output {{output}}", "output", spec.State.(*GatherResultState).GetState())
 			c := &n.Gather.Current
 			c.InputVersion = spec.InputVersion
 			c.ObjectVersion = n.Gather.Target.ObjectVersion
@@ -89,6 +96,11 @@ func (n *NodeState) CommitTargetState(phase model.Phase, spec *model.CommitInfo)
 	case demo.PHASE_CALCULATION:
 		if n.Calculation.Target != nil && spec != nil {
 			// update state specific
+			log.Info("commit phase {{phase}} for NodeState {{name}}")
+			log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
+			log.Info("  object version {{objvers}}", "objvers", n.Calculation.Target.ObjectVersion)
+			log.Info("  output version {{outvers}}", "outvers", spec.State.(*CalcResultState).GetOutputVersion())
+			log.Info("  output {{output}}", "output", spec.State.(*CalcResultState).GetState())
 			c := &n.Calculation.Current
 			c.InputVersion = spec.InputVersion
 			c.ObjectVersion = n.Calculation.Target.ObjectVersion
@@ -96,7 +108,8 @@ func (n *NodeState) CommitTargetState(phase model.Phase, spec *model.CommitInfo)
 			c.Output.Value = spec.State.(*CalcResultState).GetState()
 
 			// ... and common state for last phase
-			n.Current.ObjectVersion = n.Calculation.Target.ObjectVersion
+			log.Info("  operands {{operands}}", "operands", n.Target.Spec.Operands)
+			n.Current.Operands = n.Target.Spec.Operands
 		}
 		n.Calculation.Target = nil
 		n.Target = nil

@@ -58,7 +58,7 @@ type InternalDBObject interface {
 	ClearLock(phase model.Phase, id model.RunId) bool
 	TryLock(phase model.Phase, id model.RunId) bool
 
-	CommitTargetState(phase model.Phase, commit *model.CommitInfo)
+	CommitTargetState(lctx common.Logging, phase model.Phase, commit *model.CommitInfo)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +82,7 @@ func (n *InternalObjectSupport) GetLock(phase common.Phase) common.RunId {
 	return n.GetDBObject().GetLock(phase)
 }
 
-func (n *InternalObjectSupport) ClearLock(ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+func (n *InternalObjectSupport) ClearLock(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -90,7 +90,7 @@ func (n *InternalObjectSupport) ClearLock(ob objectbase.Objectbase, phase common
 		o := utils.Cast[InternalDBObject](_o)
 		b := o.ClearLock(phase, id)
 		if b && commit != nil {
-			o.CommitTargetState(phase, commit)
+			o.CommitTargetState(lctx, phase, commit)
 		}
 		return b, b
 	}

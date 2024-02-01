@@ -96,7 +96,7 @@ var _ = Describe("Processing", func() {
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			MustBeSuccessfull(odb.SetObject(na))
 
-			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
+			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.FINAL_PHASE))).To(BeTrue())
 
 			nan := Must(odb.GetObject(na))
 
@@ -122,7 +122,7 @@ var _ = Describe("Processing", func() {
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
+				Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.FINAL_PHASE))).To(BeTrue())
 				n := Must(odb.GetObject(na))
 				result = n.(*db.Node).Status.Result
 				if result != nil && *result == 11 {
@@ -137,7 +137,7 @@ var _ = Describe("Processing", func() {
 				return true, true
 			}))
 
-			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
+			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.FINAL_PHASE))).To(BeTrue())
 
 			n := Must(odb.GetObject(na))
 			result = n.(*db.Node).Status.Result

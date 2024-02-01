@@ -25,13 +25,14 @@ func (a *action) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.Obj
 }
 
 func (a *action) Command(p pool.Pool, ctx pool.MessageContext, command pool.Command) pool.Status {
-	ctx = logging.ExcludeFromMessageContext[logging.Realm](ctx)
+	// ctx = logging.ExcludeFromMessageContext[logging.Realm](ctx)
+	ctx = ctx.WithContext(REALM)
 	cmd, ns, id := DecodeCommand(command)
 	if cmd == CMD_NS {
 		a.proc.processNamespace(a.proc.logging.Logger(ctx), ns)
 	}
 	if id != nil {
-		return a.proc.processElement(a.proc.logging.Logger(ctx), cmd, *id)
+		return a.proc.processElement(a.proc.logging.AttributionContext().WithContext(ctx), cmd, *id)
 	} else {
 		return pool.StatusFailed(fmt.Errorf("invalid processor command %q", command))
 	}

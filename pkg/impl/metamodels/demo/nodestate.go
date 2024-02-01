@@ -35,7 +35,7 @@ func (n *NodeState) GetTargetState(phase model.Phase) model.TargetState {
 	return &TargetState{n}
 }
 
-func (n *NodeState) SetExternalState(ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
+func (n *NodeState) SetExternalState(lcxt common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.NodeState).Target
 		if t == nil {
@@ -60,7 +60,7 @@ func (n *NodeState) SetExternalState(ob objectbase.Objectbase, phase model.Phase
 }
 
 func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
-	log := req.Logger
+	log := req.Logging.Logger(db.REALM)
 
 	err := n.Validate()
 	if err != nil {

@@ -1,4 +1,4 @@
-package demo
+package multidemo
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"

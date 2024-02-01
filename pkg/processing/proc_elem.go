@@ -12,15 +12,15 @@ import (
 	"github.com/mandelsoft/logging"
 )
 
-func (p *Processor) processElement(log logging.Logger, cmd string, id ElementId) pool.Status {
-	nlog := log.WithValues("namespace", id.Namespace(), "element", id).WithName(id.String())
+func (p *Processor) processElement(lctx common.Logging, cmd string, id ElementId) pool.Status {
+	nctx := lctx.WithValues("namespace", id.Namespace(), "element", id).WithName(id.String())
 	elem := p.GetElement(id)
 	if elem == nil {
 		if cmd != CMD_EXT {
 			return pool.StatusFailed(fmt.Errorf("unknown element %q", id))
 		}
 		var status pool.Status
-		elem, status = p.handleNew(nlog, id)
+		elem, status = p.handleNew(nctx, id)
 		if elem == nil {
 			return status
 		}
@@ -29,16 +29,17 @@ func (p *Processor) processElement(log logging.Logger, cmd string, id ElementId)
 	runid := elem.GetLock()
 	if runid == "" {
 		if cmd == CMD_EXT {
-			return p.handleExternalChange(nlog, elem)
+			return p.handleExternalChange(nctx, elem)
 		}
 	} else {
-		log = log.WithValues("namespace", id.Namespace(), "element", id, "runid", runid).WithName(string(runid)).WithName(elem.Id().String())
-		return p.handleRun(log, elem)
+		lctx = lctx.WithValues("namespace", id.Namespace(), "element", id, "runid", runid).WithName(string(runid)).WithName(elem.Id().String())
+		return p.handleRun(lctx, elem)
 	}
 	return pool.StatusCompleted()
 }
 
-func (p *Processor) handleNew(log logging.Logger, id ElementId) (Element, pool.Status) {
+func (p *Processor) handleNew(lctx common.Logging, id ElementId) (Element, pool.Status) {
+	log := lctx.Logger()
 	log.Info("processing new element {{element}}")
 	_i, err := p.ob.GetObject(id.DBId())
 	if err != nil {
@@ -66,7 +67,8 @@ type Value struct {
 	msg string
 }
 
-func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Status {
+func (p *Processor) handleExternalChange(lctx common.Logging, e Element) pool.Status {
+	log := lctx.Logger()
 	log.Info("processing external element trigger for {{element}}")
 	types := p.mm.GetTriggeringTypesForElementType(e.Id().TypeId())
 	if len(types) > 0 {
@@ -78,7 +80,7 @@ func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Sta
 			log := log.WithValues("extid", id)
 			_o, err := p.ob.GetObject(id)
 			if err != nil {
-				log.Error("cannot get external object {{extid}}")
+				lctx.Logger().Error("cannot get external object {{extid}}")
 				continue
 			}
 
@@ -94,7 +96,7 @@ func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Sta
 		if changed {
 			log.Info("trying to initiate new run for {{element}}")
 
-			rid, err := p.lockGraph(log, e)
+			rid, err := p.lockGraph(lctx, log, e)
 			if err == nil {
 				if rid != nil {
 					log.Info("starting run {{runid}}", "runid", *rid)
@@ -109,8 +111,8 @@ func (p *Processor) handleExternalChange(log logging.Logger, e Element) pool.Sta
 	return pool.StatusCompleted()
 }
 
-func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
-
+func (p *Processor) handleRun(lctx common.Logging, e Element) pool.Status {
+	log := lctx.Logger()
 	ni := p.GetNamespace(e.GetNamespace())
 
 	var missing, waiting []ElementId
@@ -130,11 +132,11 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 		}
 		missing, waiting, inputs = p.checkReady(ni, links)
 
-		if p.notifyWaitingState(log, e, missing, waiting, inputs) {
+		if p.notifyWaitingState(lctx, log, e, missing, waiting, inputs) {
 			return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
 		}
 		// fix target state by transferring the current external state to the internal object
-		err := p.hardenTargetState(log, e)
+		err := p.hardenTargetState(lctx, log, e)
 		if err != nil {
 			return pool.StatusCompleted(err)
 		}
@@ -148,7 +150,7 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 			}
 		}
 		missing, waiting, inputs = p.checkReady(ni, links)
-		if p.notifyWaitingState(log, e, missing, waiting, inputs) {
+		if p.notifyWaitingState(lctx, log, e, missing, waiting, inputs) {
 			return pool.StatusCompleted(fmt.Errorf("still waiting for effective predecessors"))
 		}
 
@@ -158,7 +160,7 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 		if target.GetInputVersion(inputs) == e.GetCurrentState().GetInputVersion() &&
 			target.GetObjectVersion() == e.GetCurrentState().GetObjectVersion() {
 			log.Info("effective version unchanged -> skip processing of phase")
-			err = p.notifyCompletedState(log, ni, e, "no processing required", nil)
+			err = p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil)
 			return pool.StatusCompleted(err)
 		}
 		// mark element to be ready by setting the elements target state to the target state of the internal
@@ -169,13 +171,13 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 	// now we can process the phase
 	log.Info("executing phase {{phase}} of internal object {{intid}}", "phase", e.GetPhase(), "intid", e.Id().ObjectId())
 	status := e.GetObject().Process(p.ob, model.Request{
-		Logger:  log,
+		Logging: lctx,
 		Element: e,
 		Inputs:  inputs,
 	})
 
 	if status.Error != nil {
-		p.updateStatus(log, e, status.Status, status.Error.Error())
+		p.updateStatus(lctx, e, status.Status, status.Error.Error())
 		if status.Status == common.STATUS_FAILED {
 			// non-recoverable error, wait for new change in external object state
 			log.Error("processing provides non recoverable error", "error", status.Error)
@@ -202,7 +204,7 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 			p.pending.Add(1)
 		}
 		if status.Status == common.STATUS_COMPLETED {
-			err := p.notifyCompletedState(log, ni, e, "processing completed", inputs, status.ResultState, CalcEffectiveVersion(inputs, e.GetTargetState().GetObjectVersion()))
+			err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", inputs, status.ResultState, CalcEffectiveVersion(inputs, e.GetTargetState().GetObjectVersion()))
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
@@ -214,13 +216,13 @@ func (p *Processor) handleRun(log logging.Logger, e Element) pool.Status {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (p *Processor) notifyCompletedState(log logging.Logger, ni *NamespaceInfo, e Element, msg string, inputs model.Inputs, args ...interface{}) error {
+func (p *Processor) notifyCompletedState(lctx common.Logging, log logging.Logger, ni *NamespaceInfo, e Element, msg string, inputs model.Inputs, args ...interface{}) error {
 	result := GetResultState(args...)
 	if result == nil {
 		return fmt.Errorf("no formal result provided")
 	}
 
-	_, err := e.ClearLock(p.ob, e.GetLock(), &common.CommitInfo{
+	_, err := e.ClearLock(lctx, p.ob, e.GetLock(), &common.CommitInfo{
 		InputVersion: e.GetTargetState().GetInputVersion(inputs),
 		State:        result,
 	})
@@ -229,13 +231,13 @@ func (p *Processor) notifyCompletedState(log logging.Logger, ni *NamespaceInfo, 
 		return err
 	}
 	log.Info("completed processing of element {{element}}", "output")
-	p.updateStatus(log, e, common.STATUS_COMPLETED, msg, append(args, model.RunId(""))...)
+	p.updateStatus(lctx, e, common.STATUS_COMPLETED, msg, append(args, model.RunId(""))...)
 	p.pending.Add(-1)
 	p.triggerChildren(log, ni, e, true)
 	return nil
 }
 
-func (p *Processor) notifyWaitingState(log logging.Logger, e Element, missing, waiting []ElementId, inputs model.Inputs) bool {
+func (p *Processor) notifyWaitingState(lctx common.Logging, log logging.Logger, e Element, missing, waiting []ElementId, inputs model.Inputs) bool {
 	if len(waiting) > 0 || len(missing) > 0 {
 		var keys []interface{}
 		if len(missing) > 0 {
@@ -249,18 +251,18 @@ func (p *Processor) notifyWaitingState(log logging.Logger, e Element, missing, w
 		}
 		log.Info("inputs not ready", keys...)
 		if len(missing) > 0 {
-			p.updateStatus(log, e, common.STATUS_WAITING, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), nil, e.GetLock())
+			p.updateStatus(lctx, e, common.STATUS_WAITING, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), nil, e.GetLock())
 		} else {
-			p.updateStatus(log, e, common.STATUS_PENDING, fmt.Sprintf("waiting for %s", utils.Join(waiting)), e.GetLock())
+			p.updateStatus(lctx, e, common.STATUS_PENDING, fmt.Sprintf("waiting for %s", utils.Join(waiting)), e.GetLock())
 		}
 		return true
 	}
 	return false
 }
 
-func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
+func (p *Processor) hardenTargetState(lctx common.Logging, log logging.Logger, e Element) error {
 	// determine potential external objects
-	exttypes := p.mm.GetTriggeringTypesForElementType(e.Id().TypeId())
+	exttypes := p.mm.GetTriggeringTypesForInternalType(e.Id().Type())
 
 	if e.GetObject().GetTargetState(e.GetPhase()) == nil {
 		log.Info("target state for internal object of {{element}} already set for actual phase")
@@ -283,7 +285,7 @@ func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
 				o := _o.(model.ExternalObject)
 				state := o.GetState()
 				v := state.GetVersion()
-				err = o.UpdateStatus(p.ob, e.Id(), common.StatusUpdate{
+				err = o.UpdateStatus(lctx, p.ob, e.Id(), common.StatusUpdate{
 					RunId:           utils.Pointer(e.GetLock()),
 					DetectedVersion: &v,
 					ObservedVersion: nil,
@@ -297,7 +299,7 @@ func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
 				}
 				extstate[id.Type()] = state
 			}
-			err := e.GetObject().SetExternalState(p.ob, e.GetPhase(), extstate)
+			err := e.GetObject().SetExternalState(lctx, p.ob, e.GetPhase(), extstate)
 			if err != nil {
 				log.Error("cannot update external state for internal object from {{extid}}", "error", err)
 				return err
@@ -310,7 +312,7 @@ func (p *Processor) hardenTargetState(log logging.Logger, e Element) error {
 	return nil
 }
 
-func (p *Processor) lockGraph(log logging.Logger, elem Element) (*model.RunId, error) {
+func (p *Processor) lockGraph(lctx common.Logging, log logging.Logger, elem Element) (*model.RunId, error) {
 	id := model.NewRunId()
 	ns := p.GetNamespace(elem.GetNamespace())
 
@@ -331,7 +333,7 @@ func (p *Processor) lockGraph(log logging.Logger, elem Element) (*model.RunId, e
 	}
 	log.Info("namespace {{namespace}} locked for new runid {{runid}}")
 	defer func() {
-		err := ns.clearLocks(log, p)
+		err := ns.clearLocks(lctx, log, p)
 		if err != nil {
 			log.Error("cannot clear namespace lock for {{namespace}} -> requeue", "error", err)
 			p.EnqueueNamespace(ns.GetNamespaceName())

@@ -62,6 +62,10 @@ func (p *Processor) WaitForCompleted(ctx context.Context, id ElementId) bool {
 	return p.events.Wait(ctx, id)
 }
 
+func (p *Processor) CompletedFuture(id ElementId, retrigger ...bool) Future {
+	return p.events.Future(id, retrigger...)
+}
+
 func (p *Processor) GetNamespace(name string) *NamespaceInfo {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -117,7 +121,7 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 
 	log := p.logging.Logger().WithName("setup")
 
-	err := p.setupElements(log)
+	err := p.setupElements(p.logging.AttributionContext(), log)
 	if err != nil {
 		return err
 	}
@@ -142,7 +146,7 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (p *Processor) setupElements(log logging.Logger) error {
+func (p *Processor) setupElements(lctx common.Logging, log logging.Logger) error {
 	// step 1: create processing elements and cleanup pending locks
 	log.Info("setup internal objects...")
 	for _, t := range p.mm.InternalTypes() {
@@ -168,7 +172,7 @@ func (p *Processor) setupElements(log logging.Logger) error {
 				e := ni.AddElement(o, ph)
 				if curlock != "" {
 					// reset lock for all partially locked objects belonging to the locked run id.
-					err := ni.clearElementLock(log, p, e, curlock)
+					err := ni.clearElementLock(lctx, log, p, e, curlock)
 					if err != nil {
 						return err
 					}
@@ -203,30 +207,40 @@ func (p *Processor) AssureElementObjectFor(log logging.Logger, e model.ExternalO
 
 	eid := common.NewObjectIdFor(e)
 	log = log.WithValues("extid", eid)
+
+	ns, err := p.assureNamespace(log, e.GetNamespace(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	var elem Element
 	id := common.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), t.Phase())
+	oid := id.ObjectId()
+	i := ns.internal[oid]
+	if i == nil {
+		log.Info("creating internal object for {{extid}}")
+		_i, err := p.ob.SchemeTypes().CreateObject(t.Type(), objectbase.SetObjectName(id.Namespace(), id.Name()))
+		if err != nil {
+			log.Error("creation of internal object for external object {{extid}} failed", "error", err)
+			return nil, err
+		}
 
-	ns, err := p.assureNamespace(log, id.Namespace(), true)
-	if err != nil {
-		return nil, err
+		i = _i.(model.InternalObject)
+		ns.internal[common.NewObjectIdFor(i)] = i
+		for _, ph := range p.mm.GetInternalType(t.Type()).Phases() {
+			id := common.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), ph)
+			pe := NewElement(ph, i)
+			ns.elements[id] = pe
+			if ph == t.Phase() {
+				elem = pe
+			}
+		}
+	} else {
+		elem = ns.elements[id]
 	}
-
-	elem := ns.elements[id]
-	if elem != nil {
-		return elem, nil
+	if elem == nil {
+		panic(fmt.Errorf("no elem found for %s", id))
 	}
-
-	log.Info("creating internal object for {{extid}}")
-	_i, err := p.ob.SchemeTypes().CreateObject(t.Type(), objectbase.SetObjectName(id.Namespace(), id.Name()))
-	if err != nil {
-		log.Error("creation of internal object for external object {{extid}} failed", "error", err)
-		return nil, err
-	}
-
-	i := _i.(model.InternalObject)
-	elem = NewElement(t.Phase(), i)
-
-	ns.elements[id] = elem
-	ns.internal[common.NewObjectIdFor(i)] = i
 	return elem, nil
 }
 

@@ -26,7 +26,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
-	mm "github.com/mandelsoft/engine/pkg/metamodels/demo"
+	mm "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
 	"github.com/mandelsoft/engine/pkg/processing"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
@@ -73,14 +73,15 @@ var _ = Describe("Processing", func() {
 	})
 
 	Context("", func() {
-		FIt("single node", func() {
+		It("single node", func() {
 			proc.Start(wg)
 
 			n5 := db.NewValueNode(NS, "A", 5)
+			n5completed := proc.CompletedFuture(common.NewElementId(mm.TYPE_NODE_STATE, NS, "A", mm.FINAL_PHASE))
 
 			MustBeSuccessfull(odb.SetObject(n5))
 
-			Expect(proc.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+			Expect(n5completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
 
 			n5n := Must(odb.GetObject(n5))
 
@@ -96,17 +97,17 @@ var _ = Describe("Processing", func() {
 			n6 := db.NewValueNode(NS, "B", 6)
 			MustBeSuccessfull(odb.SetObject(n6))
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
+			nacompleted := proc.CompletedFuture(common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.FINAL_PHASE))
 			MustBeSuccessfull(odb.SetObject(na))
 
-			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
-
+			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
 			nan := Must(odb.GetObject(na))
 
 			Expect(nan.(*db.Node).Status.Result).NotTo(BeNil())
 			Expect(*nan.(*db.Node).Status.Result).To(Equal(11))
 		})
 
-		It("node with two operands (wrong order)", func() {
+		FIt("node with two operands (wrong order)", func() {
 			lctx.Logger().Info("starting {{path}}", "path", "testdata", "other", "some value")
 			lctx.Logger().Debug("debug logs enabled")
 			// os.Stdout.Write(logbuf.Bytes())
@@ -114,6 +115,7 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
+			nacompleted := proc.CompletedFuture(common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.FINAL_PHASE), true)
 			MustBeSuccessfull(odb.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)
@@ -124,11 +126,19 @@ var _ = Describe("Processing", func() {
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
+				Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+				fmt.Printf("found completed\n")
 				n := Must(odb.GetObject(na))
 				result = n.(*db.Node).Status.Result
-				if result != nil && *result == 11 {
-					break
+				if result != nil {
+					if *result == 11 {
+						fmt.Printf("found result %d\n", *result)
+						break
+					} else {
+						fmt.Printf("found result %d, but expected 11\n", *result)
+					}
+				} else {
+					fmt.Printf("found no result\n")
 				}
 			}
 
@@ -139,7 +149,7 @@ var _ = Describe("Processing", func() {
 				return true, true
 			}))
 
-			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), common.NewElementId(mm.TYPE_NODE_STATE, NS, "C", mm.PHASE_UPDATING))).To(BeTrue())
+			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
 
 			n := Must(odb.GetObject(na))
 			result = n.(*db.Node).Status.Result

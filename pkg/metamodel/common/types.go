@@ -11,6 +11,8 @@ type Encoding = database.Encoding[Object]
 type SchemeTypes = database.SchemeTypes[Object]
 type Scheme = database.Scheme[Object]
 
+type Logging = logging.AttributionContext
+
 func NewScheme() Scheme {
 	return runtime.NewYAMLScheme[Object]().(Scheme) // Goland
 }
@@ -48,7 +50,7 @@ type StatusUpdate struct {
 }
 
 type Request struct {
-	Logger  logging.Logger
+	Logging Logging
 	Inputs  Inputs
 	Element Element
 }
@@ -85,7 +87,7 @@ type ExternalObject interface {
 
 	GetState() ExternalState
 
-	UpdateStatus(ob Objectbase, elem ElementId, update StatusUpdate) error
+	UpdateStatus(lctx Logging, ob Objectbase, elem ElementId, update StatusUpdate) error
 }
 
 type RunAwareObject interface {
@@ -133,10 +135,10 @@ type InternalObject interface {
 
 	GetLock(Phase) RunId
 
-	ClearLock(ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
+	ClearLock(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 	TryLock(Objectbase, Phase, RunId) (bool, error)
 
-	SetExternalState(ob Objectbase, ph Phase, ext ExternalStates) error
+	SetExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) error
 
 	Process(Objectbase, Request) Status
 }

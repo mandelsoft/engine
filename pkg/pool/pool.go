@@ -37,7 +37,7 @@ type Pool interface {
 	EnqueueKeyAfter(key database.ObjectId, duration time.Duration)
 }
 
-type MessageContext logging.MessageContext
+type MessageContext = logging.AttributionContext
 
 type pool struct {
 	logging.UnboundLogger

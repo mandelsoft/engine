@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package demo_test
+package multidemo_test
 
 import (
 	"testing"

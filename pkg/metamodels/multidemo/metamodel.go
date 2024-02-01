@@ -14,6 +14,8 @@ const TYPE_NODE_STATE = "NodeState"
 const PHASE_GATHER = "Gathering"
 const PHASE_CALCULATION = "Calculating"
 
+const FINAL_PHASE = PHASE_CALCULATION
+
 var externalTypes = []metamodel.ExternalTypeSpecification{
 	metamodel.ExtSpec(TYPE_NODE, TYPE_NODE_STATE, PHASE_GATHER),
 }

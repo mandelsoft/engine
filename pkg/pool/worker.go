@@ -106,7 +106,7 @@ func (w *worker) processNextWorkItem() bool {
 		actions := w.pool.GetActions(cmd)
 		if actions != nil && len(actions) > 0 {
 			for _, action := range actions {
-				status := catch(func() Status { return action.Command(w.pool, reqlog, cmd) })
+				status := catch(func() Status { return action.Command(w.pool, reqlog.AttributionContext(), cmd) })
 				if !status.Completed {
 					ok = false
 				}
@@ -131,7 +131,7 @@ func (w *worker) processNextWorkItem() bool {
 		actions := w.pool.GetActions(ObjectType(rkey.GetType()))
 
 		for _, a := range actions {
-			status := catch(func() Status { return a.Reconcile(w.pool, reqlog, rkey) })
+			status := catch(func() Status { return a.Reconcile(w.pool, reqlog.AttributionContext(), rkey) })
 			if !status.Completed {
 				ok = false
 			}

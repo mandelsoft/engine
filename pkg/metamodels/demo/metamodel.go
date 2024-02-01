@@ -13,6 +13,8 @@ const TYPE_NODE_STATE = "NodeState"
 
 const PHASE_UPDATING = "Updating"
 
+const FINAL_PHASE = PHASE_UPDATING
+
 var externalTypes = []metamodel.ExternalTypeSpecification{
 	metamodel.ExtSpec(TYPE_NODE, TYPE_NODE_STATE, PHASE_UPDATING),
 }
