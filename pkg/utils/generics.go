@@ -71,3 +71,8 @@ func Join[S stringable](list []S) string {
 	}
 	return r
 }
+
+func AssertType[C any]() C {
+	var _nil C
+	return _nil
+}
