@@ -1,4 +1,4 @@
-package processing_test
+package multidemo_test
 
 import (
 	"bytes"
@@ -25,11 +25,14 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing"
+	"github.com/mandelsoft/engine/pkg/utils"
 
-	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo"
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
+	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
 )
+
+const NS = "testspace"
 
 var _ = Describe("Processing", func() {
 	var wg *sync.WaitGroup
@@ -75,7 +78,7 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			n5completed := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
+			n5completed := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "A", mymetamodel.FINAL_PHASE))
 
 			MustBeSuccessfull(odb.SetObject(n5))
 
@@ -95,7 +98,7 @@ var _ = Describe("Processing", func() {
 			n6 := db.NewValueNode(NS, "B", 6)
 			MustBeSuccessfull(odb.SetObject(n6))
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			nacompleted := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
+			nacompleted := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))
 			MustBeSuccessfull(odb.SetObject(na))
 
 			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
@@ -112,11 +115,8 @@ var _ = Describe("Processing", func() {
 
 			proc.Start(wg)
 
-			nr := db.NewResultNode(NS, "D", "C")
-			MustBeSuccessfull(odb.SetObject(nr))
-
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			nacompleted := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE), true)
+			nacompleted := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE), true)
 			MustBeSuccessfull(odb.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)
@@ -146,7 +146,7 @@ var _ = Describe("Processing", func() {
 			fmt.Printf("*** modify object A ***\n")
 			dbo := (support.DBObject)(n5)
 			_ = Must(database.Modify(odb, &dbo, func(o support.DBObject) (bool, bool) {
-				o.(*db.Value).Spec.Value = 6
+				o.(*db.Value).Spec.Value = utils.Pointer(6)
 				return true, true
 			}))
 
@@ -154,14 +154,6 @@ var _ = Describe("Processing", func() {
 
 			n := Must(odb.GetObject(na))
 			result = n.(*db.Operator).Status.Result
-			Expect(result).NotTo(BeNil())
-			Expect(*result).To(Equal(12))
-
-			nrcompleted := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "D", mymetamodel.FINAL_VALUE_PHASE))
-			Expect(nrcompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
-
-			n = Must(odb.GetObject(nr))
-			result = n.(*db.Value).Status.Result
 			Expect(result).NotTo(BeNil())
 			Expect(*result).To(Equal(12))
 		})

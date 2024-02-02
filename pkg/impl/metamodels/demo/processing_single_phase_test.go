@@ -1,4 +1,4 @@
-package processing_test
+package demo_test
 
 import (
 	"bytes"
@@ -31,6 +31,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
+
+const NS = "testspace"
 
 var _ = Describe("Processing", func() {
 	var wg *sync.WaitGroup
