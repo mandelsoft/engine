@@ -11,6 +11,16 @@ import (
 
 type Initializer[T Object] func(o T)
 
+// InitializedObject is the interface of an [Object],
+// which provides an initialization method as part of
+// its implementation. If present it is called by the scheme
+// object creation prior to calling the explicitly
+// specified [Initializer] functions to provide an
+// initialized object
+type InitializedObject interface {
+	Initialize() error
+}
+
 // SchemeTypes is a set of type definitions
 // mapping type names to Go types.
 // This mapping is used to provide a simple
@@ -75,6 +85,13 @@ func (s *types[E]) CreateObject(typ string, init ...Initializer[E]) (E, error) {
 
 	v := reflect.New(t)
 	o := v.Interface().(E)
+
+	if i, ok := utils.TryCast[InitializedObject](o); ok {
+		err := i.Initialize()
+		if err != nil {
+			return _nil, err
+		}
+	}
 	for _, i := range init {
 		i(o)
 	}

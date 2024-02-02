@@ -62,6 +62,11 @@ type InternalDBObject interface {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type InternalObject interface {
+	model.InternalObject
+	GetBase() DBObject
+}
+
 type InternalObjectSupport struct { // cannot use struct type here (Go)
 	Lock sync.Mutex
 	Wrapper

@@ -118,7 +118,7 @@ func (n *OperatorState) Process(ob objectbase.Objectbase, req model.Request) mod
 	}
 	return model.Status{
 		Status: common.STATUS_FAILED,
-		Error:  fmt.Errorf("unknoen phase %q", req.Element.GetPhase()),
+		Error:  fmt.Errorf("unknown phase %q", req.Element.GetPhase()),
 	}
 }
 

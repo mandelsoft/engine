@@ -25,6 +25,7 @@ type Wrapped[O database.Object] interface {
 type Database[O database.Object, W Object[S], S database.Object] interface {
 	database.Database[O]
 	Wrapped[S]
+	WrapObject(s S) (O, error)
 }
 
 type IdMapping[S database.Object] interface {
@@ -124,20 +125,19 @@ func (w *wrappingDatabase[O, W, S]) ListObjects(typ string, ns string) ([]O, err
 	if err != nil {
 		return nil, err
 	}
-	r := []W{}
+	r := []O{}
 	for _, b := range list {
 		id := w.idmapping.OutboundObject(b)
 		if ns != "" && id.GetNamespace() != ns {
 			continue
 		}
-		e, err := w.create.CreateObject(typ, database.SetObjectName[W](id.GetNamespace(), id.GetName()))
+		e, err := w.WrapObject(b)
 		if err != nil {
 			return nil, err
 		}
-		e.SetBase(b)
 		r = append(r, e)
 	}
-	return utils.ConvertSlice[O](r), nil
+	return r, nil
 }
 
 func (w *wrappingDatabase[O, W, S]) GetObject(id database.ObjectId) (O, error) {
@@ -145,7 +145,7 @@ func (w *wrappingDatabase[O, W, S]) GetObject(id database.ObjectId) (O, error) {
 
 	sid := w.idmapping.Inbound(id)
 
-	o, err := w.create.CreateObject(sid.GetType(), database.SetObjectName[W](id.GetNamespace(), id.GetName()))
+	o, err := w.create.CreateObject(id.GetType(), database.SetObjectName[W](id.GetNamespace(), id.GetName()))
 	if err != nil {
 		return _nil, err
 	}
@@ -157,6 +157,18 @@ func (w *wrappingDatabase[O, W, S]) GetObject(id database.ObjectId) (O, error) {
 	o.SetBase(b)
 	return utils.Cast[O](o), nil
 
+}
+
+func (w *wrappingDatabase[O, W, S]) WrapObject(s S) (O, error) {
+	var _nil O
+
+	id := w.idmapping.OutboundObject(s)
+	o, err := w.create.CreateObject(id.GetType(), database.SetObjectName[W](id.GetNamespace(), id.GetName()))
+	if err != nil {
+		return _nil, err
+	}
+	o.SetBase(s)
+	return utils.Cast[O](o), nil
 }
 
 func (w *wrappingDatabase[O, W, S]) SetObject(o O) error {
