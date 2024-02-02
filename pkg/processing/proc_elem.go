@@ -222,7 +222,7 @@ func (p *Processor) notifyCompletedState(lctx common.Logging, log logging.Logger
 		return fmt.Errorf("no formal result provided")
 	}
 
-	_, err := e.ClearLock(lctx, p.ob, e.GetLock(), &common.CommitInfo{
+	_, err := e.Commit(lctx, p.ob, e.GetLock(), &common.CommitInfo{
 		InputVersion: e.GetTargetState().GetInputVersion(inputs),
 		State:        result,
 	})

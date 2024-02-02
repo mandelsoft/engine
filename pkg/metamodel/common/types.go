@@ -134,12 +134,11 @@ type InternalObject interface {
 	GetTargetState(phase Phase) TargetState
 
 	GetLock(Phase) RunId
-
-	ClearLock(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 	TryLock(Objectbase, Phase, RunId) (bool, error)
+	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId) (bool, error)
+	Commit(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 
 	SetExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) error
-
 	Process(Objectbase, Request) Status
 }
 

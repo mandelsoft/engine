@@ -50,15 +50,14 @@ type InternalDBObjectSupport struct {
 	ElementLocks
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 type InternalDBObject interface {
 	DBObject
 
 	GetLock(phase model.Phase) model.RunId
-
-	ClearLock(phase model.Phase, id model.RunId) bool
 	TryLock(phase model.Phase, id model.RunId) bool
-
-	CommitTargetState(lctx common.Logging, phase model.Phase, commit *model.CommitInfo)
+	ClearLock(phase model.Phase, id model.RunId) bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +81,40 @@ func (n *InternalObjectSupport) GetLock(phase common.Phase) common.RunId {
 	return n.GetDBObject().GetLock(phase)
 }
 
-func (n *InternalObjectSupport) ClearLock(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+func (n *InternalObjectSupport) TryLock(ob objectbase.Objectbase, phase common.Phase, id common.RunId) (bool, error) {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	mod := func(o DBObject) (bool, bool) {
+		b := utils.Cast[InternalDBObject](o).TryLock(phase, id)
+		return b, b
+	}
+	return wrapped.Modify(ob, n, mod)
+}
+
+func (n *InternalObjectSupport) Rollback(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId) (bool, error) {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	mod := func(_o DBObject) (bool, bool) {
+		o := utils.Cast[InternalDBObject](_o)
+		b := o.ClearLock(phase, id)
+		return b, b
+	}
+	return wrapped.Modify(ob, n, mod)
+}
+
+type Committer interface {
+	Commit(lctx common.Logging, _o InternalDBObject, phase model.Phase, spec *model.CommitInfo)
+}
+
+type CommitFunc func(lctx common.Logging, o InternalDBObject, phase model.Phase, spec *model.CommitInfo)
+
+func (f CommitFunc) Commit(lctx common.Logging, o InternalDBObject, phase model.Phase, spec *model.CommitInfo) {
+	f(lctx, o, phase, spec)
+}
+
+func (n *InternalObjectSupport) Commit(lctx common.Logging, ob objectbase.Objectbase, phase model.Phase, id model.RunId, commit *model.CommitInfo, committer Committer) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -90,19 +122,8 @@ func (n *InternalObjectSupport) ClearLock(lctx common.Logging, ob objectbase.Obj
 		o := utils.Cast[InternalDBObject](_o)
 		b := o.ClearLock(phase, id)
 		if b && commit != nil {
-			o.CommitTargetState(lctx, phase, commit)
+			committer.Commit(lctx, o, phase, commit)
 		}
-		return b, b
-	}
-	return wrapped.Modify(ob, n, mod)
-}
-
-func (n *InternalObjectSupport) TryLock(ob objectbase.Objectbase, phase common.Phase, id common.RunId) (bool, error) {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
-
-	mod := func(o DBObject) (bool, bool) {
-		b := utils.Cast[InternalDBObject](o).TryLock(phase, id)
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)

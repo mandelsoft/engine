@@ -50,7 +50,7 @@ func (n *OperatorState) GetTargetState(phase model.Phase) model.TargetState {
 }
 
 func (n *OperatorState) SetExternalState(lctx common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
-	log := lctx.Logger(db.REALM).WithValues("name", n.GetName(), "phase", phase)
+	log := lctx.Logger(REALM).WithValues("name", n.GetName(), "phase", phase)
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		o := _o.(*db.OperatorState)
 		mod := false
@@ -123,7 +123,7 @@ func (n *OperatorState) Process(ob objectbase.Objectbase, req model.Request) mod
 }
 
 func (n *OperatorState) processGather(ob objectbase.Objectbase, req model.Request) model.Status {
-	log := req.Logging.Logger(db.REALM)
+	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
 	if err != nil {
@@ -159,12 +159,12 @@ func (n *OperatorState) processGather(ob objectbase.Objectbase, req model.Reques
 	}
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: db.NewGatherResultState(operands),
+		ResultState: NewGatherResultState(operands),
 	}
 }
 
 func (n *OperatorState) processCalc(ob objectbase.Objectbase, req model.Request) model.Status {
-	log := req.Logging.Logger(db.REALM)
+	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
 	if err != nil {
@@ -211,7 +211,7 @@ func (n *OperatorState) processCalc(ob objectbase.Objectbase, req model.Request)
 
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: db.NewCalcResultState(out),
+		ResultState: NewCalcResultState(out),
 	}
 }
 
@@ -240,6 +240,61 @@ func (n *OperatorState) Validate() error {
 	}
 	return nil
 }
+
+func (n *OperatorState) Commit(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
+}
+
+func (n *OperatorState) commitTargetState(lctx common.Logging, _o support.InternalDBObject, phase model.Phase, spec *model.CommitInfo) {
+	o := _o.(*db.OperatorState)
+	log := lctx.Logger(REALM).WithValues("name", o.Name, "phase", phase)
+	switch phase {
+	case mymetamodel.PHASE_GATHER:
+		if o.Gather.Target != nil && spec != nil {
+			// update phase specific state
+			log.Info("commit phase {{phase}} for OperatorState {{name}}")
+			log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
+			log.Info("  object version {{objvers}}", "objvers", o.Gather.Target.ObjectVersion)
+			log.Info("  output version {{outvers}}", "outvers", spec.State.(*GatherResultState).GetOutputVersion())
+			log.Info("  output {{output}}", "output", spec.State.(*GatherResultState).GetState())
+			c := &o.Gather.Current
+			c.InputVersion = spec.InputVersion
+			c.ObjectVersion = o.Gather.Target.ObjectVersion
+			c.OutputVersion = spec.State.(*GatherResultState).GetOutputVersion()
+			c.Output.Values = spec.State.(*GatherResultState).GetState()
+		}
+		o.Gather.Target = nil
+
+	case mymetamodel.PHASE_CALCULATION:
+		if o.Calculation.Target != nil && spec != nil {
+			// update state specific
+			log.Info("commit phase {{phase}} for OperatorState {{name}}")
+			log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
+			log.Info("  object version {{objvers}}", "objvers", o.Calculation.Target.ObjectVersion)
+			log.Info("  output version {{outvers}}", "outvers", spec.State.(*CalcResultState).GetOutputVersion())
+			log.Info("  output {{output}}", "output", spec.State.(*CalcResultState).GetState())
+			c := &o.Calculation.Current
+			c.InputVersion = spec.InputVersion
+			c.ObjectVersion = o.Calculation.Target.ObjectVersion
+			c.OutputVersion = spec.State.(*CalcResultState).GetOutputVersion()
+			c.Output.Value = spec.State.(*CalcResultState).GetState()
+
+			// ... and common state for last phase
+			log.Info("  operands {{operands}}", "operands", o.Target.Spec.Operands)
+			o.Current.Operands = o.Target.Spec.Operands
+		}
+		o.Calculation.Target = nil
+		o.Target = nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type GatherResultState = support.ResultState[[]db.Operand]
+type CalcResultState = support.ResultState[int]
+
+var NewGatherResultState = support.NewResultState[[]db.Operand]
+var NewCalcResultState = support.NewResultState[int]
 
 ////////////////////////////////////////////////////////////////////////////////
 

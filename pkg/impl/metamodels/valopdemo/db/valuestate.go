@@ -2,8 +2,6 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 )
 
@@ -36,30 +34,3 @@ type TargetState struct {
 	ObjectVersion string    `json:"version"`
 	Spec          ValueSpec `json:"spec"`
 }
-
-func (n *ValueState) CommitTargetState(lctx common.Logging, phase model.Phase, spec *model.CommitInfo) {
-	log := lctx.Logger(REALM)
-	if n.Target != nil && spec != nil {
-		n.Current.InputVersion = spec.InputVersion
-		log.Info("Commit object version for ValueState {{name}}", "name", n.Name)
-		log.Info("  object version {{version}}", "version", n.Target.ObjectVersion)
-		n.Current.ObjectVersion = n.Target.ObjectVersion
-		n.Current.OutputVersion = spec.State.(*ValueResultState).GetOutputVersion()
-		n.Current.Output.Value = spec.State.(*ValueResultState).GetState().Value
-
-		log.Info("  object version {{owner}}", "owner", n.Target.Spec.Owner)
-		n.Current.Owner = n.Target.Spec.Owner
-	}
-	n.Target = nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type ValueResult struct {
-	Origin model.ObjectId `json:"origin,omitempty"`
-	Value  int            `json:"value"`
-}
-
-type ValueResultState = support.ResultState[ValueResult]
-
-var NewValueResultState = support.NewResultState[ValueResult]

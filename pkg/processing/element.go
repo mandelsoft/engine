@@ -16,8 +16,9 @@ type Element interface {
 	GetTargetState() TargetState
 	SetTargetState(TargetState)
 
-	ClearLock(lctx common.Logging, ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error)
 	TryLock(ob objectbase.Objectbase, id model.RunId) (bool, error)
+	Rollback(lctx common.Logging, ob objectbase.Objectbase, id model.RunId) (bool, error)
+	Commit(lctx common.Logging, ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error)
 }
 
 type element struct {
@@ -82,10 +83,14 @@ func (e *element) SetTargetState(target TargetState) {
 	e.target = target
 }
 
-func (e *element) ClearLock(lctx common.Logging, ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error) {
-	return e.GetObject().ClearLock(lctx, ob, e.id.Phase(), id, commit)
-}
-
 func (e *element) TryLock(ob objectbase.Objectbase, id model.RunId) (bool, error) {
 	return e.GetObject().TryLock(ob, e.id.Phase(), id)
+}
+
+func (e *element) Rollback(lctx common.Logging, ob objectbase.Objectbase, id model.RunId) (bool, error) {
+	return e.GetObject().Rollback(lctx, ob, e.id.Phase(), id)
+}
+
+func (e *element) Commit(lctx common.Logging, ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+	return e.GetObject().Commit(lctx, ob, e.id.Phase(), id, commit)
 }

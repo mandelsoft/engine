@@ -60,9 +60,9 @@ func (n *ValueState) SetExternalState(lcxt common.Logging, ob objectbase.Objectb
 }
 
 func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
-	log := req.Logging.Logger(db.REALM)
+	log := req.Logging.Logger(REALM)
 
-	var out db.ValueResult
+	var out ValueResult
 	if len(req.Inputs) > 0 {
 		links := n.GetTargetState(req.Element.GetPhase()).GetLinks()
 		for iid, e := range req.Inputs {
@@ -83,9 +83,43 @@ func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.
 	}
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: db.NewValueResultState(out),
+		ResultState: NewValueResultState(out),
 	}
 }
+
+func (n *ValueState) Commit(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
+}
+
+func (n *ValueState) commitTargetState(lctx common.Logging, _o support.InternalDBObject, phase model.Phase, spec *model.CommitInfo) {
+	o := _o.(*db.ValueState)
+	log := lctx.Logger(REALM)
+	if nil != o.Target && spec != nil {
+		o.Current.InputVersion = spec.InputVersion
+		log.Info("Commit object version for ValueState {{name}}", "name", o.Name)
+		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
+		o.Current.ObjectVersion = o.Target.ObjectVersion
+		o.Current.OutputVersion = spec.State.(*ValueResultState).GetOutputVersion()
+		o.Current.Output.Value = spec.State.(*ValueResultState).GetState().Value
+
+		log.Info("  object version {{owner}}", "owner", o.Target.Spec.Owner)
+		o.Current.Owner = o.Target.Spec.Owner
+	}
+	o.Target = nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ValueResult struct {
+	Origin model.ObjectId `json:"origin,omitempty"`
+	Value  int            `json:"value"`
+}
+
+type ValueResultState = support.ResultState[ValueResult]
+
+var NewValueResultState = support.NewResultState[ValueResult]
+
+////////////////////////////////////////////////////////////////////////////////
 
 type CurrentState struct {
 	n *ValueState

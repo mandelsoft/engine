@@ -1,4 +1,4 @@
-package db
+package demo
 
 import (
 	"github.com/mandelsoft/logging"

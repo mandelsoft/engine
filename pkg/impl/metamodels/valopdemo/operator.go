@@ -27,7 +27,7 @@ func (n *Operator) GetState() model.ExternalState {
 }
 
 func (n *Operator) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
-	log := lctx.Logger(db.REALM).WithValues("name", n.GetName())
+	log := lctx.Logger(REALM).WithValues("name", n.GetName())
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		o := _o.(*db.Operator)
 		mod := false
@@ -44,7 +44,7 @@ func (n *Operator) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, e
 				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
 			}
 			if update.ResultState != nil {
-				support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*db.CalcResultState).GetState()), &mod)
+				support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcResultState).GetState()), &mod)
 			}
 		} else {
 			support.UpdateField(&o.Status.Status, update.Status, &mod)

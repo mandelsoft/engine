@@ -1,4 +1,4 @@
-package db
+package valopdemo
 
 import (
 	"github.com/mandelsoft/logging"

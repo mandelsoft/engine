@@ -26,7 +26,7 @@ func (n *Value) GetState() model.ExternalState {
 }
 
 func (n *Value) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
-	log := lctx.Logger(db.REALM).WithValues("name", n.GetName())
+	log := lctx.Logger(REALM).WithValues("name", n.GetName())
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		o := _o.(*db.Value)
 		mod := false
@@ -43,7 +43,7 @@ func (n *Value) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem
 		support.UpdateField(&o.Status.Status, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
 		if update.ResultState != nil {
-			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*db.ValueResultState).GetState().Value), &mod)
+			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*ValueResultState).GetState().Value), &mod)
 		}
 		return mod, mod
 	})

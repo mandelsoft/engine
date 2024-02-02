@@ -105,7 +105,7 @@ var _ = Describe("Processing", func() {
 			Expect(*nan.(*db.Operator).Status.Result).To(Equal(11))
 		})
 
-		FIt("node with two operands (wrong order)", func() {
+		It("node with two operands (wrong order)", func() {
 			lctx.Logger().Info("starting {{path}}", "path", "testdata", "other", "some value")
 			lctx.Logger().Debug("debug logs enabled")
 			// os.Stdout.Write(logbuf.Bytes())

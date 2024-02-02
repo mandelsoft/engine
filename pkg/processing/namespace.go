@@ -57,7 +57,7 @@ func (ni *NamespaceInfo) clearElementLock(lctx common.Logging, log logging.Logge
 		return err
 	}
 	// second, clear lock on internal object for given phase.
-	ok, err := elem.ClearLock(lctx, p.ob, rid, nil)
+	ok, err := elem.Rollback(lctx, p.ob, rid)
 	if err != nil {
 		log.Error("releasing lock {{runid}} for element {{element}} failed", "element", elem.Id(), "error", err)
 		return err

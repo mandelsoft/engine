@@ -61,7 +61,7 @@ func (n *NodeState) SetExternalState(lcxt common.Logging, ob objectbase.Objectba
 }
 
 func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
-	log := req.Logging.Logger(db.REALM)
+	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
 	if err != nil {
@@ -122,7 +122,7 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: db.NewResultState(out),
+		ResultState: NewResultState(out),
 	}
 }
 
@@ -160,6 +160,33 @@ func (n *NodeState) Validate() error {
 	}
 	return nil
 }
+
+func (n *NodeState) Commit(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
+}
+
+func (n *NodeState) commitTargetState(lctx common.Logging, _o support.InternalDBObject, phase model.Phase, spec *model.CommitInfo) {
+	o := _o.(*db.NodeState)
+	log := lctx.Logger(REALM)
+	if o.Target != nil && spec != nil {
+		o.Current.Operands = o.Target.Spec.Operands
+		o.Current.InputVersion = spec.InputVersion
+		log.Info("Commit object version for NodeState {{name}}", "name", o.Name)
+		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
+		o.Current.ObjectVersion = o.Target.ObjectVersion
+		o.Current.OutputVersion = spec.State.(*ResultState).GetOutputVersion()
+		o.Current.Output.Value = spec.State.(*ResultState).GetState()
+	}
+	o.Target = nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ResultState = support.ResultState[int]
+
+var NewResultState = support.NewResultState[int]
+
+////////////////////////////////////////////////////////////////////////////////
 
 type CurrentState struct {
 	n *NodeState
