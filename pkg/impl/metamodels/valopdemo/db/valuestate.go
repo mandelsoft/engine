@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 )
 
@@ -19,15 +20,16 @@ type ValueState struct {
 var _ support.InternalDBObject = (*ValueState)(nil)
 
 type CurrentState struct {
-	Owner         string `json:"ownwer,omitempty"`
-	InputVersion  string `json:"inputVersion"`
-	ObjectVersion string `json:"objectVersion"`
-	OutputVersion string `json:"outputVersion"`
-	Output        Output `json:"output"`
+	Owner         string      `json:"owner,omitempty"`
+	InputVersion  string      `json:"inputVersion"`
+	ObjectVersion string      `json:"objectVersion"`
+	OutputVersion string      `json:"outputVersion"`
+	Output        ValueOutput `json:"output"`
 }
 
-type Output struct {
-	Value int `json:"value"`
+type ValueOutput struct {
+	Origin model.ObjectId `json:"origin,omitempty"`
+	Value  int            `json:"value"`
 }
 
 type TargetState struct {

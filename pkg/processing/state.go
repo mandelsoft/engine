@@ -64,6 +64,14 @@ func (s *cstate) GetOutputVersion() string {
 	return ""
 }
 
+func (s *cstate) GetOutput() model.OutputState {
+	state := s.GetState()
+	if state != nil {
+		return state.GetOutput()
+	}
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type tstate struct {

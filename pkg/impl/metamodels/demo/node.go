@@ -43,7 +43,7 @@ func (n *Node) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem 
 		support.UpdateField(&o.Status.Status, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
 		if update.ResultState != nil {
-			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*ResultState).GetState()), &mod)
+			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*OutputState).GetState()), &mod)
 		}
 		return mod, mod
 	})

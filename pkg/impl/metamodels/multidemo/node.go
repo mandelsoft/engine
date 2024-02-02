@@ -44,7 +44,7 @@ func (n *Node) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem 
 				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
 			}
 			if update.ResultState != nil {
-				support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcResultState).GetState()), &mod)
+				support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcOutputState).GetState()), &mod)
 			}
 		} else {
 			support.UpdateField(&o.Status.Status, update.Status, &mod)

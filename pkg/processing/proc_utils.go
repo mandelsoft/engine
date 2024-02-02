@@ -32,10 +32,10 @@ func CalcEffectiveVersion(inputs model.Inputs, objvers string) EffectiveVersion 
 	return EffectiveVersion(hex.EncodeToString(h[:]))
 }
 
-func GetResultState(args ...interface{}) model.ResultState {
+func GetResultState(args ...interface{}) model.OutputState {
 	for _, a := range args {
 		switch opt := a.(type) {
-		case model.ResultState:
+		case model.OutputState:
 			return opt
 		}
 	}
@@ -64,7 +64,7 @@ func (p *Processor) updateStatus(lctx common.Logging, elem Element, status commo
 			switch opt := a.(type) {
 			case model.RunId:
 				status.RunId = utils.Pointer(opt)
-			case model.ResultState:
+			case model.OutputState:
 				data, err := json.Marshal(opt)
 				lctx.Logger().Info("result", "result", string(data), "error", err)
 				status.ResultState = opt

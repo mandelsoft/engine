@@ -120,13 +120,13 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase mod
 		log.Info("commit phase {{phase}} for OperatorState {{name}}")
 		log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
 		log.Info("  object version {{objvers}}", "objvers", o.Gather.Target.ObjectVersion)
-		log.Info("  output version {{outvers}}", "outvers", spec.State.(*GatherResultState).GetOutputVersion())
-		log.Info("  output {{output}}", "output", spec.State.(*GatherResultState).GetState())
+		log.Info("  output version {{outvers}}", "outvers", spec.State.(*GatherOutputState).GetOutputVersion())
+		log.Info("  output {{output}}", "output", spec.State.(*GatherOutputState).GetState())
 		c := &o.Gather.Current
 		c.InputVersion = spec.InputVersion
 		c.ObjectVersion = o.Gather.Target.ObjectVersion
-		c.OutputVersion = spec.State.(*GatherResultState).GetOutputVersion()
-		c.Output.Values = spec.State.(*GatherResultState).GetState()
+		c.OutputVersion = spec.State.(*GatherOutputState).GetOutputVersion()
+		c.Output.Values = spec.State.(*GatherOutputState).GetState()
 	}
 	o.Gather.Target = nil
 }
@@ -145,12 +145,12 @@ func (g GatherPhase) Process(ob objectbase.Objectbase, o *OperatorState, phase m
 	links := (&TargetGatherState{o}).GetLinks()
 	operands := make([]db.Operand, len(links))
 	for iid, e := range req.Inputs {
-		s := e.(*CurrentState)
+		s := e.(*ValueOutputState).GetState()
 		for i, oid := range links {
 			if iid == oid {
 				operands[i] = db.Operand{
 					Origin: iid.ObjectId(),
-					Value:  s.GetOutput(),
+					Value:  s.Value,
 				}
 				log.Info("found operand {{index}} from {{link}}: {{value}}", "index", i, "link", iid, "value", operands[i].Value)
 				break
@@ -168,7 +168,7 @@ func (g GatherPhase) Process(ob objectbase.Objectbase, o *OperatorState, phase m
 	}
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: NewGatherResultState(operands),
+		ResultState: NewGatherOutputState(operands),
 	}
 }
 
@@ -206,13 +206,13 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase 
 		log.Info("commit phase {{phase}} for OperatorState {{name}}")
 		log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
 		log.Info("  object version {{objvers}}", "objvers", o.Calculation.Target.ObjectVersion)
-		log.Info("  output version {{outvers}}", "outvers", spec.State.(*CalcResultState).GetOutputVersion())
-		log.Info("  output {{output}}", "output", spec.State.(*CalcResultState).GetState())
+		log.Info("  output version {{outvers}}", "outvers", spec.State.(*CalcOutputState).GetOutputVersion())
+		log.Info("  output {{output}}", "output", spec.State.(*CalcOutputState).GetState())
 		c := &o.Calculation.Current
 		c.InputVersion = spec.InputVersion
 		c.ObjectVersion = o.Calculation.Target.ObjectVersion
-		c.OutputVersion = spec.State.(*CalcResultState).GetOutputVersion()
-		c.Output.Value = spec.State.(*CalcResultState).GetState()
+		c.OutputVersion = spec.State.(*CalcOutputState).GetOutputVersion()
+		c.Output.Value = spec.State.(*CalcOutputState).GetState()
 
 		// ... and common state for last phase
 		log.Info("  operands {{operands}}", "operands", o.Target.Spec.Operands)
@@ -236,7 +236,7 @@ func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phas
 
 	var operands []db.Operand
 	for _, l := range req.Inputs {
-		operands = l.(*CurrentGatherState).GetOutput()
+		operands = l.(*GatherOutputState).GetState()
 	}
 	s := (&TargetCalcState{o})
 	op := s.GetOperator()
@@ -270,17 +270,17 @@ func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phas
 
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: NewCalcResultState(out),
+		ResultState: NewCalcOutputState(out),
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type GatherResultState = support.ResultState[[]db.Operand]
-type CalcResultState = support.ResultState[int]
+type GatherOutputState = support.OutputState[[]db.Operand]
+type CalcOutputState = support.OutputState[int]
 
-var NewGatherResultState = support.NewResultState[[]db.Operand]
-var NewCalcResultState = support.NewResultState[int]
+var NewGatherOutputState = support.NewOutputState[[]db.Operand]
+var NewCalcOutputState = support.NewOutputState[int]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -315,8 +315,8 @@ func (c *CurrentGatherState) GetOutputVersion() string {
 	return c.get().OutputVersion
 }
 
-func (c *CurrentGatherState) GetOutput() []db.Operand {
-	return c.get().Output.Values
+func (c *CurrentGatherState) GetOutput() model.OutputState {
+	return NewGatherOutputState(c.get().Output.Values)
 }
 
 type CurrentCalcState struct {
@@ -345,8 +345,8 @@ func (c *CurrentCalcState) GetOutputVersion() string {
 	return c.get().OutputVersion
 }
 
-func (c *CurrentCalcState) GetOutput() int {
-	return c.get().Output.Value
+func (c *CurrentCalcState) GetOutput() model.OutputState {
+	return NewCalcOutputState(c.get().Output.Value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

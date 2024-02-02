@@ -43,21 +43,21 @@ func NewExternalState[O any](o O) *ExternalState[O] {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type ResultState[O any] struct {
+type OutputState[O any] struct {
 	State[O]
 }
 
-var _ model.ResultState = (*ResultState[any])(nil)
-var _ json.Marshaler = (*ResultState[any])(nil)
+var _ model.OutputState = (*OutputState[any])(nil)
+var _ json.Marshaler = (*OutputState[any])(nil)
 
-func NewResultState[O any](o O) *ResultState[O] {
-	return &ResultState[O]{State[O]{o}}
+func NewOutputState[O any](o O) *OutputState[O] {
+	return &OutputState[O]{State[O]{o}}
 }
 
-func (s *ResultState[O]) GetOutputVersion() string {
+func (s *OutputState[O]) GetOutputVersion() string {
 	return s.GetVersion()
 }
 
-func (s *ResultState[O]) MarshalJSON() ([]byte, error) {
+func (s *OutputState[O]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.GetState())
 }

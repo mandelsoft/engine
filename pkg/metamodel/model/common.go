@@ -20,7 +20,7 @@ type CurrentState = common.CurrentState
 type TargetState = common.TargetState
 type Inputs = common.Inputs
 
-type ResultState = common.ResultState
+type OutputState = common.OutputState
 type StatusUpdate = common.StatusUpdate
 
 type Request = common.Request

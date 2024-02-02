@@ -28,7 +28,7 @@ type Element interface {
 	GetObject() InternalObject
 }
 
-type ResultState interface {
+type OutputState interface {
 	GetOutputVersion() string
 }
 
@@ -46,7 +46,7 @@ type StatusUpdate struct {
 	// Message is an explaining text for the state.
 	Message *string
 	// ResultState is some state info provided by the internal object.
-	ResultState ResultState
+	ResultState OutputState
 }
 
 type Request struct {
@@ -72,7 +72,7 @@ const STATUS_FAILED = ProcessingStatus("Failed")
 type Status struct {
 	Status      ProcessingStatus
 	Creation    []Creation
-	ResultState ResultState
+	ResultState OutputState
 	Error       error
 }
 
@@ -111,9 +111,11 @@ type CurrentState interface {
 	GetInputVersion() string
 	GetObjectVersion() string
 	GetOutputVersion() string
+
+	GetOutput() OutputState
 }
 
-type Inputs = map[ElementId]CurrentState
+type Inputs = map[ElementId]OutputState
 
 type TargetState interface {
 	LinkState
@@ -124,7 +126,7 @@ type TargetState interface {
 
 type CommitInfo struct {
 	InputVersion string
-	State        ResultState
+	State        OutputState
 }
 
 type InternalObject interface {

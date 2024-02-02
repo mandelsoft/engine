@@ -70,7 +70,7 @@ var _ = Describe("Processing", func() {
 		vfs.Cleanup(fs)
 	})
 
-	FContext("", func() {
+	Context("", func() {
 		It("single node", func() {
 			proc.Start(wg)
 

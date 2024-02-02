@@ -62,14 +62,14 @@ func (n *ValueState) SetExternalState(lcxt common.Logging, ob objectbase.Objectb
 func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
 	log := req.Logging.Logger(REALM)
 
-	var out ValueResult
+	var out db.ValueOutput
 	if len(req.Inputs) > 0 {
 		links := n.GetTargetState(req.Element.GetPhase()).GetLinks()
 		for iid, e := range req.Inputs {
-			s := e.(*CurrentCalcState)
+			s := e.(*CalcOutputState).GetState()
 			for i, oid := range links {
 				if iid == oid {
-					out.Value = s.GetOutput()
+					out.Value = s
 					out.Origin = iid.ObjectId()
 					log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", links[i])
 					break
@@ -83,7 +83,7 @@ func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.
 	}
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: NewValueResultState(out),
+		ResultState: NewValueOutputState(out),
 	}
 }
 
@@ -99,8 +99,8 @@ func (n *ValueState) commitTargetState(lctx common.Logging, _o support.InternalD
 		log.Info("Commit object version for ValueState {{name}}", "name", o.Name)
 		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
 		o.Current.ObjectVersion = o.Target.ObjectVersion
-		o.Current.OutputVersion = spec.State.(*ValueResultState).GetOutputVersion()
-		o.Current.Output.Value = spec.State.(*ValueResultState).GetState().Value
+		o.Current.OutputVersion = spec.State.(*ValueOutputState).GetOutputVersion()
+		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
 
 		log.Info("  object version {{owner}}", "owner", o.Target.Spec.Owner)
 		o.Current.Owner = o.Target.Spec.Owner
@@ -110,14 +110,9 @@ func (n *ValueState) commitTargetState(lctx common.Logging, _o support.InternalD
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type ValueResult struct {
-	Origin model.ObjectId `json:"origin,omitempty"`
-	Value  int            `json:"value"`
-}
+type ValueOutputState = support.OutputState[db.ValueOutput]
 
-type ValueResultState = support.ResultState[ValueResult]
-
-var NewValueResultState = support.NewResultState[ValueResult]
+var NewValueOutputState = support.NewOutputState[db.ValueOutput]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -152,8 +147,8 @@ func (c *CurrentState) GetOutputVersion() string {
 	return c.get().Current.OutputVersion
 }
 
-func (c *CurrentState) GetOutput() int {
-	return c.get().Current.Output.Value
+func (c *CurrentState) GetOutput() model.OutputState {
+	return NewValueOutputState(c.get().Current.Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

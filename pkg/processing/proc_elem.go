@@ -408,7 +408,7 @@ func (p *Processor) checkReady(ni *NamespaceInfo, links []ElementId) ([]ElementI
 			missing = append(missing, l)
 		} else {
 			if t.GetLock() == "" && t.GetCurrentState().GetOutputVersion() != "" {
-				inputs[l] = t.GetCurrentState().GetState()
+				inputs[l] = t.GetCurrentState().GetOutput()
 			} else {
 				waiting = append(waiting, l)
 			}

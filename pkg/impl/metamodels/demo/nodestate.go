@@ -22,10 +22,6 @@ type NodeState struct {
 	support.InternalObjectSupport
 }
 
-type NodeStateCurrent struct {
-	Result int `json:"result"`
-}
-
 var _ model.InternalObject = (*NodeState)(nil)
 
 func (n *NodeState) GetCurrentState(phase model.Phase) model.CurrentState {
@@ -76,10 +72,10 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 	operands := make([]int, len(links))
 	origin := make([]model.ObjectId, len(links))
 	for iid, e := range req.Inputs {
-		s := e.(*CurrentState)
+		s := e.(*support.OutputState[int]).GetState()
 		for i, oid := range links {
 			if iid == oid {
-				operands[i] = s.GetOutput()
+				operands[i] = s
 				origin[i] = iid.ObjectId()
 				log.Info("found operand {{index}} from {{link}}: {{value}}", "index", i, "link", iid, "value", operands[i])
 				break
@@ -122,7 +118,7 @@ func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.S
 
 	return model.Status{
 		Status:      common.STATUS_COMPLETED,
-		ResultState: NewResultState(out),
+		ResultState: NewOutputState(out),
 	}
 }
 
@@ -174,17 +170,17 @@ func (n *NodeState) commitTargetState(lctx common.Logging, _o support.InternalDB
 		log.Info("Commit object version for NodeState {{name}}", "name", o.Name)
 		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
 		o.Current.ObjectVersion = o.Target.ObjectVersion
-		o.Current.OutputVersion = spec.State.(*ResultState).GetOutputVersion()
-		o.Current.Output.Value = spec.State.(*ResultState).GetState()
+		o.Current.OutputVersion = spec.State.(*OutputState).GetOutputVersion()
+		o.Current.Output.Value = spec.State.(*OutputState).GetState()
 	}
 	o.Target = nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type ResultState = support.ResultState[int]
+type OutputState = support.OutputState[int]
 
-var NewResultState = support.NewResultState[int]
+var NewOutputState = support.NewOutputState[int]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -219,8 +215,8 @@ func (c *CurrentState) GetOutputVersion() string {
 	return c.get().Current.OutputVersion
 }
 
-func (c *CurrentState) GetOutput() int {
-	return c.get().Current.Output.Value
+func (c *CurrentState) GetOutput() model.OutputState {
+	return support.NewOutputState[int](c.get().Current.Output.Value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
