@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"

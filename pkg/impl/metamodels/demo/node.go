@@ -1,11 +1,12 @@
 package demo
 
 import (
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
@@ -25,7 +26,7 @@ func (n *Node) GetState() model.ExternalState {
 	return support.NewExternalState[*db.NodeSpec](&n.GetBase().(*db.Node).Spec)
 }
 
-func (n *Node) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem model.ElementId, update model.StatusUpdate) error {
+func (n *Node) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem ElementId, update model.StatusUpdate) error {
 	log := lctx.Logger(REALM).WithValues("name", n.GetName())
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		o := _o.(*db.Node)

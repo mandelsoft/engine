@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
@@ -24,15 +26,15 @@ type NodeState struct {
 
 var _ model.InternalObject = (*NodeState)(nil)
 
-func (n *NodeState) GetCurrentState(phase model.Phase) model.CurrentState {
+func (n *NodeState) GetCurrentState(phase Phase) model.CurrentState {
 	return &CurrentState{n}
 }
 
-func (n *NodeState) GetTargetState(phase model.Phase) model.TargetState {
+func (n *NodeState) GetTargetState(phase Phase) model.TargetState {
 	return &TargetState{n}
 }
 
-func (n *NodeState) SetExternalState(lcxt common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
+func (n *NodeState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) error {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.NodeState).Target
 		if t == nil {
@@ -56,13 +58,13 @@ func (n *NodeState) SetExternalState(lcxt common.Logging, ob objectbase.Objectba
 	return err
 }
 
-func (n *NodeState) Process(req common.Request) common.Status {
+func (n *NodeState) Process(req model.Request) model.Status {
 	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
 	if err != nil {
 		return model.Status{
-			Status:      common.STATUS_FAILED, // final failure
+			Status:      model.STATUS_FAILED, // final failure
 			ResultState: nil,
 			Error:       err,
 		}
@@ -70,7 +72,7 @@ func (n *NodeState) Process(req common.Request) common.Status {
 
 	links := n.GetTargetState(req.Element.GetPhase()).GetLinks()
 	operands := make([]int, len(links))
-	origin := make([]model.ObjectId, len(links))
+	origin := make([]ObjectId, len(links))
 	for iid, e := range req.Inputs {
 		s := e.(*support.OutputState[int]).GetState()
 		for i, oid := range links {
@@ -104,10 +106,7 @@ func (n *NodeState) Process(req common.Request) common.Status {
 		case db.OP_DIV:
 			for i, v := range operands[1:] {
 				if v == 0 {
-					return model.Status{
-						Status: common.STATUS_FAILED,
-						Error:  fmt.Errorf("division by zero for operand %d[%s]", i, origin[i+1]),
-					}
+					return model.StatusFailed(fmt.Errorf("division by zero for operand %d[%s]", i, origin[i+1]))
 				}
 				out /= v
 			}
@@ -116,10 +115,7 @@ func (n *NodeState) Process(req common.Request) common.Status {
 		out = *s.GetValue()
 	}
 
-	return model.Status{
-		Status:      common.STATUS_COMPLETED,
-		ResultState: NewOutputState(out),
-	}
+	return model.StatusCompleted(NewOutputState(out))
 }
 
 func (n *NodeState) Validate() error {
@@ -157,11 +153,11 @@ func (n *NodeState) Validate() error {
 	return nil
 }
 
-func (n *NodeState) Commit(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+func (n *NodeState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
 	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
 }
 
-func (n *NodeState) commitTargetState(lctx common.Logging, _o support.InternalDBObject, phase model.Phase, spec *model.CommitInfo) {
+func (n *NodeState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
 	o := _o.(*db.NodeState)
 	log := lctx.Logger(REALM)
 	if o.Target != nil && spec != nil {
@@ -196,11 +192,11 @@ func (c *CurrentState) get() *db.NodeState {
 	return c.n.GetBase().(*db.NodeState)
 }
 
-func (c *CurrentState) GetLinks() []model.ElementId {
-	var r []model.ElementId
+func (c *CurrentState) GetLinks() []ElementId {
+	var r []ElementId
 
 	for _, o := range c.get().Current.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
+		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
 }
@@ -233,8 +229,8 @@ func (c *TargetState) get() *db.NodeState {
 	return c.n.GetBase().(*db.NodeState)
 }
 
-func (c *TargetState) GetLinks() []common.ElementId {
-	var r []model.ElementId
+func (c *TargetState) GetLinks() []mmids.ElementId {
+	var r []ElementId
 
 	t := c.get().Target
 	if t == nil {
@@ -242,7 +238,7 @@ func (c *TargetState) GetLinks() []common.ElementId {
 	}
 
 	for _, o := range t.Spec.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
+		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
 }

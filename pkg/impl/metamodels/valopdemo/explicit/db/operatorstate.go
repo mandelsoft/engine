@@ -1,9 +1,10 @@
 package db
 
 import (
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 )
 
 func init() {
@@ -73,6 +74,6 @@ type CalculationTargetState struct {
 }
 
 type Operand struct {
-	Origin model.ObjectId `json:"origin,omitempty"`
-	Value  int            `json:"value"`
+	Origin ObjectId `json:"origin,omitempty"`
+	Value  int      `json:"value"`
 }

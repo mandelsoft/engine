@@ -1,9 +1,10 @@
 package db
 
 import (
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 )
 
 func init() {
@@ -24,11 +25,11 @@ type OperatorState struct {
 	Gather struct {
 		Current GatherCurrentState `json:"current"`
 		Target  *GatherTargetState `json:"target,omitempty"`
-	} `json: "gather"`
+	} `json:"gather"`
 	Calculation struct {
 		Current CalculationCurrentState `json:"current"`
 		Target  *CalculationTargetState `json:"target,omitempty"`
-	} `json: "calculation"`
+	} `json:"calculation"`
 }
 
 var _ support.InternalDBObject = (*OperatorState)(nil)
@@ -69,6 +70,6 @@ type CalculationTargetState struct {
 }
 
 type Operand struct {
-	Origin model.ObjectId `json:"origin,omitempty"`
-	Value  int            `json:"value"`
+	Origin ObjectId `json:"origin,omitempty"`
+	Value  int      `json:"value"`
 }

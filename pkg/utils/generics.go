@@ -19,6 +19,15 @@ func Cast[T, O any](o O) T {
 	return t
 }
 
+func CastPointer[T any, E any, P PointerType[E]](e P) T {
+	var _nil T
+	if e == nil {
+		return _nil
+	}
+	var i any = e
+	return i.(T)
+}
+
 func Pointer[T any](t T) *T {
 	return &t
 }
@@ -75,4 +84,41 @@ func Join[S stringable](list []S) string {
 func AssertType[C any]() C {
 	var _nil C
 	return _nil
+}
+
+// CastSlice casts a slice by casting the element types.
+// The slice is copied.
+// T MUST be a super type of E.
+func CastSlice[T any, S ~[]E, E any](s S) []T {
+	// Preserve nil in case it matters.
+	if s == nil {
+		return nil
+	}
+	t := make([]T, len(s))
+	for i, e := range s {
+		t[i] = Cast[T](e)
+	}
+	return t
+}
+
+type PointerType[P any] interface {
+	*P
+}
+
+func CastPointerSlice[T any, S ~[]P, E any, P PointerType[E]](s S) []T {
+	var _nil T
+
+	// Preserve nil in case it matters.
+	if s == nil {
+		return nil
+	}
+	t := make([]T, len(s))
+	for i, e := range s {
+		if e == nil {
+			t[i] = _nil
+		} else {
+			t[i] = Cast[T](e)
+		}
+	}
+	return t
 }

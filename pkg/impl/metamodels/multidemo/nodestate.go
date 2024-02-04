@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/logging"
 
@@ -38,7 +40,7 @@ func init() {
 	nodeStatePhases.Register(mymetamodel.PHASE_CALCULATION, CalculatePhase{})
 }
 
-type Phase = support.Phase[*NodeState, *db.NodeState, *ExternalNodeState]
+type NodeStatePhase = support.Phase[*NodeState, *db.NodeState, *ExternalNodeState]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -100,17 +102,17 @@ func (g PhaseBase) Validate(o *NodeState) error {
 
 type GatherPhase struct{ PhaseBase }
 
-var _ Phase = (*GatherPhase)(nil)
+var _ NodeStatePhase = (*GatherPhase)(nil)
 
-func (g GatherPhase) GetCurrentState(o *NodeState, phase model.Phase) model.CurrentState {
+func (g GatherPhase) GetCurrentState(o *NodeState, phase Phase) model.CurrentState {
 	return &CurrentGatherState{o}
 }
 
-func (g GatherPhase) GetTargetState(o *NodeState, phase model.Phase) model.TargetState {
+func (g GatherPhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
 	return &TargetGatherState{o}
 }
 
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase model.Phase, state *ExternalNodeState, mod *bool) {
+func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state *ExternalNodeState, mod *bool) {
 	g.setExternalObjectState(log, o, state, mod)
 	t := o.Gather.Target
 	if t == nil {
@@ -122,7 +124,7 @@ func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.NodeState, pha
 	o.Gather.Target = t
 }
 
-func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase model.Phase, spec *model.CommitInfo, mod *bool) {
+func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
 		log.Info("commit phase {{phase}} for NodeState {{name}}")
@@ -139,15 +141,12 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase model.P
 	o.Gather.Target = nil
 }
 
-func (g GatherPhase) Process(o *NodeState, phase model.Phase, req model.Request) model.Status {
+func (g GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.Status {
 	log := req.Logging.Logger(REALM)
 
 	err := g.Validate(o)
 	if err != nil {
-		return model.Status{
-			Status: common.STATUS_FAILED, // final failure
-			Error:  err,
-		}
+		return model.StatusFailed(err)
 	}
 
 	links := g.GetTargetState(o, phase).GetLinks()
@@ -169,15 +168,12 @@ func (g GatherPhase) Process(o *NodeState, phase model.Phase, req model.Request)
 	if len(links) == 0 {
 		operands = []db.Operand{
 			{
-				Origin: common.NewObjectIdFor(req.Element.GetObject()),
+				Origin: mmids.NewObjectIdFor(req.Element.GetObject()),
 				Value:  *(&TargetGatherState{o}).GetValue(),
 			},
 		}
 	}
-	return model.Status{
-		Status:      common.STATUS_COMPLETED,
-		ResultState: NewGatherOutputState(operands),
-	}
+	return model.StatusCompleted(NewGatherOutputState(operands))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,17 +182,17 @@ func (g GatherPhase) Process(o *NodeState, phase model.Phase, req model.Request)
 
 type CalculatePhase struct{ PhaseBase }
 
-var _ Phase = (*CalculatePhase)(nil)
+var _ NodeStatePhase = (*CalculatePhase)(nil)
 
-func (c CalculatePhase) GetCurrentState(o *NodeState, phase model.Phase) model.CurrentState {
+func (c CalculatePhase) GetCurrentState(o *NodeState, phase Phase) model.CurrentState {
 	return &CurrentCalcState{o}
 }
 
-func (c CalculatePhase) GetTargetState(o *NodeState, phase model.Phase) model.TargetState {
+func (c CalculatePhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
 	return &TargetCalcState{o}
 }
 
-func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase model.Phase, state *ExternalNodeState, mod *bool) {
+func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state *ExternalNodeState, mod *bool) {
 	c.setExternalObjectState(log, o, state, mod)
 	t := o.Calculation.Target
 	if t == nil {
@@ -208,7 +204,7 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, 
 	o.Calculation.Target = t
 }
 
-func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase model.Phase, spec *model.CommitInfo, mod *bool) {
+func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Calculation.Target != nil && spec != nil {
 		// update state specific
 		log.Info("commit phase {{phase}} for NodeState {{name}}")
@@ -230,16 +226,12 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase mode
 	o.Target = nil
 }
 
-func (c CalculatePhase) Process(o *NodeState, phase model.Phase, req model.Request) model.Status {
+func (c CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.Status {
 	log := req.Logging.Logger(REALM)
 
 	err := c.Validate(o)
 	if err != nil {
-		return model.Status{
-			Status:      common.STATUS_FAILED, // final failure
-			ResultState: nil,
-			Error:       err,
-		}
+		return model.StatusFailed(err)
 	}
 
 	var operands []db.Operand
@@ -268,10 +260,7 @@ func (c CalculatePhase) Process(o *NodeState, phase model.Phase, req model.Reque
 		case db.OP_DIV:
 			for i, v := range operands[1:] {
 				if v.Value == 0 {
-					return model.Status{
-						Status: common.STATUS_FAILED,
-						Error:  fmt.Errorf("division by zero for operand %d[%s]", i, operands[i+1].Origin),
-					}
+					return model.StatusFailed(fmt.Errorf("division by zero for operand %d[%s]", i, operands[i+1].Origin))
 				}
 				out /= v.Value
 			}
@@ -280,10 +269,7 @@ func (c CalculatePhase) Process(o *NodeState, phase model.Phase, req model.Reque
 		log.Info("use input value {{input}}}", "input", out)
 	}
 
-	return model.Status{
-		Status:      common.STATUS_COMPLETED,
-		ResultState: NewCalcOutputState(out),
-	}
+	return model.StatusCompleted(NewCalcOutputState(out))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -312,11 +298,11 @@ func (c *CurrentGatherState) get() *db.GatherCurrentState {
 	return &c.n.GetBase().(*db.NodeState).Gather.Current
 }
 
-func (c *CurrentGatherState) GetLinks() []model.ElementId {
-	var r []model.ElementId
+func (c *CurrentGatherState) GetLinks() []ElementId {
+	var r []ElementId
 
 	for _, o := range c.n.GetBase().(*db.NodeState).Current.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
+		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
@@ -347,8 +333,8 @@ func (c *CurrentCalcState) get() *db.CalculationCurrentState {
 	return &c.n.GetBase().(*db.NodeState).Calculation.Current
 }
 
-func (c *CurrentCalcState) GetLinks() []model.ElementId {
-	return []model.ElementId{common.NewElementId(c.n.GetType(), c.n.GetNamespace(), c.n.GetName(), mymetamodel.PHASE_GATHER)}
+func (c *CurrentCalcState) GetLinks() []ElementId {
+	return []ElementId{mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), c.n.GetName(), mymetamodel.PHASE_GATHER)}
 }
 
 func (c *CurrentCalcState) GetInputVersion() string {
@@ -379,8 +365,8 @@ func (c *TargetGatherState) get() *db.GatherTargetState {
 	return c.n.GetBase().(*db.NodeState).Gather.Target
 }
 
-func (c *TargetGatherState) GetLinks() []common.ElementId {
-	var r []model.ElementId
+func (c *TargetGatherState) GetLinks() []mmids.ElementId {
+	var r []ElementId
 
 	t := c.n.GetBase().(*db.NodeState).Target
 	if t == nil {
@@ -388,7 +374,7 @@ func (c *TargetGatherState) GetLinks() []common.ElementId {
 	}
 
 	for _, o := range t.Spec.Operands {
-		r = append(r, common.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
+		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
@@ -419,8 +405,8 @@ func (c *TargetCalcState) get() *db.CalculationTargetState {
 	return c.n.GetBase().(*db.NodeState).Calculation.Target
 }
 
-func (c *TargetCalcState) GetLinks() []common.ElementId {
-	return []model.ElementId{common.NewElementId(c.n.GetType(), c.n.GetNamespace(), c.n.GetName(), mymetamodel.PHASE_GATHER)}
+func (c *TargetCalcState) GetLinks() []mmids.ElementId {
+	return []ElementId{mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), c.n.GetName(), mymetamodel.PHASE_GATHER)}
 }
 
 func (c *TargetCalcState) GetObjectVersion() string {

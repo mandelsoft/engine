@@ -3,10 +3,11 @@ package db
 import (
 	"slices"
 
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
@@ -42,13 +43,13 @@ type Operation struct {
 }
 
 type OperatorStatus struct {
-	Phase            model.Phase             `json:"phase,omitempty"`
-	Status           common.ProcessingStatus `json:"status,omitempty"`
-	Message          string                  `json:"message,omitempty"`
-	RunId            model.RunId             `json:"runid,omitempty"`
-	DetectedVersion  string                  `json:"detectedVersion,omitempty"`
-	ObservedVersion  string                  `json:"observedVersion,omitempty"`
-	EffectiveVersion string                  `json:"effectiveVersion,omitempty"`
+	Phase            Phase                  `json:"phase,omitempty"`
+	Status           model.ProcessingStatus `json:"status,omitempty"`
+	Message          string                 `json:"message,omitempty"`
+	RunId            RunId                  `json:"runid,omitempty"`
+	DetectedVersion  string                 `json:"detectedVersion,omitempty"`
+	ObservedVersion  string                 `json:"observedVersion,omitempty"`
+	EffectiveVersion string                 `json:"effectiveVersion,omitempty"`
 
 	Result CalculationOutput `json:"result,omitempty"`
 }

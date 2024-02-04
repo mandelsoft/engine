@@ -3,12 +3,14 @@ package explicit
 import (
 	"reflect"
 
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
@@ -27,15 +29,15 @@ type ValueStateCurrent struct {
 
 var _ model.InternalObject = (*ValueState)(nil)
 
-func (n *ValueState) GetCurrentState(phase model.Phase) model.CurrentState {
+func (n *ValueState) GetCurrentState(phase Phase) model.CurrentState {
 	return &CurrentValueState{n}
 }
 
-func (n *ValueState) GetTargetState(phase model.Phase) model.TargetState {
+func (n *ValueState) GetTargetState(phase Phase) model.TargetState {
 	return &TargetValueState{n}
 }
 
-func (n *ValueState) SetExternalState(lcxt common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
+func (n *ValueState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) error {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.ValueState).Target
 		if t == nil {
@@ -59,7 +61,7 @@ func (n *ValueState) SetExternalState(lcxt common.Logging, ob objectbase.Objectb
 	return err
 }
 
-func (n *ValueState) Process(req common.Request) common.Status {
+func (n *ValueState) Process(req model.Request) model.Status {
 	log := req.Logging.Logger(REALM)
 
 	var out db.ValueOutput
@@ -81,17 +83,14 @@ func (n *ValueState) Process(req common.Request) common.Status {
 		out.Origin = req.Element.Id().ObjectId()
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
-	return model.Status{
-		Status:      common.STATUS_COMPLETED,
-		ResultState: NewValueOutputState(out),
-	}
+	return model.StatusCompleted(NewValueOutputState(out))
 }
 
-func (n *ValueState) Commit(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId, commit *model.CommitInfo) (bool, error) {
+func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
 	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
 }
 
-func (n *ValueState) commitTargetState(lctx common.Logging, _o support.InternalDBObject, phase model.Phase, spec *model.CommitInfo) {
+func (n *ValueState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
 	o := _o.(*db.ValueState)
 	log := lctx.Logger(REALM)
 	if nil != o.Target && spec != nil {
@@ -126,11 +125,11 @@ func (c *CurrentValueState) get() *db.ValueState {
 	return c.n.GetBase().(*db.ValueState)
 }
 
-func (c *CurrentValueState) GetLinks() []model.ElementId {
-	var r []model.ElementId
+func (c *CurrentValueState) GetLinks() []ElementId {
+	var r []ElementId
 
 	if c.get().Current.Owner != "" {
-		r = append(r, common.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), c.get().Current.Owner, mymetamodel.PHASE_CALCULATION))
+		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), c.get().Current.Owner, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
@@ -163,8 +162,8 @@ func (c *TargetValueState) get() *db.ValueTargetState {
 	return c.n.GetBase().(*db.ValueState).Target
 }
 
-func (c *TargetValueState) GetLinks() []common.ElementId {
-	var r []model.ElementId
+func (c *TargetValueState) GetLinks() []mmids.ElementId {
+	var r []ElementId
 
 	t := c.get()
 	if t == nil {
@@ -172,7 +171,7 @@ func (c *TargetValueState) GetLinks() []common.ElementId {
 	}
 
 	if t.Spec.Owner != "" {
-		r = append(r, common.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), t.Spec.Owner, mymetamodel.PHASE_CALCULATION))
+		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), t.Spec.Owner, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }

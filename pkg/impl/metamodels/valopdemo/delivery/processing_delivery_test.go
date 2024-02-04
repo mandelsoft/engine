@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,11 +19,11 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/metamodel/common"
-	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/processor"
 
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
@@ -38,7 +39,7 @@ var _ = Describe("Processing", func() {
 	var ctx context.Context
 	var lctx logging.Context
 	var logbuf *bytes.Buffer
-	var proc *processing.Processor
+	var proc *processor.Processor
 	var odb database.Database[support.DBObject]
 
 	BeforeEach(func() {
@@ -58,7 +59,7 @@ var _ = Describe("Processing", func() {
 		ctx = ctxutil.CancelContext(context.Background())
 
 		m := Must(model.NewModel(spec))
-		proc = Must(processing.NewProcessor(ctx, lctx, m, 1))
+		proc = Must(processor.NewProcessor(ctx, lctx, m, 1))
 		odb = objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
 		wg = &sync.WaitGroup{}
 		_ = logbuf
@@ -75,7 +76,7 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			n5completed := proc.CompletedFuture(common.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
+			n5completed := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
 
 			MustBeSuccessfull(odb.SetObject(n5))
 
@@ -168,14 +169,14 @@ var _ = Describe("Processing", func() {
 })
 
 type ValueMon struct {
-	oid       model.ObjectId
-	sid       model.ElementId
-	completed processing.Future
+	oid       ObjectId
+	sid       ElementId
+	completed processor.Future
 }
 
-func NewValueMon(proc *processing.Processor, name string, retrigger ...bool) *ValueMon {
-	oid := common.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
-	sid := common.NewElementIdForPhase(common.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
+func NewValueMon(proc *processor.Processor, name string, retrigger ...bool) *ValueMon {
+	oid := mmids.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
+	sid := mmids.NewElementIdForPhase(mmids.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
 
 	return &ValueMon{
 		oid:       oid,
@@ -188,7 +189,7 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 	return m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
 }
 
-func (m *ValueMon) Check(proc *processing.Processor, value int, provider string) {
+func (m *ValueMon) Check(proc *processor.Processor, value int, provider string) {
 	odb := objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
