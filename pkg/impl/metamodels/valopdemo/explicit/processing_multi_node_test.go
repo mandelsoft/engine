@@ -1,26 +1,19 @@
 package explicit_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 	"time"
 
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/mandelsoft/logging"
-	"github.com/mandelsoft/logging/logrusl"
-	"github.com/mandelsoft/logging/logrusr"
-	"github.com/mandelsoft/vfs/pkg/vfs"
-
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -34,104 +27,71 @@ import (
 const NS = "testspace"
 
 var _ = Describe("Processing", func() {
-	var wg *sync.WaitGroup
-	var fs vfs.FileSystem
-	// var ob objectbase.Objectbase
-	var ctx context.Context
-	var lctx logging.Context
-	var logbuf *bytes.Buffer
-	var proc *processor.Processor
-	var odb database.Database[support.DBObject]
+	var env *TestEnv
 
 	BeforeEach(func() {
-		fs = Must(TestFileSystem("testdata", false))
-
-		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[support.DBObject]("testdata", fs))
-		MustBeSuccessfull(spec.Validate())
-
-		logbuf = bytes.NewBuffer(nil)
-		logcfg := logrusl.Human(true)
-		// logcfg=logcfg.WithWriter(logbuf)
-		logging.DefaultContext().SetBaseLogger(logrusr.New(logcfg.NewLogrus()))
-
-		lctx = logging.DefaultContext()
-		lctx.AddRule(logging.NewConditionRule(logging.TraceLevel, logging.NewRealmPrefix("engine/processor")))
-
-		ctx = ctxutil.CancelContext(context.Background())
-
-		m := Must(model.NewModel(spec))
-		proc = Must(processor.NewProcessor(ctx, lctx, m, 1))
-		odb = objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
-		wg = &sync.WaitGroup{}
-		_ = logbuf
+		env = Must(NewTestEnv("test", "testdata", mymodel.NewModelSpecification))
 	})
 
 	AfterEach(func() {
-		ctxutil.Cancel(ctx)
-		wg.Wait()
-		vfs.Cleanup(fs)
+		if env != nil {
+			env.Cleanup()
+		}
 	})
 
 	Context("", func() {
 		It("single node", func() {
-			proc.Start(wg)
+			env.Start()
 
-			n5 := db.NewValueNode(NS, "A", 5)
-			n5completed := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
+			vA := db.NewValueNode(NS, "A", 5)
+			mvA := NewValueMon(env, "A")
 
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessfull(env.SetObject(vA))
 
-			Expect(n5completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
-
-			n5n := Must(odb.GetObject(n5))
-
-			Expect(n5n.(*db.Value).Status.Result).NotTo(BeNil())
-			Expect(*n5n.(*db.Value).Status.Result).To(Equal(5))
+			Expect(env.Wait(mvA)).To(BeTrue())
+			mvA.Check(env, 5)
 		})
 
 		It("node with two operands (in order)", func() {
-			proc.Start(wg)
+			env.Start()
 
-			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(n5))
-			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(n6))
-			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			nacompleted := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
-			MustBeSuccessfull(odb.SetObject(na))
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(vB))
+			opC := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 
-			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
-			nan := Must(odb.GetObject(na))
+			opCcompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
+			MustBeSuccessfull(env.SetObject(opC))
+
+			Expect(opCcompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
+			nan := Must(env.GetObject(opC))
 
 			Expect(nan.(*db.Operator).Status.Result).NotTo(BeNil())
 			Expect(*nan.(*db.Operator).Status.Result).To(Equal(11))
 		})
 
 		It("node with two operands (wrong order)", func() {
-			lctx.Logger().Info("starting {{path}}", "path", "testdata", "other", "some value")
-			lctx.Logger().Debug("debug logs enabled")
-			// os.Stdout.Write(logbuf.Bytes())
-
-			proc.Start(wg)
+			env.Start()
 
 			nr := db.NewResultNode(NS, "D", "C")
-			MustBeSuccessfull(odb.SetObject(nr))
+			MustBeSuccessfull(env.SetObject(nr))
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			nacompleted := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE), true)
-			MustBeSuccessfull(odb.SetObject(na))
+			nacompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE), true)
+			MustBeSuccessfull(env.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessfull(env.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(n6))
+			MustBeSuccessfull(env.SetObject(n6))
 
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+				Expect(nacompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
 				fmt.Printf("found completed\n")
-				n := Must(odb.GetObject(na))
+				n := Must(env.GetObject(na))
 				result = n.(*db.Operator).Status.Result
 				if result != nil {
 					if *result == 11 {
@@ -147,25 +107,60 @@ var _ = Describe("Processing", func() {
 
 			fmt.Printf("*** modify object A ***\n")
 			dbo := (support.DBObject)(n5)
-			_ = Must(database.Modify(odb, &dbo, func(o support.DBObject) (bool, bool) {
+			_ = Must(database.Modify(env.Database(), &dbo, func(o support.DBObject) (bool, bool) {
 				o.(*db.Value).Spec.Value = 6
 				return true, true
 			}))
 
-			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+			Expect(nacompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
 
-			n := Must(odb.GetObject(na))
+			n := Must(env.GetObject(na))
 			result = n.(*db.Operator).Status.Result
 			Expect(result).NotTo(BeNil())
 			Expect(*result).To(Equal(12))
 
-			nrcompleted := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "D", mymetamodel.FINAL_VALUE_PHASE))
-			Expect(nrcompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+			nrcompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "D", mymetamodel.FINAL_VALUE_PHASE))
+			Expect(nrcompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
 
-			n = Must(odb.GetObject(nr))
+			n = Must(env.GetObject(nr))
 			result = n.(*db.Value).Status.Result
 			Expect(result).NotTo(BeNil())
 			Expect(*result).To(Equal(12))
 		})
 	})
 })
+
+type ValueMon struct {
+	oid       ObjectId
+	sid       ElementId
+	completed processor.Future
+}
+
+func NewValueMon(env *TestEnv, name string, retrigger ...bool) *ValueMon {
+	oid := mmids.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
+	sid := mmids.NewElementIdForPhase(mmids.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
+
+	return &ValueMon{
+		oid:       oid,
+		sid:       sid,
+		completed: env.CompletedFuture(sid, retrigger...),
+	}
+}
+
+func (m *ValueMon) Wait(ctx context.Context) bool {
+	b := m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+	if b {
+		fmt.Printf("FOUND %s completed\n", m.sid)
+	} else {
+		fmt.Printf("ABORTED %s\n", m.sid)
+	}
+	return b
+}
+
+func (m *ValueMon) Check(env *TestEnv, value int) {
+	odb := objectbase.GetDatabase[support.DBObject](env.Processor().Model().ObjectBase())
+	v, err := odb.GetObject(m.oid)
+	ExpectWithOffset(1, err).To(Succeed())
+	ExpectWithOffset(1, v.(*db.Value).Status.Result).NotTo(BeNil())
+	ExpectWithOffset(1, *v.(*db.Value).Status.Result).To(Equal(value))
+}

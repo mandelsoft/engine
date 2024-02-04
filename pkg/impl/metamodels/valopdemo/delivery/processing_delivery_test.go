@@ -1,25 +1,17 @@
 package delivery_test
 
 import (
-	"bytes"
 	"context"
-	"sync"
+	"fmt"
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/mandelsoft/logging"
-	"github.com/mandelsoft/logging/logrusl"
-	"github.com/mandelsoft/logging/logrusr"
-	"github.com/mandelsoft/vfs/pkg/vfs"
-
 	"github.com/mandelsoft/engine/pkg/ctxutil"
-	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -33,85 +25,56 @@ import (
 const NS = "testspace"
 
 var _ = Describe("Processing", func() {
-	var wg *sync.WaitGroup
-	var fs vfs.FileSystem
-	// var ob objectbase.Objectbase
-	var ctx context.Context
-	var lctx logging.Context
-	var logbuf *bytes.Buffer
-	var proc *processor.Processor
-	var odb database.Database[support.DBObject]
+	var env *TestEnv
 
 	BeforeEach(func() {
-		fs = Must(TestFileSystem("testdata", false))
-
-		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[support.DBObject]("testdata", fs))
-		MustBeSuccessfull(spec.Validate())
-
-		logbuf = bytes.NewBuffer(nil)
-		logcfg := logrusl.Human(true)
-		// logcfg=logcfg.WithWriter(logbuf)
-		logging.DefaultContext().SetBaseLogger(logrusr.New(logcfg.NewLogrus()))
-
-		lctx = logging.DefaultContext()
-		lctx.AddRule(logging.NewConditionRule(logging.TraceLevel, logging.NewRealmPrefix("engine/processor")))
-
-		ctx = ctxutil.CancelContext(context.Background())
-
-		m := Must(model.NewModel(spec))
-		proc = Must(processor.NewProcessor(ctx, lctx, m, 1))
-		odb = objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
-		wg = &sync.WaitGroup{}
-		_ = logbuf
+		env = Must(NewTestEnv("test", "testdata", mymodel.NewModelSpecification))
 	})
 
 	AfterEach(func() {
-		ctxutil.Cancel(ctx)
-		wg.Wait()
-		vfs.Cleanup(fs)
+		if env != nil {
+			env.Cleanup()
+		}
 	})
 
 	Context("", func() {
 		It("plain value", func() {
-			proc.Start(wg)
+			env.Start()
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			n5completed := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
+			mn5 := NewValueMon(env, "A")
+			MustBeSuccessfull(env.SetObject(n5))
 
-			MustBeSuccessfull(odb.SetObject(n5))
+			Expect(env.Wait(mn5)).To(BeTrue())
 
-			Expect(n5completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
-
-			n5n := Must(odb.GetObject(n5))
-
-			Expect(n5n.(*db.Value).Status.Provider).To(Equal(""))
+			mn5.Check(env, 5, "")
 		})
 
 		It("operator with two operands (in order) creating value node", func() {
-			proc.Start(wg)
+			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(vA))
+			MustBeSuccessfull(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(vB))
+			MustBeSuccessfull(env.SetObject(vB))
 			opC := db.NewOperatorNode(NS, "C", "A", "B").AddOperation(db.OP_ADD, "C-A")
 
-			mCA := NewValueMon(proc, "C-A")
-			MustBeSuccessfull(odb.SetObject(opC))
+			mCA := NewValueMon(env, "C-A")
+			MustBeSuccessfull(env.SetObject(opC))
 
-			Expect(mCA.Wait(ctx)).To(BeTrue())
-			mCA.Check(proc, 11, "C")
+			Expect(env.Wait(mCA)).To(BeTrue())
+			mCA.Check(env, 11, "C")
 		})
 
 		It("multiple operators with multiple outputs creating value node", func() {
-			proc.Start(wg)
+			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(vA))
+			MustBeSuccessfull(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(vB))
+			MustBeSuccessfull(env.SetObject(vB))
 			vD := db.NewValueNode(NS, "D", 7)
-			MustBeSuccessfull(odb.SetObject(vD))
+			MustBeSuccessfull(env.SetObject(vD))
 
 			opC := db.NewOperatorNode(NS, "C", "B", "A").
 				AddOperation(db.OP_ADD, "C-A").
@@ -120,22 +83,22 @@ var _ = Describe("Processing", func() {
 			opE := db.NewOperatorNode(NS, "E", "D", "C-A").
 				AddOperation(db.OP_MUL, "E-A")
 
-			mEA := NewValueMon(proc, "E-A")
-			mCS := NewValueMon(proc, "C-S")
+			mEA := NewValueMon(env, "E-A")
+			mCS := NewValueMon(env, "C-S")
 
-			MustBeSuccessfull(odb.SetObject(opC))
-			MustBeSuccessfull(odb.SetObject(opE))
+			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessfull(env.SetObject(opE))
 
-			Expect(mEA.Wait(ctx)).To(BeTrue())
-			Expect(mCS.Wait(ctx)).To(BeTrue())
+			Expect(env.Wait(mEA)).To(BeTrue())
+			Expect(env.Wait(mCS)).To(BeTrue())
 
-			mCS.Check(proc, 1, "C")
-			mEA.Check(proc, 77, "E")
+			mCS.Check(env, 1, "C")
+			mEA.Check(env, 77, "E")
 
 		})
 
 		It("multiple operators with multiple outputs creating value node (wrong order)", func() {
-			proc.Start(wg)
+			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
 			vB := db.NewValueNode(NS, "B", 6)
@@ -148,21 +111,21 @@ var _ = Describe("Processing", func() {
 			opE := db.NewOperatorNode(NS, "E", "D", "C-A").
 				AddOperation(db.OP_MUL, "E-A")
 
-			mEA := NewValueMon(proc, "E-A")
-			mCS := NewValueMon(proc, "C-S")
+			mEA := NewValueMon(env, "E-A")
+			mCS := NewValueMon(env, "C-S")
 
-			MustBeSuccessfull(odb.SetObject(opE))
-			MustBeSuccessfull(odb.SetObject(opC))
+			MustBeSuccessfull(env.SetObject(opE))
+			MustBeSuccessfull(env.SetObject(opC))
 
-			MustBeSuccessfull(odb.SetObject(vD))
-			MustBeSuccessfull(odb.SetObject(vB))
-			MustBeSuccessfull(odb.SetObject(vA))
+			MustBeSuccessfull(env.SetObject(vD))
+			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessfull(env.SetObject(vA))
 
-			Expect(mEA.Wait(ctx)).To(BeTrue())
-			Expect(mCS.Wait(ctx)).To(BeTrue())
+			Expect(env.Wait(mEA)).To(BeTrue())
+			Expect(env.Wait(mCS)).To(BeTrue())
 
-			mCS.Check(proc, 1, "C")
-			mEA.Check(proc, 77, "E")
+			mCS.Check(env, 1, "C")
+			mEA.Check(env, 77, "E")
 
 		})
 	})
@@ -174,23 +137,29 @@ type ValueMon struct {
 	completed processor.Future
 }
 
-func NewValueMon(proc *processor.Processor, name string, retrigger ...bool) *ValueMon {
+func NewValueMon(env *TestEnv, name string, retrigger ...bool) *ValueMon {
 	oid := mmids.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
 	sid := mmids.NewElementIdForPhase(mmids.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
 
 	return &ValueMon{
 		oid:       oid,
 		sid:       sid,
-		completed: proc.CompletedFuture(sid, retrigger...),
+		completed: env.CompletedFuture(sid, retrigger...),
 	}
 }
 
 func (m *ValueMon) Wait(ctx context.Context) bool {
-	return m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+	b := m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+	if b {
+		fmt.Printf("FOUND %s completed\n", m.sid)
+	} else {
+		fmt.Printf("ABORTED %s\n", m.sid)
+	}
+	return b
 }
 
-func (m *ValueMon) Check(proc *processor.Processor, value int, provider string) {
-	odb := objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
+func (m *ValueMon) Check(env *TestEnv, value int, provider string) {
+	odb := objectbase.GetDatabase[support.DBObject](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	ExpectWithOffset(1, v.(*db.Value).Status.Provider).To(Equal(provider))
