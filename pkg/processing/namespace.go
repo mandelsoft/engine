@@ -31,6 +31,10 @@ func (ni *NamespaceInfo) GetNamespaceName() string {
 	return ni.namespace.GetNamespaceName()
 }
 
+func (ni *NamespaceInfo) GetElement(id ElementId) common.Element {
+	return ni.elements[id]
+}
+
 func (ni *NamespaceInfo) AddElement(i model.InternalObject, phase model.Phase) Element {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()

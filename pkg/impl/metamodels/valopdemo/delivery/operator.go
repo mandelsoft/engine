@@ -1,4 +1,4 @@
-package valopdemo
+package delivery
 
 import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
@@ -8,7 +8,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
@@ -31,10 +31,10 @@ func (n *Operator) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, e
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		o := _o.(*db.Operator)
 		mod := false
-		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.Phase()), &mod)
+		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.GetPhase()), &mod)
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
-		if elem.Phase() == mymetamodel.PHASE_CALCULATION {
+		if elem.GetPhase() == mymetamodel.PHASE_CALCULATION {
 			support.UpdateField(&o.Status.EffectiveVersion, update.EffectiveVersion, &mod)
 			if update.ObservedVersion != nil {
 				log.Debug("Update observed version for Node {{name}} to {{state}}", "state", *update.ObservedVersion)
@@ -44,7 +44,7 @@ func (n *Operator) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, e
 				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
 			}
 			if update.ResultState != nil {
-				support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcOutputState).GetState()), &mod)
+				support.UpdateField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcOutputState).GetState()), &mod)
 			}
 		} else {
 			support.UpdateField(&o.Status.Status, update.Status, &mod)

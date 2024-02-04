@@ -70,7 +70,7 @@ type objectbase struct {
 }
 
 func (d *objectbase) CreateObject(id common.ObjectId) (common.Object, error) {
-	return d.SchemeTypes().CreateObject(id.Type(), SetObjectName(id.Namespace(), id.Name()))
+	return d.SchemeTypes().CreateObject(id.GetType(), SetObjectName(id.GetNamespace(), id.GetName()))
 }
 
 func BaseNamespace(ns string) (string, string) {

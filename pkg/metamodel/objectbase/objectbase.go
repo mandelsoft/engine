@@ -40,8 +40,8 @@ func NewObjectbase(db database.Database[Object]) Objectbase {
 	return &objectbase{db}
 }
 
-func (d *objectbase) CreateObject(id ObjectId) (Object, error) {
-	return d.SchemeTypes().CreateObject(id.Type(), SetObjectName(id.Namespace(), id.Name()))
+func (d *objectbase) CreateObject(id database.ObjectId) (Object, error) {
+	return d.SchemeTypes().CreateObject(id.GetType(), SetObjectName(id.GetNamespace(), id.GetName()))
 }
 
 func (d *objectbase) GetDatabase() database.Database[Object] {

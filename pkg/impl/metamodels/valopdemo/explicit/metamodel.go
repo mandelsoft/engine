@@ -1,12 +1,12 @@
-package valopdemo
+package explicit
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 

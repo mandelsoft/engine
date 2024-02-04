@@ -13,13 +13,13 @@ func init() {
 type ValueState struct {
 	support.InternalDBObjectSupport `json:",inline"`
 
-	Current CurrentState `json:"current"`
-	Target  *TargetState `json:"target,omitempty"`
+	Current ValueCurrentState `json:"current"`
+	Target  *ValueTargetState `json:"target,omitempty"`
 }
 
 var _ support.InternalDBObject = (*ValueState)(nil)
 
-type CurrentState struct {
+type ValueCurrentState struct {
 	Owner         string      `json:"owner,omitempty"`
 	InputVersion  string      `json:"inputVersion"`
 	ObjectVersion string      `json:"objectVersion"`
@@ -32,7 +32,7 @@ type ValueOutput struct {
 	Value  int            `json:"value"`
 }
 
-type TargetState struct {
+type ValueTargetState struct {
 	ObjectVersion string    `json:"version"`
 	Spec          ValueSpec `json:"spec"`
 }

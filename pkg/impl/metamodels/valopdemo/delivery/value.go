@@ -1,4 +1,4 @@
-package valopdemo
+package delivery
 
 import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
@@ -6,9 +6,10 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
 )
 
 func init() {
@@ -43,7 +44,17 @@ func (n *Value) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem
 		support.UpdateField(&o.Status.Status, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
 		if update.ResultState != nil {
-			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*ValueOutputState).GetState().Value), &mod)
+			r := update.ResultState.(*ValueOutputState).GetState()
+			// as slave object, result is stored in spec and not status
+			log.Debug("Update value for Value {{name}} to {{value}}", "value", r.Value)
+			support.UpdateField(&o.Spec.Value, &r.Value, &mod)
+
+			provider := ""
+			if r.Origin.GetType() != mymetamodel.TYPE_VALUE_STATE {
+				provider = r.Origin.GetName()
+			}
+			log.Debug("Update provider for Value {{name}} to {{provider}}", "provider", provider)
+			support.UpdateField(&o.Status.Provider, utils.Pointer(provider), &mod)
 		}
 		return mod, mod
 	})
@@ -51,3 +62,7 @@ func (n *Value) UpdateStatus(lctx common.Logging, ob objectbase.Objectbase, elem
 }
 
 type ExternalValueState = support.ExternalState[*db.ValueSpec]
+type EffectiveValueState = support.ExternalState[*db.EffectiveValueSpec]
+
+var NewExternalValueState = support.NewExternalState[*db.EffectiveValueSpec]
+var NewEffectiveValueState = support.NewExternalState[*db.EffectiveValueSpec]

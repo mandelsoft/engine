@@ -25,4 +25,5 @@ type Database[O Object] interface {
 
 	GetObject(ObjectId) (O, error)
 	SetObject(O) error
+	DeleteObject(id ObjectId) error
 }

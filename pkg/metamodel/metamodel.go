@@ -19,11 +19,16 @@ type MetaModel interface {
 	ExternalTypes() []string
 	ElementTypes() []TypeId
 
+	IsExternalType(name string) bool
+	IsInternalType(name string) bool
+	HasElementType(name TypeId) bool
+
 	GetExternalType(name string) ExternalObjectType
 	GetInternalType(name string) InternalObjectType
 	GetElementType(name TypeId) ElementType
 	HasDependency(s, d TypeId) bool
 
+	GetDependentTypePhases(name TypeId) []Phase
 	GetPhaseFor(ext string) *TypeId
 	GetTriggeringTypesForElementType(id TypeId) []string
 	GetTriggeringTypesForInternalType(name string) []string
@@ -145,8 +150,36 @@ func (m *metaModel) ElementTypes() []TypeId {
 	return list
 }
 
+func (m *metaModel) IsExternalType(name string) bool {
+	return m.external[name] != nil
+}
+
 func (m *metaModel) GetExternalType(name string) ExternalObjectType {
 	return m.external[name]
+}
+
+func (m *metaModel) GetDependentTypePhases(name TypeId) []Phase {
+	d := m.internal[name.GetType()]
+	if d == nil {
+		return nil
+	}
+
+	r := []common.Phase{name.GetPhase()}
+
+	for i := 0; i < len(r); i++ {
+		t := common.NewTypeId(name.GetType(), r[i])
+		for _, ph := range d.intType.Phases() {
+			if !slices.Contains(r, ph) && d.intType.Element(ph).HasDependency(t) {
+				r = append(r, ph)
+			}
+		}
+	}
+
+	return r
+}
+
+func (m *metaModel) IsInternalType(name string) bool {
+	return m.internal[name] != nil
 }
 
 func (m *metaModel) GetInternalType(name string) InternalObjectType {
@@ -157,12 +190,20 @@ func (m *metaModel) GetInternalType(name string) InternalObjectType {
 	return d.intType
 }
 
+func (m *metaModel) HasElementType(name TypeId) bool {
+	d := m.internal[name.GetType()]
+	if d == nil {
+		return false
+	}
+	return d.phases[name.GetPhase()] != nil
+}
+
 func (m *metaModel) GetElementType(name TypeId) ElementType {
-	d := m.internal[name.Type()]
+	d := m.internal[name.GetType()]
 	if d == nil {
 		return nil
 	}
-	return d.phases[name.Phase()]
+	return d.phases[name.GetPhase()]
 }
 
 func (m *metaModel) HasDependency(s, d TypeId) bool {
@@ -215,8 +256,8 @@ func (m *metaModel) Dump(w io.Writer) {
 	for _, n := range m.ExternalTypes() {
 		i := m.external[n]
 		fmt.Fprintf(w, "- %s  (-> %s)\n", n, i.Trigger().Id())
-		fmt.Fprintf(w, "  internal type: %s\n", i.Trigger().Id().Type())
-		fmt.Fprintf(w, "  phase:         %s\n", i.Trigger().Id().Phase())
+		fmt.Fprintf(w, "  internal type: %s\n", i.Trigger().Id().GetType())
+		fmt.Fprintf(w, "  phase:         %s\n", i.Trigger().Id().GetPhase())
 	}
 	fmt.Fprintf(w, "Internal types:\n")
 	for _, n := range m.InternalTypes() {

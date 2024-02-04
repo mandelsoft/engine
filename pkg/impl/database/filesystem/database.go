@@ -186,6 +186,23 @@ func (d *Database[O]) SetObject(o O) error {
 	return nil
 }
 
+func (d *Database[O]) DeleteObject(id database.ObjectId) error {
+	path := d.OPath(id)
+
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if ok, err := vfs.Exists(d.fs, path); !ok && err == nil {
+		return database.ErrNotExist
+	}
+	err := d.fs.Remove(path)
+	if err != nil {
+		return err
+	}
+	d.registry.TriggerEvent(id)
+	return nil
+}
+
 func (d *Database[O]) Path(path string) string {
 	return filepath.Join(d.path, path)
 }

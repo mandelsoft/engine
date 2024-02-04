@@ -60,7 +60,7 @@ func (e *element) Id() ElementId {
 }
 
 func (e *element) GetPhase() common.Phase {
-	return e.id.Phase()
+	return e.id.GetPhase()
 }
 
 func (e *element) GetObject() common.InternalObject {
@@ -84,13 +84,13 @@ func (e *element) SetTargetState(target TargetState) {
 }
 
 func (e *element) TryLock(ob objectbase.Objectbase, id model.RunId) (bool, error) {
-	return e.GetObject().TryLock(ob, e.id.Phase(), id)
+	return e.GetObject().TryLock(ob, e.id.GetPhase(), id)
 }
 
 func (e *element) Rollback(lctx common.Logging, ob objectbase.Objectbase, id model.RunId) (bool, error) {
-	return e.GetObject().Rollback(lctx, ob, e.id.Phase(), id)
+	return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id)
 }
 
 func (e *element) Commit(lctx common.Logging, ob objectbase.Objectbase, id model.RunId, commit *model.CommitInfo) (bool, error) {
-	return e.GetObject().Commit(lctx, ob, e.id.Phase(), id, commit)
+	return e.GetObject().Commit(lctx, ob, e.id.GetPhase(), id, commit)
 }

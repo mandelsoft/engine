@@ -22,20 +22,16 @@ func NewObjectIdFor(o Object) ObjectId {
 	}
 }
 
-func (o ObjectId) Type() string {
+func (o ObjectId) GetType() string {
 	return o.data.Type
 }
 
-func (o ObjectId) Namespace() string {
+func (o ObjectId) GetNamespace() string {
 	return o.data.Namespace
 }
 
-func (o ObjectId) Name() string {
+func (o ObjectId) GetName() string {
 	return o.data.Name
-}
-
-func (o ObjectId) DBId() database.ObjectId {
-	return &o.data
 }
 
 func (o ObjectId) String() string {
@@ -58,11 +54,11 @@ func NewTypeId(typ string, phase Phase) TypeId {
 	}
 }
 
-func (o TypeId) Type() string {
+func (o TypeId) GetType() string {
 	return o.objtype
 }
 
-func (o TypeId) Phase() Phase {
+func (o TypeId) GetPhase() Phase {
 	return o.phase
 }
 
@@ -88,7 +84,11 @@ func NewElementIdForPhase(oid database.ObjectId, ph Phase) ElementId {
 	return NewElementId(oid.GetType(), oid.GetNamespace(), oid.GetName(), ph)
 }
 
-func (e ElementId) Phase() Phase {
+func NewElementIdForType(typ TypeId, ns, name string) ElementId {
+	return NewElementId(typ.GetType(), ns, name, typ.GetPhase())
+}
+
+func (e ElementId) GetPhase() Phase {
 	return e.phase
 }
 

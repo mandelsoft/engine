@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package valopdemo_test
+package explicit_test
 
 import (
 	"testing"

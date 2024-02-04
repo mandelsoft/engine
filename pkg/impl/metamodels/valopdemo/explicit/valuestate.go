@@ -1,15 +1,15 @@
-package valopdemo
+package explicit
 
 import (
 	"reflect"
 
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
@@ -28,18 +28,18 @@ type ValueStateCurrent struct {
 var _ model.InternalObject = (*ValueState)(nil)
 
 func (n *ValueState) GetCurrentState(phase model.Phase) model.CurrentState {
-	return &CurrentState{n}
+	return &CurrentValueState{n}
 }
 
 func (n *ValueState) GetTargetState(phase model.Phase) model.TargetState {
-	return &TargetState{n}
+	return &TargetValueState{n}
 }
 
 func (n *ValueState) SetExternalState(lcxt common.Logging, ob objectbase.Objectbase, phase model.Phase, state common.ExternalStates) error {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.ValueState).Target
 		if t == nil {
-			t = &db.TargetState{}
+			t = &db.ValueTargetState{}
 		}
 
 		mod := false
@@ -67,17 +67,17 @@ func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.
 		links := n.GetTargetState(req.Element.GetPhase()).GetLinks()
 		for iid, e := range req.Inputs {
 			s := e.(*CalcOutputState).GetState()
-			for i, oid := range links {
+			for _, oid := range links {
 				if iid == oid {
 					out.Value = s
 					out.Origin = iid.ObjectId()
-					log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", links[i])
+					log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", out.Value)
 					break
 				}
 			}
 		}
 	} else {
-		out.Value = n.GetTargetState(req.Element.GetPhase()).(*TargetState).GetValue()
+		out.Value = n.GetTargetState(req.Element.GetPhase()).(*TargetValueState).GetValue()
 		out.Origin = req.Element.Id().ObjectId()
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
@@ -102,7 +102,7 @@ func (n *ValueState) commitTargetState(lctx common.Logging, _o support.InternalD
 		o.Current.OutputVersion = spec.State.(*ValueOutputState).GetOutputVersion()
 		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
 
-		log.Info("  object version {{owner}}", "owner", o.Target.Spec.Owner)
+		log.Info("  owner {{owner}}", "owner", o.Target.Spec.Owner)
 		o.Current.Owner = o.Target.Spec.Owner
 	}
 	o.Target = nil
@@ -116,17 +116,17 @@ var NewValueOutputState = support.NewOutputState[db.ValueOutput]
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type CurrentState struct {
+type CurrentValueState struct {
 	n *ValueState
 }
 
-var _ model.CurrentState = (*CurrentState)(nil)
+var _ model.CurrentState = (*CurrentValueState)(nil)
 
-func (c *CurrentState) get() *db.ValueState {
+func (c *CurrentValueState) get() *db.ValueState {
 	return c.n.GetBase().(*db.ValueState)
 }
 
-func (c *CurrentState) GetLinks() []model.ElementId {
+func (c *CurrentValueState) GetLinks() []model.ElementId {
 	var r []model.ElementId
 
 	if c.get().Current.Owner != "" {
@@ -135,35 +135,35 @@ func (c *CurrentState) GetLinks() []model.ElementId {
 	return r
 }
 
-func (c *CurrentState) GetInputVersion() string {
+func (c *CurrentValueState) GetInputVersion() string {
 	return c.get().Current.InputVersion
 }
 
-func (c *CurrentState) GetObjectVersion() string {
+func (c *CurrentValueState) GetObjectVersion() string {
 	return c.get().Current.ObjectVersion
 }
 
-func (c *CurrentState) GetOutputVersion() string {
+func (c *CurrentValueState) GetOutputVersion() string {
 	return c.get().Current.OutputVersion
 }
 
-func (c *CurrentState) GetOutput() model.OutputState {
+func (c *CurrentValueState) GetOutput() model.OutputState {
 	return NewValueOutputState(c.get().Current.Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type TargetState struct {
+type TargetValueState struct {
 	n *ValueState
 }
 
-var _ model.TargetState = (*TargetState)(nil)
+var _ model.TargetState = (*TargetValueState)(nil)
 
-func (c *TargetState) get() *db.TargetState {
+func (c *TargetValueState) get() *db.ValueTargetState {
 	return c.n.GetBase().(*db.ValueState).Target
 }
 
-func (c *TargetState) GetLinks() []common.ElementId {
+func (c *TargetValueState) GetLinks() []common.ElementId {
 	var r []model.ElementId
 
 	t := c.get()
@@ -177,14 +177,14 @@ func (c *TargetState) GetLinks() []common.ElementId {
 	return r
 }
 
-func (c *TargetState) GetObjectVersion() string {
+func (c *TargetValueState) GetObjectVersion() string {
 	return c.get().ObjectVersion
 }
 
-func (c *TargetState) GetInputVersion(inputs model.Inputs) string {
+func (c *TargetValueState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetState) GetValue() int {
+func (c *TargetValueState) GetValue() int {
 	return c.get().Spec.Value
 }

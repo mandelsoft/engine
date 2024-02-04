@@ -19,13 +19,33 @@ func NewScheme() Scheme {
 
 type RunId string
 
+// MetaModel provides basic access function required by
+// models.
+// The full type is defined in package metamodel,
+// which cannot be used, here, to void package cycles.
+type MetaModel interface {
+	Name() string
+	IsExternalType(name string) bool
+	IsInternalType(name string) bool
+
+	HasElementType(name TypeId) bool
+	GetDependentTypePhases(name TypeId) []Phase
+}
+
+type NameSource interface {
+	GetName() string
+	GetNamespace() string
+}
+
 type Element interface {
+	NameSource
+
 	Id() ElementId
 	GetType() string
-	GetNamespace() string
-	GetName() string
 	GetPhase() Phase
 	GetObject() InternalObject
+
+	GetLock() RunId
 }
 
 type OutputState interface {
@@ -49,10 +69,16 @@ type StatusUpdate struct {
 	ResultState OutputState
 }
 
+type ElementAccess interface {
+	GetElement(ElementId) Element
+}
+
 type Request struct {
-	Logging Logging
-	Inputs  Inputs
-	Element Element
+	Logging       Logging
+	Metamodel     MetaModel
+	Inputs        Inputs
+	Element       Element
+	ElementAccess ElementAccess
 }
 
 type Creation struct {
@@ -72,6 +98,7 @@ const STATUS_FAILED = ProcessingStatus("Failed")
 type Status struct {
 	Status      ProcessingStatus
 	Creation    []Creation
+	Deleted     bool
 	ResultState OutputState
 	Error       error
 }
@@ -148,5 +175,5 @@ type InternalObject interface {
 
 type Objectbase interface {
 	database.Database[Object]
-	CreateObject(ObjectId) (Object, error)
+	CreateObject(database.ObjectId) (Object, error)
 }

@@ -214,12 +214,12 @@ func (p *Processor) AssureElementObjectFor(log logging.Logger, e model.ExternalO
 	}
 
 	var elem Element
-	id := common.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), t.Phase())
+	id := common.NewElementId(t.GetType(), e.GetNamespace(), e.GetName(), t.GetPhase())
 	oid := id.ObjectId()
 	i := ns.internal[oid]
 	if i == nil {
 		log.Info("creating internal object for {{extid}}")
-		_i, err := p.ob.SchemeTypes().CreateObject(t.Type(), objectbase.SetObjectName(id.Namespace(), id.Name()))
+		_i, err := p.ob.SchemeTypes().CreateObject(t.GetType(), objectbase.SetObjectName(id.GetNamespace(), id.GetName()))
 		if err != nil {
 			log.Error("creation of internal object for external object {{extid}} failed", "error", err)
 			return nil, err
@@ -227,11 +227,11 @@ func (p *Processor) AssureElementObjectFor(log logging.Logger, e model.ExternalO
 
 		i = _i.(model.InternalObject)
 		ns.internal[common.NewObjectIdFor(i)] = i
-		for _, ph := range p.mm.GetInternalType(t.Type()).Phases() {
-			id := common.NewElementId(t.Type(), e.GetNamespace(), e.GetName(), ph)
+		for _, ph := range p.mm.GetInternalType(t.GetType()).Phases() {
+			id := common.NewElementId(t.GetType(), e.GetNamespace(), e.GetName(), ph)
 			pe := NewElement(ph, i)
 			ns.elements[id] = pe
-			if ph == t.Phase() {
+			if ph == t.GetPhase() {
 				elem = pe
 			}
 		}
@@ -262,7 +262,7 @@ func (p *Processor) GetElement(id ElementId) Element {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	ns := p.namespaces[id.Namespace()]
+	ns := p.namespaces[id.GetNamespace()]
 	if ns == nil {
 		return nil
 	}

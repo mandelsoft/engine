@@ -1,9 +1,10 @@
-package valopdemo
+package explicit
 
 import (
 	"fmt"
 	"reflect"
 
+	db2 "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
@@ -12,7 +13,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/logging"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
@@ -21,7 +21,7 @@ func init() {
 }
 
 type OperatorState struct {
-	support.InternalPhaseObjectSupport[*OperatorState, *db.OperatorState, *ExternalOperatorState]
+	support.InternalPhaseObjectSupport[*OperatorState, *db2.OperatorState, *ExternalOperatorState]
 }
 
 var _ runtime.InitializedObject = (*OperatorState)(nil)
@@ -32,26 +32,26 @@ func (n *OperatorState) Initialize() error {
 
 var _ model.InternalObject = (*OperatorState)(nil)
 
-var nodeStatePhases = support.NewPhases[*OperatorState, *db.OperatorState, *ExternalOperatorState](REALM)
+var nodeStatePhases = support.NewPhases[*OperatorState, *db2.OperatorState, *ExternalOperatorState](REALM)
 
 func init() {
 	nodeStatePhases.Register(mymetamodel.PHASE_GATHER, GatherPhase{})
 	nodeStatePhases.Register(mymetamodel.PHASE_CALCULATION, CalculatePhase{})
 }
 
-type Phase = support.Phase[*OperatorState, *db.OperatorState, *ExternalOperatorState]
+type Phase = support.Phase[*OperatorState, *db2.OperatorState, *ExternalOperatorState]
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type PhaseBase struct{}
 
-func (c PhaseBase) setExternalObjectState(log logging.Logger, o *db.OperatorState, state *ExternalOperatorState, mod *bool) {
+func (c PhaseBase) setExternalObjectState(log logging.Logger, o *db2.OperatorState, state *ExternalOperatorState, mod *bool) {
 	t := o.Target
 	if t != nil {
 		return // keep state from first touched phase
 	}
 	log.Info("set common target state for OperatorState {{name}}")
-	t = &db.ObjectTargetState{}
+	t = &db2.ObjectTargetState{}
 
 	s := state.GetState()
 	m := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != state.GetVersion()
@@ -76,10 +76,10 @@ func (g PhaseBase) Validate(o *OperatorState) error {
 		return fmt.Errorf("operator node requires at least one operand")
 	}
 	switch op {
-	case db.OP_ADD:
-	case db.OP_SUB:
-	case db.OP_DIV:
-	case db.OP_MUL:
+	case db2.OP_ADD:
+	case db2.OP_SUB:
+	case db2.OP_DIV:
+	case db2.OP_MUL:
 	default:
 		return fmt.Errorf("unknown operator %q", op)
 	}
@@ -102,11 +102,11 @@ func (g GatherPhase) GetTargetState(o *OperatorState, phase model.Phase) model.T
 	return &TargetGatherState{o}
 }
 
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase model.Phase, state *ExternalOperatorState, mod *bool) {
+func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db2.OperatorState, phase model.Phase, state *ExternalOperatorState, mod *bool) {
 	g.setExternalObjectState(log, o, state, mod)
 	t := o.Gather.Target
 	if t == nil {
-		t = &db.GatherTargetState{}
+		t = &db2.GatherTargetState{}
 	}
 
 	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
@@ -114,7 +114,7 @@ func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState,
 	o.Gather.Target = t
 }
 
-func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase model.Phase, spec *model.CommitInfo, mod *bool) {
+func (g GatherPhase) DBCommit(log logging.Logger, o *db2.OperatorState, phase model.Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
 		log.Info("commit phase {{phase}} for OperatorState {{name}}")
@@ -143,12 +143,12 @@ func (g GatherPhase) Process(ob objectbase.Objectbase, o *OperatorState, phase m
 	}
 
 	links := (&TargetGatherState{o}).GetLinks()
-	operands := make([]db.Operand, len(links))
+	operands := make([]db2.Operand, len(links))
 	for iid, e := range req.Inputs {
 		s := e.(*ValueOutputState).GetState()
 		for i, oid := range links {
 			if iid == oid {
-				operands[i] = db.Operand{
+				operands[i] = db2.Operand{
 					Origin: iid.ObjectId(),
 					Value:  s.Value,
 				}
@@ -159,7 +159,7 @@ func (g GatherPhase) Process(ob objectbase.Objectbase, o *OperatorState, phase m
 	}
 
 	if len(links) == 0 {
-		operands = []db.Operand{
+		operands = []db2.Operand{
 			{
 				Origin: common.NewObjectIdFor(req.Element.GetObject()),
 				Value:  0,
@@ -188,11 +188,11 @@ func (c CalculatePhase) GetTargetState(o *OperatorState, phase model.Phase) mode
 	return &TargetCalcState{o}
 }
 
-func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase model.Phase, state *ExternalOperatorState, mod *bool) {
+func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db2.OperatorState, phase model.Phase, state *ExternalOperatorState, mod *bool) {
 	c.setExternalObjectState(log, o, state, mod)
 	t := o.Calculation.Target
 	if t == nil {
-		t = &db.CalculationTargetState{}
+		t = &db2.CalculationTargetState{}
 	}
 
 	log.Info("set target state for phase {{phase}} of NodeState {{name}}")
@@ -200,7 +200,7 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorSta
 	o.Calculation.Target = t
 }
 
-func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase model.Phase, spec *model.CommitInfo, mod *bool) {
+func (c CalculatePhase) DBCommit(log logging.Logger, o *db2.OperatorState, phase model.Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Calculation.Target != nil && spec != nil {
 		// update state specific
 		log.Info("commit phase {{phase}} for OperatorState {{name}}")
@@ -234,7 +234,7 @@ func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phas
 		}
 	}
 
-	var operands []db.Operand
+	var operands []db2.Operand
 	for _, l := range req.Inputs {
 		operands = l.(*GatherOutputState).GetState()
 	}
@@ -244,19 +244,19 @@ func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phas
 	out := operands[0].Value
 	log.Info("calculate {{operator}} {{operands}}", "operator", op, "operands", operands)
 	switch op {
-	case db.OP_ADD:
+	case db2.OP_ADD:
 		for _, v := range operands[1:] {
 			out += v.Value
 		}
-	case db.OP_SUB:
+	case db2.OP_SUB:
 		for _, v := range operands[1:] {
 			out -= v.Value
 		}
-	case db.OP_MUL:
+	case db2.OP_MUL:
 		for _, v := range operands[1:] {
 			out *= v.Value
 		}
-	case db.OP_DIV:
+	case db2.OP_DIV:
 		for i, v := range operands[1:] {
 			if v.Value == 0 {
 				return model.Status{
@@ -276,10 +276,10 @@ func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phas
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type GatherOutputState = support.OutputState[[]db.Operand]
+type GatherOutputState = support.OutputState[[]db2.Operand]
 type CalcOutputState = support.OutputState[int]
 
-var NewGatherOutputState = support.NewOutputState[[]db.Operand]
+var NewGatherOutputState = support.NewOutputState[[]db2.Operand]
 var NewCalcOutputState = support.NewOutputState[int]
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -290,14 +290,14 @@ type CurrentGatherState struct {
 
 var _ model.CurrentState = (*CurrentGatherState)(nil)
 
-func (c *CurrentGatherState) get() *db.GatherCurrentState {
-	return &c.n.GetBase().(*db.OperatorState).Gather.Current
+func (c *CurrentGatherState) get() *db2.GatherCurrentState {
+	return &c.n.GetBase().(*db2.OperatorState).Gather.Current
 }
 
 func (c *CurrentGatherState) GetLinks() []model.ElementId {
 	var r []model.ElementId
 
-	for _, o := range c.n.GetBase().(*db.OperatorState).Current.Operands {
+	for _, o := range c.n.GetBase().(*db2.OperatorState).Current.Operands {
 		r = append(r, common.NewElementId(mymetamodel.TYPE_VALUE_STATE, c.n.GetNamespace(), o, mymetamodel.PHASE_PROPAGATE))
 	}
 	return r
@@ -325,8 +325,8 @@ type CurrentCalcState struct {
 
 var _ model.CurrentState = (*CurrentCalcState)(nil)
 
-func (c *CurrentCalcState) get() *db.CalculationCurrentState {
-	return &c.n.GetBase().(*db.OperatorState).Calculation.Current
+func (c *CurrentCalcState) get() *db2.CalculationCurrentState {
+	return &c.n.GetBase().(*db2.OperatorState).Calculation.Current
 }
 
 func (c *CurrentCalcState) GetLinks() []model.ElementId {
@@ -357,14 +357,14 @@ type TargetGatherState struct {
 
 var _ model.TargetState = (*TargetGatherState)(nil)
 
-func (c *TargetGatherState) get() *db.GatherTargetState {
-	return c.n.GetBase().(*db.OperatorState).Gather.Target
+func (c *TargetGatherState) get() *db2.GatherTargetState {
+	return c.n.GetBase().(*db2.OperatorState).Gather.Target
 }
 
 func (c *TargetGatherState) GetLinks() []common.ElementId {
 	var r []model.ElementId
 
-	t := c.n.GetBase().(*db.OperatorState).Target
+	t := c.n.GetBase().(*db2.OperatorState).Target
 	if t == nil {
 		return nil
 	}
@@ -383,8 +383,8 @@ func (c *TargetGatherState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetGatherState) GetOperator() db.OperatorName {
-	return c.n.GetBase().(*db.OperatorState).Target.Spec.Operator
+func (c *TargetGatherState) GetOperator() db2.OperatorName {
+	return c.n.GetBase().(*db2.OperatorState).Target.Spec.Operator
 }
 
 type TargetCalcState struct {
@@ -393,8 +393,8 @@ type TargetCalcState struct {
 
 var _ model.TargetState = (*TargetCalcState)(nil)
 
-func (c *TargetCalcState) get() *db.CalculationTargetState {
-	return c.n.GetBase().(*db.OperatorState).Calculation.Target
+func (c *TargetCalcState) get() *db2.CalculationTargetState {
+	return c.n.GetBase().(*db2.OperatorState).Calculation.Target
 }
 
 func (c *TargetCalcState) GetLinks() []common.ElementId {
@@ -409,6 +409,6 @@ func (c *TargetCalcState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
 }
 
-func (c *TargetCalcState) GetOperator() db.OperatorName {
-	return c.n.GetBase().(*db.OperatorState).Target.Spec.Operator
+func (c *TargetCalcState) GetOperator() db2.OperatorName {
+	return c.n.GetBase().(*db2.OperatorState).Target.Spec.Operator
 }

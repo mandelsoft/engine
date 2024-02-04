@@ -1,4 +1,4 @@
-package valopdemo_test
+package delivery_test
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 
-	me "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo"
+	me "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 

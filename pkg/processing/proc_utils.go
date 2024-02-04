@@ -42,13 +42,17 @@ func GetResultState(args ...interface{}) model.OutputState {
 	return nil
 }
 
-func (p *Processor) updateStatus(lctx common.Logging, elem Element, status common.ProcessingStatus, message string, args ...any) error {
+func (p *Processor) updateStatus(lctx common.Logging, log logging.Logger, elem Element, status common.ProcessingStatus, message string, args ...any) error {
 	for _, t := range p.mm.GetTriggeringTypesForInternalType(elem.GetType()) {
 		oid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
 
 		_o, err := p.ob.GetObject(oid)
 		if err != nil {
-			return err
+			if !errors.Is(err, database.ErrNotExist) {
+				return err
+			}
+			log.Info("external object {{extid}} not found -> skip status update", "extid", oid)
+			continue
 		}
 		o := _o.(model.ExternalObject)
 
@@ -82,9 +86,8 @@ func (p *Processor) updateStatus(lctx common.Logging, elem Element, status commo
 	return nil
 }
 
-func (p *Processor) getChildren(ns *NamespaceInfo, elem Element) []Element {
+func (p *Processor) getChildren(ns *NamespaceInfo, id ElementId) []Element {
 	var r []Element
-	id := elem.Id()
 	for _, e := range ns.elements {
 		state := e.GetCurrentState()
 		if state != nil {
@@ -106,19 +109,19 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *NamespaceInfo, elem 
 	for _, e := range ni.elements {
 		if e.GetTargetState() != nil {
 			links := e.GetTargetState().GetLinks()
-			log.Debug("elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
+			log.Debug("- elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Debug("trigger waiting element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Debug("  trigger waiting element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}
 		} else if e.GetCurrentState() != nil {
 			links := e.GetCurrentState().GetLinks()
-			log.Debug("elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
+			log.Debug("- elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Debug("trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Debug("  trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}
