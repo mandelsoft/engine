@@ -59,7 +59,7 @@ var _ = Describe("Processing", func() {
 
 		m := Must(model.NewModel(spec))
 		proc = Must(processing.NewProcessor(ctx, lctx, m, 1))
-		odb = objectbase.GetDatabase[support.DBObject](proc.Objectbase())
+		odb = objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
 		wg = &sync.WaitGroup{}
 		_ = logbuf
 	})
@@ -86,7 +86,7 @@ var _ = Describe("Processing", func() {
 			Expect(n5n.(*db.Value).Status.Provider).To(Equal(""))
 		})
 
-		FIt("operator with two operands (in order) creating value node", func() {
+		It("operator with two operands (in order) creating value node", func() {
 			proc.Start(wg)
 
 			vA := db.NewValueNode(NS, "A", 5)
@@ -95,15 +95,103 @@ var _ = Describe("Processing", func() {
 			MustBeSuccessfull(odb.SetObject(vB))
 			opC := db.NewOperatorNode(NS, "C", "A", "B").AddOperation(db.OP_ADD, "C-A")
 
-			vopCAid := common.NewObjectId(mymetamodel.TYPE_VALUE, NS, "C-A")
-			vopCAcompleted := proc.CompletedFuture(common.NewElementIdForPhase(common.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, "C-A"), mymetamodel.FINAL_VALUE_PHASE))
+			mCA := NewValueMon(proc, "C-A")
 			MustBeSuccessfull(odb.SetObject(opC))
 
-			Expect(vopCAcompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
-			vopCA := Must(odb.GetObject(vopCAid))
+			Expect(mCA.Wait(ctx)).To(BeTrue())
+			mCA.Check(proc, 11, "C")
+		})
 
-			Expect(vopCA.(*db.Value).Status.Provider).To(Equal("C"))
-			Expect(vopCA.(*db.Value).Spec.Value).To(Equal(11))
+		It("multiple operators with multiple outputs creating value node", func() {
+			proc.Start(wg)
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(odb.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(odb.SetObject(vB))
+			vD := db.NewValueNode(NS, "D", 7)
+			MustBeSuccessfull(odb.SetObject(vD))
+
+			opC := db.NewOperatorNode(NS, "C", "B", "A").
+				AddOperation(db.OP_ADD, "C-A").
+				AddOperation(db.OP_SUB, "C-S")
+
+			opE := db.NewOperatorNode(NS, "E", "D", "C-A").
+				AddOperation(db.OP_MUL, "E-A")
+
+			mEA := NewValueMon(proc, "E-A")
+			mCS := NewValueMon(proc, "C-S")
+
+			MustBeSuccessfull(odb.SetObject(opC))
+			MustBeSuccessfull(odb.SetObject(opE))
+
+			Expect(mEA.Wait(ctx)).To(BeTrue())
+			Expect(mCS.Wait(ctx)).To(BeTrue())
+
+			mCS.Check(proc, 1, "C")
+			mEA.Check(proc, 77, "E")
+
+		})
+
+		It("multiple operators with multiple outputs creating value node (wrong order)", func() {
+			proc.Start(wg)
+
+			vA := db.NewValueNode(NS, "A", 5)
+			vB := db.NewValueNode(NS, "B", 6)
+			vD := db.NewValueNode(NS, "D", 7)
+
+			opC := db.NewOperatorNode(NS, "C", "B", "A").
+				AddOperation(db.OP_ADD, "C-A").
+				AddOperation(db.OP_SUB, "C-S")
+
+			opE := db.NewOperatorNode(NS, "E", "D", "C-A").
+				AddOperation(db.OP_MUL, "E-A")
+
+			mEA := NewValueMon(proc, "E-A")
+			mCS := NewValueMon(proc, "C-S")
+
+			MustBeSuccessfull(odb.SetObject(opE))
+			MustBeSuccessfull(odb.SetObject(opC))
+
+			MustBeSuccessfull(odb.SetObject(vD))
+			MustBeSuccessfull(odb.SetObject(vB))
+			MustBeSuccessfull(odb.SetObject(vA))
+
+			Expect(mEA.Wait(ctx)).To(BeTrue())
+			Expect(mCS.Wait(ctx)).To(BeTrue())
+
+			mCS.Check(proc, 1, "C")
+			mEA.Check(proc, 77, "E")
+
 		})
 	})
 })
+
+type ValueMon struct {
+	oid       model.ObjectId
+	sid       model.ElementId
+	completed processing.Future
+}
+
+func NewValueMon(proc *processing.Processor, name string, retrigger ...bool) *ValueMon {
+	oid := common.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
+	sid := common.NewElementIdForPhase(common.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
+
+	return &ValueMon{
+		oid:       oid,
+		sid:       sid,
+		completed: proc.CompletedFuture(sid, retrigger...),
+	}
+}
+
+func (m *ValueMon) Wait(ctx context.Context) bool {
+	return m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+}
+
+func (m *ValueMon) Check(proc *processing.Processor, value int, provider string) {
+	odb := objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
+	v, err := odb.GetObject(m.oid)
+	ExpectWithOffset(1, err).To(Succeed())
+	ExpectWithOffset(1, v.(*db.Value).Status.Provider).To(Equal(provider))
+	ExpectWithOffset(1, v.(*db.Value).Spec.Value).To(Equal(value))
+}

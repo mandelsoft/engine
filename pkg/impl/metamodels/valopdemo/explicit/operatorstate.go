@@ -8,7 +8,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/logging"
@@ -131,7 +130,7 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db2.OperatorState, phase mo
 	o.Gather.Target = nil
 }
 
-func (g GatherPhase) Process(ob objectbase.Objectbase, o *OperatorState, phase model.Phase, req model.Request) model.Status {
+func (g GatherPhase) Process(o *OperatorState, phase model.Phase, req model.Request) model.Status {
 	log := req.Logging.Logger()
 
 	err := g.Validate(o)
@@ -222,7 +221,7 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db2.OperatorState, phase
 	o.Target = nil
 }
 
-func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phase model.Phase, req model.Request) model.Status {
+func (c CalculatePhase) Process(o *OperatorState, phase model.Phase, req model.Request) model.Status {
 	log := req.Logging.Logger()
 
 	err := c.Validate(o)

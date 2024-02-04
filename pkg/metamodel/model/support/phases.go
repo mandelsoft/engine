@@ -22,7 +22,7 @@ type Phase[I InternalObject, T InternalDBObject, E common.ExternalState] interfa
 
 	GetCurrentState(o I, phase model.Phase) model.CurrentState
 	GetTargetState(o I, phase model.Phase) model.TargetState
-	Process(ob objectbase.Objectbase, o I, phase model.Phase, req model.Request) model.Status
+	Process(o I, phase model.Phase, req model.Request) model.Status
 }
 
 type Phases[I InternalObject, T InternalDBObject, E common.ExternalState] interface {
@@ -33,7 +33,7 @@ type Phases[I InternalObject, T InternalDBObject, E common.ExternalState] interf
 
 	GetCurrentState(o InternalObject, phase model.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase model.Phase) model.TargetState
-	Process(ob objectbase.Objectbase, o InternalObject, req model.Request) model.Status
+	Process(o InternalObject, req model.Request) model.Status
 }
 
 type phases[I InternalObject, T InternalDBObject, E common.ExternalState] struct {
@@ -84,12 +84,12 @@ func (p *phases[I, T, E]) DBSetExternalState(lctx common.Logging, _o InternalDBO
 	}
 }
 
-func (p *phases[I, T, E]) Process(ob objectbase.Objectbase, o InternalObject, req model.Request) model.Status {
+func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.Status {
 	phase := req.Element.GetPhase()
 	ph := p.phases[phase]
 	if ph != nil {
 		req.Logging = req.Logging.WithContext(p.realm)
-		return ph.Process(ob, o.(I), phase, req)
+		return ph.Process(o.(I), phase, req)
 	}
 	return model.Status{
 		Status: common.STATUS_FAILED,
@@ -178,8 +178,8 @@ func (n *InternalPhaseObjectSupport[I, T, E]) SetExternalState(lctx common.Loggi
 	return err
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) Process(ob common.Objectbase, request common.Request) common.Status {
-	return n.phases.Process(ob, n.self, request)
+func (n *InternalPhaseObjectSupport[I, T, E]) Process(request common.Request) common.Status {
+	return n.phases.Process(n.self, request)
 }
 
 func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx common.Logging, ob objectbase.Objectbase, phase common.Phase, id model.RunId) (bool, error) {

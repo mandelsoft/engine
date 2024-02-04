@@ -69,7 +69,7 @@ type objectbase struct {
 	database.Database[common.Object]
 }
 
-func (d *objectbase) CreateObject(id common.ObjectId) (common.Object, error) {
+func (d *objectbase) CreateObject(id database.ObjectId) (common.Object, error) {
 	return d.SchemeTypes().CreateObject(id.GetType(), SetObjectName(id.GetNamespace(), id.GetName()))
 }
 

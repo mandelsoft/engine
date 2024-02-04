@@ -81,7 +81,7 @@ func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveVa
 		})
 }
 
-func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
+func (n *ValueState) Process(req common.Request) common.Status {
 	log := req.Logging.Logger(REALM)
 
 	target := n.GetTargetState(req.Element.GetPhase())
@@ -109,7 +109,7 @@ func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.
 	}
 
 	if out.Origin != nil {
-		err := n.assureSlave(log, ob, &out)
+		err := n.assureSlave(log, req.Model.ObjectBase(), &out)
 		if err != nil {
 			return model.Status{
 				Status: common.STATUS_COMPLETED,
@@ -125,7 +125,7 @@ func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.
 	log.Info("provider {{provider}} does not feed value anymore", "provider", target.(*TargetValueState).GetProvider())
 	log.Info("deleting slave value object")
 
-	err := ob.DeleteObject(database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()))
+	err := req.Model.ObjectBase().DeleteObject(database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()))
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return model.Status{
@@ -135,7 +135,7 @@ func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.
 		}
 	}
 	log.Info("deleting value state object")
-	err = ob.DeleteObject(n)
+	err = req.Model.ObjectBase().DeleteObject(n)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return model.Status{
@@ -198,6 +198,8 @@ func (n *ValueState) commitTargetState(lctx common.Logging, _o support.InternalD
 
 		log.Info("  provider {{provider}}", "provider", o.Target.Spec.ValueStateSpec.Provider)
 		o.Current.Provider = o.Target.Spec.ValueStateSpec.Provider
+	} else {
+		log.Info("nothing to commit for phase {{phase}} of ValueState {{name}}")
 	}
 	o.Target = nil
 }

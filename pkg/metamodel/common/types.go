@@ -25,11 +25,25 @@ type RunId string
 // which cannot be used, here, to void package cycles.
 type MetaModel interface {
 	Name() string
+	NamespaceType() string
+	ExternalTypes() []string
+	InternalTypes() []string
+
 	IsExternalType(name string) bool
 	IsInternalType(name string) bool
 
+	Phases(ityp string) []Phase
 	HasElementType(name TypeId) bool
+	HasDependency(s, d TypeId) bool
 	GetDependentTypePhases(name TypeId) []Phase
+	GetPhaseFor(ext string) *TypeId
+	GetTriggeringTypesForElementType(id TypeId) []string
+	GetTriggeringTypesForInternalType(name string) []string
+}
+
+type Namespace interface {
+	GetNamespaceName() string
+	GetElement(id ElementId) Element
 }
 
 type NameSource interface {
@@ -73,9 +87,18 @@ type ElementAccess interface {
 	GetElement(ElementId) Element
 }
 
+type ProcessingModel interface {
+	ObjectBase() Objectbase
+	MetaModel() MetaModel
+	SchemeTypes() SchemeTypes
+
+	GetNamespace(name string) Namespace
+	GetElement(id ElementId) Element
+}
+
 type Request struct {
 	Logging       Logging
-	Metamodel     MetaModel
+	Model         ProcessingModel
 	Inputs        Inputs
 	Element       Element
 	ElementAccess ElementAccess
@@ -168,7 +191,7 @@ type InternalObject interface {
 	Commit(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 
 	SetExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) error
-	Process(Objectbase, Request) Status
+	Process(Request) Status
 }
 
 ////////////////////////////////////////////////////////////////////////////////

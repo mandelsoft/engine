@@ -2,6 +2,7 @@ package processing
 
 import (
 	"maps"
+	"slices"
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
@@ -9,9 +10,11 @@ import (
 	"github.com/mandelsoft/logging"
 )
 
-type NamespaceInfo struct {
+type Namespace = common.Namespace
+
+type namespaceInfo struct {
 	lock      sync.Mutex
-	namespace common.Namespace
+	namespace common.NamespaceObject
 	elements  map[ElementId]Element
 	internal  map[common.ObjectId]common.InternalObject
 
@@ -19,23 +22,28 @@ type NamespaceInfo struct {
 	pendingElements  map[ElementId]Element
 }
 
-func NewNamespaceInfo(ns common.Namespace) *NamespaceInfo {
-	return &NamespaceInfo{
-		namespace: ns,
+var _ Namespace = (*namespaceInfo)(nil)
+
+func newNamespaceInfo(o common.NamespaceObject) *namespaceInfo {
+	return &namespaceInfo{
+		namespace: o,
 		elements:  map[ElementId]Element{},
 		internal:  map[common.ObjectId]common.InternalObject{},
 	}
 }
 
-func (ni *NamespaceInfo) GetNamespaceName() string {
+func (ni *namespaceInfo) GetNamespaceName() string {
 	return ni.namespace.GetNamespaceName()
 }
 
-func (ni *NamespaceInfo) GetElement(id ElementId) common.Element {
+func (ni *namespaceInfo) GetElement(id ElementId) common.Element {
+	ni.lock.Lock()
+	defer ni.lock.Unlock()
+
 	return ni.elements[id]
 }
 
-func (ni *NamespaceInfo) AddElement(i model.InternalObject, phase model.Phase) Element {
+func (ni *namespaceInfo) AddElement(i model.InternalObject, phase model.Phase) Element {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
 
@@ -54,14 +62,14 @@ func (ni *NamespaceInfo) AddElement(i model.InternalObject, phase model.Phase) E
 	return e
 }
 
-func (ni *NamespaceInfo) clearElementLock(lctx common.Logging, log logging.Logger, p *Processor, elem Element, rid model.RunId) error {
+func (ni *namespaceInfo) clearElementLock(lctx common.Logging, log logging.Logger, p *Processor, elem Element, rid model.RunId) error {
 	// first: reset run id in in external objects
 	err := p.updateRunId(lctx, log, "reset", elem, "")
 	if err != nil {
 		return err
 	}
 	// second, clear lock on internal object for given phase.
-	ok, err := elem.Rollback(lctx, p.ob, rid)
+	ok, err := elem.Rollback(lctx, p.processingModel.ObjectBase(), rid)
 	if err != nil {
 		log.Error("releasing lock {{runid}} for element {{element}} failed", "element", elem.Id(), "error", err)
 		return err
@@ -72,7 +80,7 @@ func (ni *NamespaceInfo) clearElementLock(lctx common.Logging, log logging.Logge
 	return nil
 }
 
-func (ni *NamespaceInfo) clearLocks(lctx common.Logging, log logging.Logger, p *Processor) error {
+func (ni *namespaceInfo) clearLocks(lctx common.Logging, log logging.Logger, p *Processor) error {
 	rid := ni.namespace.GetLock()
 	if rid == "" {
 		return nil
@@ -86,7 +94,7 @@ func (ni *NamespaceInfo) clearLocks(lctx common.Logging, log logging.Logger, p *
 			}
 		}
 		if len(ni.pendingElements) == 0 {
-			_, err := ni.namespace.ClearLock(p.ob, rid)
+			_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), rid)
 			if err != nil {
 				log.Info("releasing namespace lock {{runid}} failed")
 				return err
@@ -96,6 +104,19 @@ func (ni *NamespaceInfo) clearLocks(lctx common.Logging, log logging.Logger, p *
 			ni.pendingElements = nil
 		}
 	}
-	_, err := ni.namespace.ClearLock(p.ob, ni.namespace.GetLock())
+	_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), ni.namespace.GetLock())
 	return err
+}
+
+func (ni *namespaceInfo) GetChildren(id ElementId) []common.Element {
+	var r []common.Element
+	for _, e := range ni.elements {
+		state := e.GetCurrentState()
+		if state != nil {
+			if slices.Contains(state.GetLinks(), id) {
+				r = append(r, e)
+			}
+		}
+	}
+	return r
 }

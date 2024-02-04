@@ -56,7 +56,7 @@ func (n *NodeState) SetExternalState(lcxt common.Logging, ob objectbase.Objectba
 	return err
 }
 
-func (n *NodeState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
+func (n *NodeState) Process(req common.Request) common.Status {
 	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
@@ -172,6 +172,8 @@ func (n *NodeState) commitTargetState(lctx common.Logging, _o support.InternalDB
 		o.Current.ObjectVersion = o.Target.ObjectVersion
 		o.Current.OutputVersion = spec.State.(*OutputState).GetOutputVersion()
 		o.Current.Output.Value = spec.State.(*OutputState).GetState()
+	} else {
+		log.Info("bothing to commit for NodeState {{name}}", "name", o.Name)
 	}
 	o.Target = nil
 }

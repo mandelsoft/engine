@@ -61,7 +61,7 @@ var _ = Describe("Processing", func() {
 
 		m := Must(model.NewModel(spec))
 		proc = Must(processing.NewProcessor(ctx, lctx, m, 1))
-		odb = objectbase.GetDatabase[support.DBObject](proc.Objectbase())
+		odb = objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
 		wg = &sync.WaitGroup{}
 		_ = logbuf
 	})

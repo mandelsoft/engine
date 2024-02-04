@@ -43,10 +43,10 @@ func GetResultState(args ...interface{}) model.OutputState {
 }
 
 func (p *Processor) updateStatus(lctx common.Logging, log logging.Logger, elem Element, status common.ProcessingStatus, message string, args ...any) error {
-	for _, t := range p.mm.GetTriggeringTypesForInternalType(elem.GetType()) {
+	for _, t := range p.processingModel.MetaModel().GetTriggeringTypesForInternalType(elem.GetType()) {
 		oid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
 
-		_o, err := p.ob.GetObject(oid)
+		_o, err := p.processingModel.ObjectBase().GetObject(oid)
 		if err != nil {
 			if !errors.Is(err, database.ErrNotExist) {
 				return err
@@ -78,7 +78,7 @@ func (p *Processor) updateStatus(lctx common.Logging, log logging.Logger, elem E
 				panic(fmt.Sprintf("unknown status argument type %T", a))
 			}
 		}
-		err = o.UpdateStatus(lctx, p.ob, elem.Id(), status)
+		err = o.UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), status)
 		if err != nil {
 			return err
 		}
@@ -86,33 +86,20 @@ func (p *Processor) updateStatus(lctx common.Logging, log logging.Logger, elem E
 	return nil
 }
 
-func (p *Processor) getChildren(ns *NamespaceInfo, id ElementId) []Element {
-	var r []Element
-	for _, e := range ns.elements {
-		state := e.GetCurrentState()
-		if state != nil {
-			if slices.Contains(state.GetLinks(), id) {
-				r = append(r, e)
-			}
-		}
-	}
-	return r
-}
-
-func (p *Processor) triggerChildren(log logging.Logger, ni *NamespaceInfo, elem Element, release bool) {
+func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem Element, release bool) {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
 	// TODO: dependency check must be synchronized with this trigger
 
 	id := elem.Id()
-	log.Debug("triggering children for {{element}} (checking {{amount}} elements in namespace)", "amount", len(ni.elements))
+	log.Info("triggering children for {{element}} (checking {{amount}} elements in namespace)", "amount", len(ni.elements))
 	for _, e := range ni.elements {
 		if e.GetTargetState() != nil {
 			links := e.GetTargetState().GetLinks()
 			log.Debug("- elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Debug("  trigger waiting element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Info("  trigger waiting element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}
@@ -121,7 +108,7 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *NamespaceInfo, elem 
 			log.Debug("- elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Debug("  trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Info("  trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}
@@ -133,10 +120,10 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *NamespaceInfo, elem 
 }
 
 func (p *Processor) updateRunId(lctx common.Logging, log logging.Logger, verb string, elem Element, rid model.RunId) error {
-	types := p.mm.GetTriggeringTypesForElementType(elem.Id().TypeId())
+	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(elem.Id().TypeId())
 	for _, t := range types {
 		extid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
-		o, err := p.ob.GetObject(extid)
+		o, err := p.processingModel.ObjectBase().GetObject(extid)
 		if err != nil {
 			if errors.Is(err, database.ErrNotExist) {
 				continue
@@ -144,7 +131,7 @@ func (p *Processor) updateRunId(lctx common.Logging, log logging.Logger, verb st
 			log.Error("cannot get external object {{extid}}", "extid", extid, "error", err)
 			return err
 		}
-		err = o.(model.ExternalObject).UpdateStatus(lctx, p.ob, elem.Id(), common.StatusUpdate{
+		err = o.(model.ExternalObject).UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), common.StatusUpdate{
 			RunId:           &rid,
 			DetectedVersion: utils.Pointer(""),
 		})

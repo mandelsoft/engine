@@ -7,7 +7,7 @@ import (
 
 func (p *Processor) processNamespace(log logging.Logger, name string) pool.Status {
 	var err error
-	ni := p.GetNamespace(name)
+	ni := p.getNamespace(name)
 	if ni != nil {
 		ni.lock.Lock()
 		defer ni.lock.Unlock()

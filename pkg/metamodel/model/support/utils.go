@@ -53,14 +53,14 @@ func UpdatePointerField[T any](field **T, value *T, mod ...*bool) bool {
 func AssureElement[I InternalDBObject, R any](log logging.Logger, ob common.Objectbase, typ common.TypeId, name string, req common.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
 	var _nil R
 
-	if !req.Metamodel.HasElementType(typ) {
+	if !req.Model.MetaModel().HasElementType(typ) {
 		return _nil, nil, false, fmt.Errorf("unknown element type %q", typ)
 	}
 
 	eid := common.NewElementIdForType(typ, req.Element.GetNamespace(), name)
 	t := req.ElementAccess.GetElement(eid)
 	if t == nil {
-		tolock := req.Metamodel.GetDependentTypePhases(typ)
+		tolock := req.Model.MetaModel().GetDependentTypePhases(typ)
 		i, err := ob.CreateObject(eid)
 		if err != nil {
 			return _nil, nil, false, err

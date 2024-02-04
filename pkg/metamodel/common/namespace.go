@@ -1,6 +1,6 @@
 package common
 
-type Namespace interface {
+type NamespaceObject interface {
 	Object
 
 	GetNamespaceName() string

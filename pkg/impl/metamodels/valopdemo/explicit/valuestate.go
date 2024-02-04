@@ -59,7 +59,7 @@ func (n *ValueState) SetExternalState(lcxt common.Logging, ob objectbase.Objectb
 	return err
 }
 
-func (n *ValueState) Process(ob objectbase.Objectbase, req model.Request) model.Status {
+func (n *ValueState) Process(req common.Request) common.Status {
 	log := req.Logging.Logger(REALM)
 
 	var out db.ValueOutput

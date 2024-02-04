@@ -2,15 +2,12 @@ package processing
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/metamodel"
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/pool"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
@@ -23,17 +20,12 @@ const CMD_ELEM = "elem"
 const CMD_NS = "ns"
 
 type Processor struct {
-	lock sync.Mutex
+	processingModel *processingModel
 
 	ctx     context.Context
 	logging logging.Context
-	m       model.Model
-	mm      metamodel.MetaModel
-	ob      objectbase.Objectbase
 	pool    pool.Pool
 	handler database.EventHandler
-
-	namespaces map[string]*NamespaceInfo
 
 	events  *EventManager
 	pending PendingCounter
@@ -42,16 +34,17 @@ type Processor struct {
 func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, worker int) (*Processor, error) {
 	pool := pool.NewPool(ctx, lctx, m.MetaModel().Name(), worker, 0, false)
 	return &Processor{
-		ctx:     ctx,
-		logging: lctx.WithContext(REALM),
-		m:       m,
-		mm:      m.MetaModel(),
-		ob:      m.Objectbase(),
-		pool:    pool,
+		ctx:             ctx,
+		logging:         lctx.WithContext(REALM),
+		processingModel: newProcessingModel(m),
+		pool:            pool,
 
-		events:     NewEventManager(),
-		namespaces: map[string]*NamespaceInfo{},
+		events: NewEventManager(),
 	}, nil
+}
+
+func (p *Processor) Model() ProcessingModel {
+	return p.processingModel
 }
 
 func (p *Processor) Wait(ctx context.Context) bool {
@@ -66,52 +59,9 @@ func (p *Processor) CompletedFuture(id ElementId, retrigger ...bool) Future {
 	return p.events.Future(id, retrigger...)
 }
 
-func (p *Processor) GetNamespace(name string) *NamespaceInfo {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	n, _ := p.assureNamespace(p.logging.Logger(), name, false)
+func (p *Processor) getNamespace(name string) *namespaceInfo {
+	n, _ := p.processingModel.AssureNamespace(p.logging.Logger(), name, false)
 	return n
-
-}
-func (p *Processor) AssureNamespace(log logging.Logger, name string, create bool) (*NamespaceInfo, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	return p.assureNamespace(log, name, create)
-}
-
-func (p *Processor) assureNamespace(log logging.Logger, name string, create bool) (*NamespaceInfo, error) {
-	ns := p.namespaces[name]
-	if ns == nil {
-		nns, nn := NamespaceId(name)
-		b, err := p.ob.GetObject(database.NewObjectId(p.mm.NamespaceType(), nns, nn))
-		if err != nil {
-			if !errors.Is(err, database.ErrNotExist) || !create {
-				log.Error("cannot get namespace object for {{namespace}}", "namespace", name)
-				return nil, err
-			}
-			log.Info("creating namespace object for {{namespace}}", "namespace", name)
-			b, err = p.ob.SchemeTypes().CreateObject(p.mm.NamespaceType(), objectbase.SetObjectName(nns, nn))
-			if err != nil {
-				log.Error("cannot create namespace object for {{namespace}}", "namespace", name)
-				return nil, err
-			}
-		} else {
-			log.Info("found namespace object for {{namespace}}", "namespace", name)
-		}
-		ns = NewNamespaceInfo(b.(common.Namespace))
-		p.namespaces[name] = ns
-	}
-	return ns, nil
-}
-
-func (p *Processor) MetaModel() metamodel.MetaModel {
-	return p.mm
-}
-
-func (p *Processor) Objectbase() objectbase.Objectbase {
-	return p.ob
 }
 
 func (p *Processor) Start(wg *sync.WaitGroup) error {
@@ -130,8 +80,8 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 
 	act := &action{p}
 	reg := database.NewHandlerRegistry(nil)
-	reg.RegisterHandler(p.handler, false, p.mm.NamespaceType())
-	for _, t := range p.mm.ExternalTypes() {
+	reg.RegisterHandler(p.handler, false, p.processingModel.MetaModel().NamespaceType())
+	for _, t := range p.processingModel.MetaModel().ExternalTypes() {
 		log.Debug("register handler for external type {{exttype}}", "exttype", t)
 		reg.RegisterHandler(p.handler, false, t)
 		p.pool.AddAction(pool.ObjectType(t), act)
@@ -140,7 +90,7 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_ELEM+":*"), act)
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_EXT+":*"), act)
 
-	p.ob.RegisterHandler(reg, true, "")
+	p.processingModel.ObjectBase().RegisterHandler(reg, true, "")
 
 	p.pool.Start(wg)
 	return nil
@@ -149,9 +99,9 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 func (p *Processor) setupElements(lctx common.Logging, log logging.Logger) error {
 	// step 1: create processing elements and cleanup pending locks
 	log.Info("setup internal objects...")
-	for _, t := range p.mm.InternalTypes() {
+	for _, t := range p.processingModel.MetaModel().InternalTypes() {
 		log.Debug("  for type {{inttype}}", "inttype", t)
-		objs, err := p.ob.ListObjects(t, "")
+		objs, err := p.processingModel.ObjectBase().ListObjects(t, "")
 		if err != nil {
 			return err
 		}
@@ -160,14 +110,14 @@ func (p *Processor) setupElements(lctx common.Logging, log logging.Logger) error
 			log.Debug("    found {{intid}}", "intid", database.NewObjectIdFor(_o))
 			o := _o.(model.InternalObject)
 			ons := o.GetNamespace()
-			ni, err := p.assureNamespace(log, ons, true)
+			ni, err := p.processingModel.AssureNamespace(log, ons, true)
 			if err != nil {
 				return err
 			}
 			ni.internal[common.NewObjectIdFor(o)] = o
 			curlock := ni.namespace.GetLock()
 
-			for _, ph := range p.mm.Phases(o.GetType()) {
+			for _, ph := range p.processingModel.MetaModel().Phases(o.GetType()) {
 				log.Debug("      found phase {{phase}}", "phase", ph)
 				e := ni.AddElement(o, ph)
 				if curlock != "" {
@@ -183,7 +133,7 @@ func (p *Processor) setupElements(lctx common.Logging, log logging.Logger) error
 
 	// step 2: validate links
 	log.Info("validating linḱs...")
-	for _, ns := range p.namespaces {
+	for _, ns := range p.processingModel.namespaces {
 		for _, e := range ns.elements {
 			for _, l := range e.GetCurrentState().GetLinks() {
 				if ns.elements[l] == nil {
@@ -194,54 +144,6 @@ func (p *Processor) setupElements(lctx common.Logging, log logging.Logger) error
 		}
 	}
 	return nil
-}
-
-func (p *Processor) AssureElementObjectFor(log logging.Logger, e model.ExternalObject) (Element, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	t := p.mm.GetPhaseFor(e.GetType())
-	if t == nil {
-		return nil, fmt.Errorf("external object type %q not configured", e.GetType())
-	}
-
-	eid := common.NewObjectIdFor(e)
-	log = log.WithValues("extid", eid)
-
-	ns, err := p.assureNamespace(log, e.GetNamespace(), true)
-	if err != nil {
-		return nil, err
-	}
-
-	var elem Element
-	id := common.NewElementId(t.GetType(), e.GetNamespace(), e.GetName(), t.GetPhase())
-	oid := id.ObjectId()
-	i := ns.internal[oid]
-	if i == nil {
-		log.Info("creating internal object for {{extid}}")
-		_i, err := p.ob.SchemeTypes().CreateObject(t.GetType(), objectbase.SetObjectName(id.GetNamespace(), id.GetName()))
-		if err != nil {
-			log.Error("creation of internal object for external object {{extid}} failed", "error", err)
-			return nil, err
-		}
-
-		i = _i.(model.InternalObject)
-		ns.internal[common.NewObjectIdFor(i)] = i
-		for _, ph := range p.mm.GetInternalType(t.GetType()).Phases() {
-			id := common.NewElementId(t.GetType(), e.GetNamespace(), e.GetName(), ph)
-			pe := NewElement(ph, i)
-			ns.elements[id] = pe
-			if ph == t.GetPhase() {
-				elem = pe
-			}
-		}
-	} else {
-		elem = ns.elements[id]
-	}
-	if elem == nil {
-		panic(fmt.Errorf("no elem found for %s", id))
-	}
-	return elem, nil
 }
 
 func (p *Processor) EnqueueKey(cmd string, id ElementId) {
@@ -256,15 +158,4 @@ func (p *Processor) Enqueue(cmd string, e Element) {
 
 func (p *Processor) EnqueueNamespace(name string) {
 	p.pool.EnqueueCommand(EncodeNamespace(name))
-}
-
-func (p *Processor) GetElement(id ElementId) Element {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	ns := p.namespaces[id.GetNamespace()]
-	if ns == nil {
-		return nil
-	}
-	return ns.elements[id]
 }

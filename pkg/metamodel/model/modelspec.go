@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/metamodel"
-	common2 "github.com/mandelsoft/engine/pkg/metamodel/common"
+	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
@@ -39,8 +39,8 @@ func (s *ModelSpecification) Validate() error {
 		if err != nil {
 			return fmt.Errorf("error creating external object %q: %w", n, err)
 		}
-		if _, ok := o.(common2.ExternalObject); !ok {
-			return fmt.Errorf("external object %q must support model interface for external objects %s", n, utils.TypeOf[common2.ExternalObject]())
+		if _, ok := o.(common.ExternalObject); !ok {
+			return fmt.Errorf("external object %q must support model interface for external objects %s", n, utils.TypeOf[common.ExternalObject]())
 		}
 	}
 	for _, n := range m.InternalTypes() {
@@ -48,8 +48,8 @@ func (s *ModelSpecification) Validate() error {
 		if err != nil {
 			return fmt.Errorf("error creating internal object %q: %w", n, err)
 		}
-		if _, ok := o.(common2.InternalObject); !ok {
-			return fmt.Errorf("internal object %q must support model interface for internal objects %s", n, utils.TypeOf[common2.InternalObject]())
+		if _, ok := o.(common.InternalObject); !ok {
+			return fmt.Errorf("internal object %q must support model interface for internal objects %s", n, utils.TypeOf[common.InternalObject]())
 		}
 	}
 
@@ -63,7 +63,7 @@ func (s *ModelSpecification) Validate() error {
 	if err != nil {
 		return fmt.Errorf("error creating namespace object %q: %w", m.NamespaceType(), err)
 	}
-	if _, ok := ns.(common2.Namespace); !ok {
+	if _, ok := ns.(common.NamespaceObject); !ok {
 		return fmt.Errorf("namespace type %q does not implement namespace interface", m.NamespaceType())
 	}
 	return nil

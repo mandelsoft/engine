@@ -7,7 +7,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/metamodel/common"
 	"github.com/mandelsoft/engine/pkg/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -137,11 +136,13 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase mod
 		c.ObjectVersion = o.Gather.Target.ObjectVersion
 		c.OutputVersion = spec.State.(*GatherOutputState).GetOutputVersion()
 		c.Output.Values = spec.State.(*GatherOutputState).GetState()
+	} else {
+		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 	o.Gather.Target = nil
 }
 
-func (g GatherPhase) Process(ob objectbase.Objectbase, o *OperatorState, phase model.Phase, req model.Request) model.Status {
+func (g GatherPhase) Process(o *OperatorState, phase model.Phase, req model.Request) model.Status {
 	log := req.Logging.Logger()
 
 	err := g.Validate(o)
@@ -227,12 +228,14 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase 
 		// ... and common state for last phase
 		log.Info("  operands {{operands}}", "operands", o.Target.Spec.Operands)
 		o.Current.Operands = o.Target.Spec.Operands
+	} else {
+		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 	o.Calculation.Target = nil
 	o.Target = nil
 }
 
-func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phase model.Phase, req model.Request) model.Status {
+func (c CalculatePhase) Process(o *OperatorState, phase model.Phase, req model.Request) model.Status {
 	log := req.Logging.Logger()
 
 	err := c.Validate(o)
@@ -283,6 +286,8 @@ func (c CalculatePhase) Process(ob objectbase.Objectbase, o *OperatorState, phas
 		}
 		r[e.Target] = out
 	}
+
+	ob := req.Model.ObjectBase()
 
 	// check target value objects.
 	var creations []common.Creation
