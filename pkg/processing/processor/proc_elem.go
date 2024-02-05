@@ -9,7 +9,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
@@ -85,7 +85,8 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 			}
 
 			o := _o.(model.ExternalObject)
-			v := o.GetState().GetVersion()
+			// give the internal object the chance to modify the actual state
+			v := e.GetExternalState(o).GetVersion()
 			if v == cur {
 				log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
 			} else {
@@ -216,13 +217,15 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		}
 		if status.Status == model.STATUS_DELETED {
 			p.internalObjectDeleted(log, ni, e)
+			p.triggerChildren(log, ni, e, true)
+			p.events.Trigger(log, EVENT_DELETED, e.Id())
 		}
-		if status.Status == model.STATUS_COMPLETED || status.Status == model.STATUS_DELETED {
+		if status.Status == model.STATUS_COMPLETED {
 			err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", inputs, status.ResultState, CalcEffectiveVersion(inputs, e.GetTargetState().GetObjectVersion()))
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
-			p.events.Completed(e.Id())
+			p.events.Trigger(log, EVENT_COMPLETED, e.Id())
 		}
 	}
 	return pool.StatusCompleted()
@@ -253,7 +256,7 @@ func (p *Processor) setupNewInternalObject(log logging.Logger, ni *namespaceInfo
 
 func (p *Processor) internalObjectDeleted(log logging.Logger, ni *namespaceInfo, elem Element) {
 	var children []ElementId
-	log.Info("internal object {{elem}} deleted by processing step")
+	log.Info("internal object {{element}} deleted by processing step")
 	for _, ph := range p.processingModel.MetaModel().Phases(elem.GetType()) {
 		for _, c := range ni.GetChildren(NewElementIdForPhase(elem, ph)) {
 			if !slices.Contains(children, c.Id()) {
@@ -262,6 +265,7 @@ func (p *Processor) internalObjectDeleted(log logging.Logger, ni *namespaceInfo,
 		}
 	}
 	for _, ph := range p.processingModel.MetaModel().Phases(elem.GetType()) {
+		log.Info("- deleting phase {{phase}}", "phase", ph)
 		delete(ni.elements, NewElementIdForPhase(elem, ph))
 	}
 	for _, c := range children {
@@ -343,7 +347,7 @@ func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Log
 	return false
 }
 
-func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e Element) error {
+func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e _Element) error {
 	// determine potential external objects
 	exttypes := p.processingModel.MetaModel().GetTriggeringTypesForInternalType(e.Id().GetType())
 
@@ -362,11 +366,13 @@ func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e 
 						log.Error("cannot get external object {{extid}}", "error", err)
 						return err
 					}
-					log.Info("external object {{extid}} not found -> state not transferred")
+					log.Info("  external object {{extid}} not found -> state not transferred")
 					continue
 				}
 				o := _o.(model.ExternalObject)
-				state := o.GetState()
+				state := e.GetExternalState(o)
+				log.Trace("  found effective external state from {{extid}} for phase {{phase}}: {{state}}",
+					"phase", e.GetPhase(), "state", DescribeObject(state))
 				v := state.GetVersion()
 				err = o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
 					RunId:           utils.Pointer(e.GetLock()),
@@ -388,7 +394,7 @@ func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e 
 				return err
 			}
 			for t, s := range extstate {
-				log.Info("internal object hardened state for phase {{phase}} from type {{type}} to {{version}}", "phase", e.GetPhase(), "type", t, "version", s.GetVersion())
+				log.Info("- internal object hardened state for phase {{phase}} from type {{type}} to {{version}}", "phase", e.GetPhase(), "type", t, "version", s.GetVersion())
 			}
 		}
 	}

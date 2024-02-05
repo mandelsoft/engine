@@ -2,7 +2,7 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	support2 "github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	support2 "github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 func init() {

@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/mandelsoft/engine/pkg/processing/internal"
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -47,6 +47,12 @@ func (p *processingModel) MetaModel() metamodel.MetaModel {
 
 func (p *processingModel) SchemeTypes() objectbase.SchemeTypes {
 	return p.m.SchemeTypes()
+}
+
+func (m *processingModel) Namespaces() []string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return utils.MapKeys(m.namespaces)
 }
 
 func (m *processingModel) GetNamespace(name string) Namespace {

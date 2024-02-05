@@ -6,10 +6,10 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/logging"
 
@@ -44,7 +44,9 @@ type NodeStatePhase = support.Phase[*NodeState, *db.NodeState, *ExternalNodeStat
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type PhaseBase struct{}
+type PhaseBase struct {
+	support.DefaultPhase[*NodeState]
+}
 
 func (c PhaseBase) setExternalObjectState(log logging.Logger, o *db.NodeState, state *ExternalNodeState, mod *bool) {
 	t := o.Target

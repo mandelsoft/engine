@@ -4,10 +4,10 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -70,6 +70,12 @@ type InternalObject interface {
 type InternalObjectSupport struct { // cannot use struct type here (Go)
 	Lock sync.Mutex
 	Wrapper
+}
+
+// GetExternalState is a default implementation just forwarding
+// the external state as provided by the external object.
+func (n *InternalObjectSupport) GetExternalState(o model.ExternalObject, phase mmids.Phase) model.ExternalState {
+	return o.GetState()
 }
 
 func (n *InternalObjectSupport) GetDatabase(ob objectbase.Objectbase) database.Database[DBObject] {

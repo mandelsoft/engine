@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/utils"
 )
@@ -123,7 +124,7 @@ func (f *future) Trigger() bool {
 		fmt.Printf("*** TRIGGER WAITING ***\n")
 		close(wait)
 	} else {
-		fmt.Printf("*** TRIGGER ***\n")
+		fmt.Printf("*** TRIGGER COUNT ***\n")
 		f.done++
 	}
 	return f.retrigger
@@ -131,22 +132,38 @@ func (f *future) Trigger() bool {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type waiting map[ElementId][]*future
+
+type EventType string
+
+const (
+	EVENT_COMPLETED = EventType("completed")
+	EVENT_DELETED   = EventType("deleted")
+)
+
 type EventManager struct {
-	lock    sync.Mutex
-	waiting map[ElementId][]*future
+	lock  sync.Mutex
+	types map[EventType]waiting
 }
 
 func NewEventManager() *EventManager {
 	return &EventManager{
-		waiting: map[ElementId][]*future{},
+		types: map[EventType]waiting{},
 	}
 }
 
-func (p *EventManager) Completed(id ElementId) {
+func (p *EventManager) Trigger(log logging.Logger, etype EventType, id ElementId) {
+	log.Debug("trigger event {{event}} for {{target}}", "event", etype, "target", id)
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	waiting := p.waiting[id]
+	state := p.types[etype]
+	if state == nil {
+		state = waiting{}
+		p.types[etype] = state
+	}
+
+	waiting := state[id]
 	if waiting != nil {
 		var n []*future
 		for _, w := range waiting {
@@ -155,19 +172,25 @@ func (p *EventManager) Completed(id ElementId) {
 			}
 			w.Trigger()
 		}
-		p.waiting[id] = n
+		state[id] = n
 	}
 }
 
-func (p *EventManager) Future(id ElementId, retrigger ...bool) Future {
+func (p *EventManager) Future(etype EventType, id ElementId, retrigger ...bool) Future {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
+	state := p.types[etype]
+	if state == nil {
+		state = waiting{}
+		p.types[etype] = state
+	}
+
 	f := NewFuture(utils.Optional(retrigger...))
-	p.waiting[id] = append(p.waiting[id], f)
+	state[id] = append(state[id], f)
 	return f
 }
 
-func (p *EventManager) Wait(ctx context.Context, id ElementId) bool {
-	return p.Future(id).Wait(ctx)
+func (p *EventManager) Wait(ctx context.Context, etype EventType, id ElementId) bool {
+	return p.Future(etype, id).Wait(ctx)
 }

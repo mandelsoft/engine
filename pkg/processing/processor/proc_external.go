@@ -6,8 +6,8 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/logging"
 )
 

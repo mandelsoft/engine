@@ -2,9 +2,11 @@ package delivery_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
@@ -12,9 +14,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery"
@@ -42,7 +44,7 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			mn5 := NewValueMon(env, "A")
+			mn5 := ValueCompleted(env, "A")
 			MustBeSuccessfull(env.SetObject(n5))
 
 			Expect(env.Wait(mn5)).To(BeTrue())
@@ -59,7 +61,7 @@ var _ = Describe("Processing", func() {
 			MustBeSuccessfull(env.SetObject(vB))
 			opC := db.NewOperatorNode(NS, "C", "A", "B").AddOperation(db.OP_ADD, "C-A")
 
-			mCA := NewValueMon(env, "C-A")
+			mCA := ValueCompleted(env, "C-A")
 			MustBeSuccessfull(env.SetObject(opC))
 
 			Expect(env.Wait(mCA)).To(BeTrue())
@@ -83,8 +85,8 @@ var _ = Describe("Processing", func() {
 			opE := db.NewOperatorNode(NS, "E", "D", "C-A").
 				AddOperation(db.OP_MUL, "E-A")
 
-			mEA := NewValueMon(env, "E-A")
-			mCS := NewValueMon(env, "C-S")
+			mEA := ValueCompleted(env, "E-A")
+			mCS := ValueCompleted(env, "C-S")
 
 			MustBeSuccessfull(env.SetObject(opC))
 			MustBeSuccessfull(env.SetObject(opE))
@@ -111,8 +113,8 @@ var _ = Describe("Processing", func() {
 			opE := db.NewOperatorNode(NS, "E", "D", "C-A").
 				AddOperation(db.OP_MUL, "E-A")
 
-			mEA := NewValueMon(env, "E-A")
-			mCS := NewValueMon(env, "C-S")
+			mEA := ValueCompleted(env, "E-A")
+			mCS := ValueCompleted(env, "C-S")
 
 			MustBeSuccessfull(env.SetObject(opE))
 			MustBeSuccessfull(env.SetObject(opC))
@@ -126,34 +128,101 @@ var _ = Describe("Processing", func() {
 
 			mCS.Check(env, 1, "C")
 			mEA.Check(env, 77, "E")
-
 		})
+	})
+
+	////////////////////////////////////////////////////////////////////////////
+
+	Context("changing structure", func() {
+		It("operator with multiple outputs", func() {
+			env.Start()
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(vB))
+			opC := db.NewOperatorNode(NS, "C", "A", "B").AddOperation(db.OP_ADD, "C-A")
+
+			mCA := ValueCompleted(env, "C-A")
+			MustBeSuccessfull(env.SetObject(opC))
+
+			Expect(env.Wait(mCA)).To(BeTrue())
+			mCA.Check(env, 11, "C")
+
+			fmt.Printf("*** modify operator C ***\n")
+			mCB := ValueCompleted(env, "C-B")
+			mCA = ValueDeleted(env, "C-A")
+			_ = Must(database.Modify(env.Database(), &opC, func(o *db.Operator) (bool, bool) {
+				o.Spec.Operations = []db.Operation{
+					db.Operation{
+						Operator: db.OP_MUL,
+						Target:   "C-B",
+					},
+				}
+				return true, true
+			}))
+
+			Expect(env.Wait(mCB)).To(BeTrue())
+			mCB.Check(env, 30, "C")
+			Expect(env.Wait(mCA)).To(BeTrue())
+
+			_, err := env.GetObject(mCA.ObjectId())
+			Expect(errors.Is(err, database.ErrNotExist)).To(BeTrue())
+			o, err := env.GetObject(mCA.StateObjectId())
+			Expect(errors.Is(err, database.ErrNotExist)).To(BeTrue())
+
+			time.Sleep(time.Second)
+			_ = o
+		})
+
 	})
 })
 
 type ValueMon struct {
-	oid       ObjectId
-	sid       ElementId
-	completed processor.Future
+	etype  processor.EventType
+	oid    ObjectId
+	sid    ElementId
+	future processor.Future
 }
 
-func NewValueMon(env *TestEnv, name string, retrigger ...bool) *ValueMon {
+func NewValueMon(env *TestEnv, etype processor.EventType, name string, retrigger ...bool) *ValueMon {
 	oid := mmids.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
 	sid := mmids.NewElementIdForPhase(mmids.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
 
 	return &ValueMon{
-		oid:       oid,
-		sid:       sid,
-		completed: env.CompletedFuture(sid, retrigger...),
+		etype:  etype,
+		oid:    oid,
+		sid:    sid,
+		future: env.FutureFor(etype, sid, retrigger...),
 	}
 }
 
+func ValueCompleted(env *TestEnv, name string, retrigger ...bool) *ValueMon {
+	return NewValueMon(env, processor.EVENT_COMPLETED, name, retrigger...)
+}
+
+func ValueDeleted(env *TestEnv, name string, retrigger ...bool) *ValueMon {
+	return NewValueMon(env, processor.EVENT_DELETED, name, retrigger...)
+}
+
+func (m *ValueMon) ObjectId() database.ObjectId {
+	return m.oid
+}
+
+func (m *ValueMon) ElementId() ElementId {
+	return m.sid
+}
+
+func (m *ValueMon) StateObjectId() database.ObjectId {
+	return m.sid.ObjectId()
+}
+
 func (m *ValueMon) Wait(ctx context.Context) bool {
-	b := m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+	b := m.future.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
 	if b {
-		fmt.Printf("FOUND %s completed\n", m.sid)
+		fmt.Printf("FOUND %s %s\n", m.sid, m.etype)
 	} else {
-		fmt.Printf("ABORTED %s\n", m.sid)
+		fmt.Printf("ABORTED %s %s\n", m.sid, m.etype)
 	}
 	return b
 }

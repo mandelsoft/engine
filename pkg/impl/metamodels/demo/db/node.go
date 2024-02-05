@@ -7,8 +7,8 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 

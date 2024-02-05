@@ -20,10 +20,10 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 	"github.com/mandelsoft/engine/pkg/utils"
 
@@ -78,7 +78,7 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			n5completed := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "A", mymetamodel.FINAL_PHASE))
+			n5completed := proc.FutureFor(processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "A", mymetamodel.FINAL_PHASE))
 
 			MustBeSuccessfull(odb.SetObject(n5))
 
@@ -98,7 +98,7 @@ var _ = Describe("Processing", func() {
 			n6 := db.NewValueNode(NS, "B", 6)
 			MustBeSuccessfull(odb.SetObject(n6))
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			nacompleted := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))
+			nacompleted := proc.FutureFor(processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))
 			MustBeSuccessfull(odb.SetObject(na))
 
 			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
@@ -116,7 +116,7 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			nacompleted := proc.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE), true)
+			nacompleted := proc.FutureFor(processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE), true)
 			MustBeSuccessfull(odb.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)

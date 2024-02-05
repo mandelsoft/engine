@@ -5,15 +5,16 @@ import (
 	"context"
 	"sync"
 
+	. "github.com/mandelsoft/engine/pkg/testutils"
+
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
-	. "github.com/mandelsoft/engine/pkg/testutils"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
 	"github.com/mandelsoft/logging/logrusr"
@@ -63,6 +64,7 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 
 	lctx := logging.DefaultContext()
 	lctx.AddRule(logging.NewConditionRule(options.debugLevel, logging.NewRealmPrefix("engine/processor")))
+	lctx.AddRule(logging.NewConditionRule(options.debugLevel, logging.NewRealmPrefix("database")))
 
 	ctx := ctxutil.CancelContext(context.Background())
 
@@ -102,7 +104,7 @@ func (t *TestEnv) Start() {
 	}
 }
 
-func (t *TestEnv) GetObject(id database.Object) (support.DBObject, error) {
+func (t *TestEnv) GetObject(id database.ObjectId) (support.DBObject, error) {
 	return t.db.GetObject(id)
 }
 
@@ -111,7 +113,15 @@ func (t *TestEnv) SetObject(o support.DBObject) error {
 }
 
 func (t *TestEnv) CompletedFuture(id mmids.ElementId, retrigger ...bool) processor.Future {
-	return t.proc.CompletedFuture(id, retrigger...)
+	return t.proc.FutureFor(processor.EVENT_COMPLETED, id, retrigger...)
+}
+
+func (t *TestEnv) DeletedFuture(id mmids.ElementId, retrigger ...bool) processor.Future {
+	return t.proc.FutureFor(processor.EVENT_DELETED, id, retrigger...)
+}
+
+func (t *TestEnv) FutureFor(etype processor.EventType, id mmids.ElementId, retrigger ...bool) processor.Future {
+	return t.proc.FutureFor(etype, id, retrigger...)
 }
 
 func (t *TestEnv) Wait(w Waitable) bool {

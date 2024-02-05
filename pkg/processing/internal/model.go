@@ -37,6 +37,8 @@ type ExternalObject interface {
 type InternalObject interface {
 	Object
 
+	GetExternalState(o ExternalObject, phase Phase) ExternalState
+
 	GetCurrentState(phase Phase) CurrentState
 	GetTargetState(phase Phase) TargetState
 

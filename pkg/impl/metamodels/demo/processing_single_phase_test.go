@@ -20,10 +20,10 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 	"github.com/mandelsoft/engine/pkg/utils"
 
@@ -99,7 +99,7 @@ var _ = Describe("Processing", func() {
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			MustBeSuccessfull(odb.SetObject(na))
 
-			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
+			Expect(proc.WaitFor(ctxutil.WatchdogContext(ctx, 20*time.Second), processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 
 			nan := Must(odb.GetObject(na))
 
@@ -125,7 +125,7 @@ var _ = Describe("Processing", func() {
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
+				Expect(proc.WaitFor(ctxutil.WatchdogContext(ctx, 20*time.Second), processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 				n := Must(odb.GetObject(na))
 				result = n.(*db.Node).Status.Result
 				if result != nil && *result == 11 {
@@ -140,7 +140,7 @@ var _ = Describe("Processing", func() {
 				return true, true
 			}))
 
-			Expect(proc.WaitForCompleted(ctxutil.WatchdogContext(ctx, 20*time.Second), mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
+			Expect(proc.WaitFor(ctxutil.WatchdogContext(ctx, 20*time.Second), processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 
 			n := Must(odb.GetObject(na))
 			result = n.(*db.Node).Status.Result

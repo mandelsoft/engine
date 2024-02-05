@@ -4,14 +4,15 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 )
 
 type _Element interface {
 	Element
 
 	GetLock() RunId
+	GetExternalState(o model.ExternalObject) model.ExternalState
 	GetCurrentState() CurrentState
 	GetTargetState() TargetState
 	SetTargetState(TargetState)
@@ -70,6 +71,10 @@ func (e *element) GetObject() model.InternalObject {
 
 func (e *element) GetLock() RunId {
 	return e.object.GetLock(e.GetPhase())
+}
+
+func (e *element) GetExternalState(o model.ExternalObject) model.ExternalState {
+	return e.GetObject().GetExternalState(o, e.id.GetPhase())
 }
 
 func (e *element) GetCurrentState() CurrentState {

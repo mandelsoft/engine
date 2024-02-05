@@ -9,6 +9,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"sigs.k8s.io/yaml"
@@ -144,8 +145,11 @@ func (d *Database[O]) get(id database.ObjectId) (O, error) {
 func (d *Database[O]) SetObject(o O) error {
 	path := d.OPath(o)
 
+	log := logging.DefaultContext().Logger(REALM)
+	log.Debug("set object", "path", path)
 	err := d.fs.MkdirAll(filepath.Dir(path), 0o700)
 	if err != nil {
+		log.LogError(err, "cannot create folder", "path", filepath.Dir(path))
 		return err
 	}
 
@@ -156,13 +160,15 @@ func (d *Database[O]) SetObject(o O) error {
 		gen := g.GetGeneration()
 		old, err := d.get(o)
 		if err != nil && !errors.Is(err, database.ErrNotExist) {
+			log.LogError(err, "cannot read old file", "path", path)
 			return err
 		}
 		if err == nil {
 			var ok bool
 			og, ok := utils.TryCast[database.GenerationAccess](old)
 			if !ok {
-				return fmt.Errorf("incosistent types for read and write")
+				log.Error("inconsistent types for read and write", "path", path)
+				return fmt.Errorf("inconsistent types for read and write")
 			}
 			oldgen := og.GetGeneration()
 			if gen >= 0 && gen != oldgen {
@@ -175,10 +181,12 @@ func (d *Database[O]) SetObject(o O) error {
 
 	data, err := yaml.Marshal(o)
 	if err != nil {
+		log.LogError(err, "cannot marshal content", "path", path)
 		return err
 	}
 	err = vfs.WriteFile(d.fs, path, data, 0o600)
 	if err != nil {
+		log.LogError(err, "cannot write content", "path", path)
 		d.fs.Remove(path)
 		return err
 	}
@@ -188,6 +196,8 @@ func (d *Database[O]) SetObject(o O) error {
 
 func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 	path := d.OPath(id)
+	log := logging.DefaultContext().Logger(REALM)
+	log.Debug("delete object", "path", path)
 
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -197,6 +207,7 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 	}
 	err := d.fs.Remove(path)
 	if err != nil {
+		log.LogError(err, "cannot delete file", "path", path)
 		return err
 	}
 	d.registry.TriggerEvent(id)

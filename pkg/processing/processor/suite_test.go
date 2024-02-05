@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package processor
+package processor_test
 
 import (
 	"testing"

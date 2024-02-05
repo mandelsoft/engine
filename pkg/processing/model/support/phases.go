@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
@@ -20,6 +20,7 @@ type Phase[I InternalObject, T InternalDBObject, E model.ExternalState] interfac
 	DBCommit(log logging.Logger, o T, phase mmids.Phase, spec *model.CommitInfo, mod *bool)
 	DBSetExternalState(log logging.Logger, o T, phase mmids.Phase, state E, mod *bool)
 
+	GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o I, phase mmids.Phase) model.CurrentState
 	GetTargetState(o I, phase mmids.Phase) model.TargetState
 	Process(o I, phase mmids.Phase, req model.Request) model.Status
@@ -31,9 +32,16 @@ type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interfa
 	DBCommit(lctx model.Logging, _o InternalDBObject, phase mmids.Phase, commit *model.CommitInfo, mod *bool)
 	DBSetExternalState(lctx model.Logging, _o InternalDBObject, phase mmids.Phase, s model.ExternalState, mod *bool)
 
+	GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase mmids.Phase) model.TargetState
 	Process(o InternalObject, req model.Request) model.Status
+}
+
+type DefaultPhase[I InternalObject] struct{}
+
+func (p DefaultPhase[I]) GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
+	return ext.GetState()
 }
 
 type phases[I InternalObject, T InternalDBObject, E model.ExternalState] struct {
@@ -50,6 +58,14 @@ func NewPhases[I InternalObject, T InternalDBObject, E model.ExternalState](real
 
 func (p *phases[I, T, E]) Register(name mmids.Phase, ph Phase[I, T, E]) {
 	p.phases[name] = ph
+}
+
+func (p *phases[I, T, E]) GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
+	ph := p.phases[phase]
+	if ph != nil {
+		return ph.GetExternalState(o.(I), ext, phase)
+	}
+	return nil
 }
 
 func (p *phases[I, T, E]) GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState {
@@ -153,6 +169,10 @@ func (n *InternalPhaseObjectSupport[I, T, E]) TryLock(ob objectbase.Objectbase, 
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
+}
+
+func (n *InternalPhaseObjectSupport[I, T, E]) GetExternalState(ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
+	return n.phases.GetExternalState(n.self, ext, phase)
 }
 
 func (n *InternalPhaseObjectSupport[I, T, E]) GetCurrentState(phase mmids.Phase) model.CurrentState {

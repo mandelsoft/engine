@@ -2,8 +2,8 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 )
 
 var Scheme = database.NewScheme[support.DBObject]()

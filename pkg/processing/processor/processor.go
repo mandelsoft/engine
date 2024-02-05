@@ -9,8 +9,8 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
@@ -53,12 +53,12 @@ func (p *Processor) Wait(ctx context.Context) bool {
 	return p.pending.Wait(ctx)
 }
 
-func (p *Processor) WaitForCompleted(ctx context.Context, id ElementId) bool {
-	return p.events.Wait(ctx, id)
+func (p *Processor) WaitFor(ctx context.Context, etype EventType, id ElementId) bool {
+	return p.events.Wait(ctx, etype, id)
 }
 
-func (p *Processor) CompletedFuture(id ElementId, retrigger ...bool) Future {
-	return p.events.Future(id, retrigger...)
+func (p *Processor) FutureFor(etype EventType, id ElementId, retrigger ...bool) Future {
+	return p.events.Future(etype, id, retrigger...)
 }
 
 func (p *Processor) getNamespace(name string) *namespaceInfo {
@@ -95,6 +95,16 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 	p.processingModel.ObjectBase().RegisterHandler(reg, true, "")
 
 	p.pool.Start(wg)
+
+	log.Info("triggering all elements")
+	c := 0
+	for _, n := range p.processingModel.Namespaces() {
+		for _, id := range p.processingModel.GetNamespace(n).Elements() {
+			p.EnqueueKey(CMD_ELEM, id)
+			c++
+		}
+	}
+	log.Info("{{amount}} elements triggers", "amount", c)
 	return nil
 }
 

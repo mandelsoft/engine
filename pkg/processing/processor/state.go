@@ -3,7 +3,7 @@ package processor
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 )
 
 type CurrentState interface {

@@ -6,6 +6,7 @@ import (
 
 type Namespace interface {
 	GetNamespaceName() string
+	Elements() []ElementId
 	GetElement(id ElementId) Element
 }
 
@@ -28,7 +29,7 @@ type ProcessingModel interface {
 	ObjectBase() Objectbase
 	MetaModel() MetaModel
 	SchemeTypes() SchemeTypes
-
+	Namespaces() []string
 	GetNamespace(name string) Namespace
 	GetElement(id ElementId) Element
 }

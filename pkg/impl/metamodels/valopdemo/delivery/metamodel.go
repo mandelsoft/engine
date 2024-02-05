@@ -2,9 +2,9 @@ package delivery
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"

@@ -7,11 +7,11 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 
@@ -41,6 +41,11 @@ func (n *ValueState) GetTargetState(phase Phase) model.TargetState {
 	return &TargetValueState{n}
 }
 
+func (n *ValueState) GetExternalState(o model.ExternalObject, phase mmids.Phase) model.ExternalState {
+	// incorporate actual binding into state
+	return n.EffectiveTargetSpec(o.GetState())
+}
+
 func (n *ValueState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) error {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.ValueState).Target
@@ -51,10 +56,9 @@ func (n *ValueState) SetExternalState(lcxt model.Logging, ob objectbase.Objectba
 		mod := false
 		if len(state) == 0 {
 			// external object not existent
-			state = model.ExternalStates{"": nil}
+			state = model.ExternalStates{"": n.EffectiveTargetSpec(nil)}
 		}
 		for _, _s := range state { // we have just one external object here, but just for demonstration
-			_s = n.EffectiveTargetSpec(_s) // incorporate local state
 			s := _s.(*EffectiveValueState).GetState()
 
 			m := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != _s.GetVersion()

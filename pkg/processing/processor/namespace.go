@@ -6,10 +6,11 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/processing/internal"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/model"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/logging"
 )
 
@@ -35,6 +36,13 @@ func newNamespaceInfo(o internal.NamespaceObject) *namespaceInfo {
 
 func (ni *namespaceInfo) GetNamespaceName() string {
 	return ni.namespace.GetNamespaceName()
+}
+
+func (ni *namespaceInfo) Elements() []ElementId {
+	ni.lock.Lock()
+	defer ni.lock.Unlock()
+
+	return utils.MapKeys(ni.elements)
 }
 
 func (ni *namespaceInfo) GetElement(id ElementId) Element {
