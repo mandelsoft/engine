@@ -48,6 +48,11 @@ func (n *DefaultElementInfo) TryLock(id mmids.RunId) bool {
 }
 
 func (n *DefaultElementInfo) GetStatus() model.Status {
+	if n.RunId != "" {
+		if n.Status == model.STATUS_COMPLETED || n.Status == model.STATUS_FAILED {
+			return model.STATUS_PENDING
+		}
+	}
 	return n.Status
 }
 

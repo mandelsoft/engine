@@ -3,7 +3,6 @@ package processor
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -43,48 +42,61 @@ func GetResultState(args ...interface{}) model.OutputState {
 	return nil
 }
 
-func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem Element, status model.Status, message string, args ...any) error {
-	for _, t := range p.processingModel.MetaModel().GetTriggeringTypesForInternalType(elem.GetType()) {
-		oid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
+////////////////////////////////////////////////////////////////////////////////
 
-		_o, err := p.processingModel.ObjectBase().GetObject(oid)
+func (p *Processor) forExtObjects(log logging.Logger, e _Element, f func(log logging.Logger, object model.ExternalObject) error) error {
+	exttypes := p.processingModel.MetaModel().GetTriggeringTypesForInternalType(e.Id().GetType())
+	for _, t := range exttypes {
+		id := NewObjectId(t, e.GetNamespace(), e.GetName())
+		log = log.WithValues("extid", id)
+		_o, err := p.processingModel.ObjectBase().GetObject(database.NewObjectId(id.GetType(), id.GetNamespace(), id.GetName()))
 		if err != nil {
 			if !errors.Is(err, database.ErrNotExist) {
+				log.Error("cannot get external object {{extid}}", "error", err)
 				return err
 			}
-			log.Info("external object {{extid}} not found -> skip status update", "extid", oid)
+			log.Info("external object {{extid}} not found -> skip")
 			continue
 		}
-		o := _o.(model.ExternalObject)
-
-		status := model.StatusUpdate{
-			RunId:           nil,
-			DetectedVersion: nil,
-			ObservedVersion: nil,
-			Status:          &status,
-			Message:         &message,
-			ResultState:     nil,
-		}
-		for _, a := range args {
-			switch opt := a.(type) {
-			case RunId:
-				status.RunId = utils.Pointer(opt)
-			case model.OutputState:
-				data, err := json.Marshal(opt)
-				lctx.Logger().Info("result", "result", string(data), "error", err)
-				status.ResultState = opt
-			case EffectiveVersion:
-				status.EffectiveVersion = utils.Pointer(string(opt))
-			default:
-				panic(fmt.Sprintf("unknown status argument type %T", a))
-			}
-		}
-		err = o.UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), status)
+		err = f(log, _o.(model.ExternalObject))
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _Element, status model.Status, message string, args ...any) error {
+	update := model.StatusUpdate{
+		Status:  &status,
+		Message: &message,
+	}
+	keys := []interface{}{
+		"newstatus", status,
+		"message", message,
+	}
+
+	for _, a := range args {
+		switch opt := a.(type) {
+		case RunId:
+			update.RunId = utils.Pointer(opt)
+			keys = append(keys, "runid", update.RunId)
+		case model.OutputState:
+			update.ResultState = opt
+			keys = append(keys, "result", DescribeObject(opt))
+		case EffectiveVersion:
+			update.EffectiveVersion = utils.Pointer(string(opt))
+			keys = append(keys, "effective version", opt)
+		default:
+			panic(fmt.Sprintf("unknown status argument type %T", a))
+		}
+	}
+	log.Info(" updating status of external objects to {{newstatus}}: {{message}}", keys...)
+
+	mod := func(log logging.Logger, o model.ExternalObject) error {
+		return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), update)
+	}
+	return p.forExtObjects(log, elem, mod)
 }
 
 func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem _Element, release bool) {

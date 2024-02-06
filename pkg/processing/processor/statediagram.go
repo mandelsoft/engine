@@ -6,17 +6,28 @@ import (
 )
 
 var extTriggerable = sets.Set[model.Status]{}
+var processable = sets.Set[model.Status]{}
 
 func init() {
 	extTriggerable.Insert(
 		model.STATUS_INITIAL,
+		model.STATUS_PENDING,
 		model.STATUS_PREPARING,
 		model.STATUS_BLOCKED,
 		model.STATUS_COMPLETED,
 		model.STATUS_FAILED,
 	)
+
+	processable.Insert(
+		model.STATUS_PROCESSING,
+		model.STATUS_WAITING,
+	)
 }
 
 func isExtTriggerable(e _Element) bool {
 	return extTriggerable.Has(e.GetStatus())
+}
+
+func isProcessable(e _Element) bool {
+	return processable.Has(e.GetStatus())
 }

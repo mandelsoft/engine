@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -134,11 +135,17 @@ func (f *future) Trigger() bool {
 
 type waiting map[ElementId][]*future
 
-type EventType string
+type EventType = model.Status
 
 const (
-	EVENT_COMPLETED = EventType("completed")
-	EVENT_DELETED   = EventType("deleted")
+	EVENT_PENDING    = model.STATUS_PENDING
+	EVENT_PREPARING  = model.STATUS_PREPARING
+	EVENT_BLOCKED    = model.STATUS_BLOCKED
+	EVENT_PROCESSING = model.STATUS_PROCESSING
+	EVENT_WAITING    = model.STATUS_WAITING
+	EVENT_COMPLETED  = model.STATUS_COMPLETED
+	EVENT_FAILED     = model.STATUS_FAILED
+	EVENT_DELETED    = model.STATUS_DELETED
 )
 
 type EventManager struct {

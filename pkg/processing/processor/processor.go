@@ -171,3 +171,19 @@ func (p *Processor) Enqueue(cmd string, e Element) {
 func (p *Processor) EnqueueNamespace(name string) {
 	p.pool.EnqueueCommand(EncodeNamespace(name))
 }
+
+func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Status) error {
+	if status == model.STATUS_DELETED {
+		p.events.Trigger(log, status, e.Id())
+		return nil
+	}
+	ok, err := e.SetStatus(p.processingModel.ObjectBase(), status)
+	if err != nil {
+		return err
+	}
+	if ok {
+		log.Info("status updated to {{status}} for {{element}}", "status", status, "element", e.Id())
+		p.events.Trigger(log, status, e.Id())
+	}
+	return nil
+}
