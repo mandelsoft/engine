@@ -12,7 +12,7 @@ func init() {
 }
 
 type ValueState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	support.DefaultInternalDBObjectSupport `json:",inline"`
 
 	// Spec is the part of the object state held exclusively in the state object and not
 	// on the external object. (there it is found as status)

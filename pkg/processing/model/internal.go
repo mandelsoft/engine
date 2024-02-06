@@ -17,45 +17,47 @@ type TargetState = internal.TargetState
 type ExternalState = internal.ExternalState
 type ExternalStates = internal.ExternalStates
 type OutputState = internal.OutputState
-type Status = internal.Status
+type ProcessingREsult = internal.ProcessingResult
 type Creation = internal.Creation
 type StatusUpdate = internal.StatusUpdate
-type ProcessingStatus = internal.ProcessingStatus
+type Status = internal.Status
 type Inputs = internal.Inputs
 
 type Logging = internal.Logging
 
-const STATUS_WAITING = ProcessingStatus("Waiting")
-const STATUS_PENDING = ProcessingStatus("Pending")
-const STATUS_PREPARING = ProcessingStatus("Preparing")
-const STATUS_PROCESSING = ProcessingStatus("Processing")
-const STATUS_COMPLETED = ProcessingStatus("Completed")
-const STATUS_DELETED = ProcessingStatus("Deleted")
-const STATUS_FAILED = ProcessingStatus("Failed")
+const STATUS_INITIAL = Status("")
+const STATUS_PENDING = Status("Pending")
+const STATUS_BLOCKED = Status("Blocked")
+const STATUS_PREPARING = Status("Preparing")
+const STATUS_PROCESSING = Status("Processing")
+const STATUS_WAITING = Status("Waiting")
+const STATUS_COMPLETED = Status("Completed")
+const STATUS_FAILED = Status("Failed")
+const STATUS_DELETED = Status("Deleted")
 
-func StatusFailed(err error) Status {
-	return Status{
+func StatusFailed(err error) ProcessingREsult {
+	return ProcessingREsult{
 		Status: STATUS_FAILED,
 		Error:  err,
 	}
 }
 
-func StatusCompleted(result OutputState, err ...error) Status {
-	return Status{
+func StatusCompleted(result OutputState, err ...error) ProcessingREsult {
+	return ProcessingREsult{
 		Status:      STATUS_COMPLETED,
 		ResultState: result,
 		Error:       utils.Optional(err...),
 	}
 }
 
-func StatusDeleted() Status {
-	return Status{
+func StatusDeleted() ProcessingREsult {
+	return ProcessingREsult{
 		Status: STATUS_DELETED,
 	}
 }
 
-func StatusCompletedWithCreation(creation []Creation, result OutputState, err ...error) Status {
-	return Status{
+func StatusCompletedWithCreation(creation []Creation, result OutputState, err ...error) ProcessingREsult {
+	return ProcessingREsult{
 		Status:      STATUS_COMPLETED,
 		Creation:    creation,
 		ResultState: result,

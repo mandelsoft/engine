@@ -143,7 +143,7 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, 
 	o.Gather.Target = nil
 }
 
-func (g GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.Status {
+func (g GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingREsult {
 	log := req.Logging.Logger(REALM)
 
 	err := g.Validate(o)
@@ -228,7 +228,7 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phas
 	o.Target = nil
 }
 
-func (c CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.Status {
+func (c CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingREsult {
 	log := req.Logging.Logger(REALM)
 
 	err := c.Validate(o)

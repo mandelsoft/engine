@@ -29,12 +29,12 @@ type ValueSpec struct {
 }
 
 type ValueStatus struct {
-	Status           model.ProcessingStatus `json:"status,omitempty"`
-	Message          string                 `json:"message,omitempty"`
-	RunId            RunId                  `json:"runid,omitempty"`
-	DetectedVersion  string                 `json:"detectedVersion,omitempty"`
-	ObservedVersion  string                 `json:"observedVersion,omitempty"`
-	EffectiveVersion string                 `json:"effectiveVersion,omitempty"`
+	Status           model.Status `json:"status,omitempty"`
+	Message          string       `json:"message,omitempty"`
+	RunId            RunId        `json:"runid,omitempty"`
+	DetectedVersion  string       `json:"detectedVersion,omitempty"`
+	ObservedVersion  string       `json:"observedVersion,omitempty"`
+	EffectiveVersion string       `json:"effectiveVersion,omitempty"`
 
 	Result *int `json:"result,omitempty"`
 }

@@ -32,12 +32,12 @@ type ValueStatus struct {
 	// and propagated as part of the status in the external object.
 	ValueStateSpec `json:",inline"`
 
-	Status           model.ProcessingStatus `json:"status,omitempty"`
-	Message          string                 `json:"message,omitempty"`
-	RunId            RunId                  `json:"runid,omitempty"`
-	DetectedVersion  string                 `json:"detectedVersion,omitempty"`
-	ObservedVersion  string                 `json:"observedVersion,omitempty"`
-	EffectiveVersion string                 `json:"effectiveVersion,omitempty"`
+	Status           model.Status `json:"status,omitempty"`
+	Message          string       `json:"message,omitempty"`
+	RunId            RunId        `json:"runid,omitempty"`
+	DetectedVersion  string       `json:"detectedVersion,omitempty"`
+	ObservedVersion  string       `json:"observedVersion,omitempty"`
+	EffectiveVersion string       `json:"effectiveVersion,omitempty"`
 }
 
 func NewValueNode(ns, n string, value int) *Value {

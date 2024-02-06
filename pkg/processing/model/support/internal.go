@@ -11,44 +11,137 @@ import (
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
-type ElementLocks struct {
-	ElementLocks map[mmids.Phase]mmids.RunId `json:"locks,omitempty"`
+type ElementInfo interface {
+	ClearLock(mmids.RunId) bool
+	GetLock() mmids.RunId
+	TryLock(mmids.RunId) bool
+
+	GetStatus() model.Status
+	SetStatus(model.Status) bool
 }
 
-func (n *ElementLocks) ClearLock(phase mmids.Phase, id mmids.RunId) bool {
-	if len(n.ElementLocks) == 0 {
+type DefaultElementInfo struct {
+	RunId  mmids.RunId  `json:"runid"`
+	Status model.Status `json:"status"`
+}
+
+var _ ElementInfo = (*DefaultElementInfo)(nil)
+
+func (n *DefaultElementInfo) ClearLock(id mmids.RunId) bool {
+	if n.RunId != id {
 		return false
 	}
-	if n.ElementLocks[phase] != id {
-		return false
-	}
-	delete(n.ElementLocks, phase)
+	n.RunId = ""
 	return true
 }
 
-func (n *ElementLocks) GetLock(phase mmids.Phase) mmids.RunId {
-	if len(n.ElementLocks) == 0 {
+func (n *DefaultElementInfo) GetLock() mmids.RunId {
+	return n.RunId
+}
+
+func (n *DefaultElementInfo) TryLock(id mmids.RunId) bool {
+	if n.RunId != "" && n.RunId != id {
+		return false
+	}
+	n.RunId = id
+	return true
+}
+
+func (n *DefaultElementInfo) GetStatus() model.Status {
+	return n.Status
+}
+
+func (n *DefaultElementInfo) SetStatus(s model.Status) bool {
+	if n.Status == s {
+		return false
+	}
+	n.Status = s
+	return true
+}
+
+// ///////////////////////////////
+type pointer[P any] interface {
+	ElementInfo
+	*P
+}
+
+type ElementInfos[P pointer[E], E any] struct {
+	PhaseInfos map[mmids.Phase]E `json:"phaseInfos,omitempty"`
+}
+
+func (n *ElementInfos[P, E]) ClearLock(phase mmids.Phase, id mmids.RunId) bool {
+	if len(n.PhaseInfos) == 0 {
+		return false
+	}
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
+	}
+	i, ok := n.PhaseInfos[phase]
+	if !ok {
+		return false
+	}
+	ok = utils.Cast[P](&i).ClearLock(id)
+	if ok {
+		n.PhaseInfos[phase] = i
+	}
+	return ok
+}
+
+func (n *ElementInfos[P, E]) GetLock(phase mmids.Phase) mmids.RunId {
+	if len(n.PhaseInfos) == 0 {
 		return ""
 	}
-	return n.ElementLocks[phase]
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
+	}
+	i := n.PhaseInfos[phase]
+	return P(&i).GetLock()
 }
 
-func (n *ElementLocks) TryLock(phase mmids.Phase, id mmids.RunId) bool {
-	if len(n.ElementLocks) != 0 && n.ElementLocks[phase] != "" && n.ElementLocks[phase] != id {
-		return false
+func (n *ElementInfos[P, E]) TryLock(phase mmids.Phase, id mmids.RunId) bool {
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
 	}
-	if n.ElementLocks == nil {
-		n.ElementLocks = map[mmids.Phase]mmids.RunId{}
+	i := n.PhaseInfos[phase]
+	ok := P(&i).TryLock(id)
+	if ok {
+		n.PhaseInfos[phase] = i
 	}
-	n.ElementLocks[phase] = id
-	return true
+	return ok
 }
 
-type InternalDBObjectSupport struct {
+func (n *ElementInfos[P, E]) GetStatus(phase mmids.Phase) model.Status {
+	if len(n.PhaseInfos) == 0 {
+		return ""
+	}
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
+	}
+	i := n.PhaseInfos[phase]
+	return P(&i).GetStatus()
+}
+
+func (n *ElementInfos[P, E]) SetStatus(phase mmids.Phase, status model.Status) bool {
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
+	}
+	i := n.PhaseInfos[phase]
+	ok := P(&i).SetStatus(status)
+	if ok {
+		n.PhaseInfos[phase] = i
+	}
+	return ok
+}
+
+type InternalDBObjectSupport[P pointer[E], E any] struct {
 	database.GenerationObjectMeta
 
-	ElementLocks
+	ElementInfos[P, E]
 }
+
+type E = ElementInfos[*DefaultElementInfo, DefaultElementInfo]
+
+type DefaultInternalDBObjectSupport = InternalDBObjectSupport[*DefaultElementInfo, DefaultElementInfo]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -58,6 +151,9 @@ type InternalDBObject interface {
 	GetLock(phase mmids.Phase) mmids.RunId
 	TryLock(phase mmids.Phase, id mmids.RunId) bool
 	ClearLock(phase mmids.Phase, id mmids.RunId) bool
+
+	GetStatus(phase mmids.Phase) model.Status
+	SetStatus(phase mmids.Phase, status model.Status) bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,6 +180,23 @@ func (n *InternalObjectSupport) GetDatabase(ob objectbase.Objectbase) database.D
 
 func (n *InternalObjectSupport) GetDBObject() InternalDBObject {
 	return utils.Cast[InternalDBObject](n.GetBase())
+}
+
+func (n *InternalObjectSupport) GetStatus(phase mmids.Phase) model.Status {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+	return n.GetDBObject().GetStatus(phase)
+}
+
+func (n *InternalObjectSupport) SetStatus(ob objectbase.Objectbase, phase mmids.Phase, status model.Status) (bool, error) {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	mod := func(o DBObject) (bool, bool) {
+		b := utils.Cast[InternalDBObject](o).SetStatus(phase, status)
+		return b, b
+	}
+	return wrapped.Modify(ob, n, mod)
 }
 
 func (n *InternalObjectSupport) GetLock(phase mmids.Phase) mmids.RunId {

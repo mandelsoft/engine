@@ -2,21 +2,21 @@ package db
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	support2 "github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 func init() {
-	database.MustRegisterType[NodeState, support2.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[NodeState, support.DBObject](Scheme) // Goland requires second type parameter
 }
 
 type NodeState struct {
-	support2.InternalDBObjectSupport `json:",inline"`
+	support.DefaultInternalDBObjectSupport `json:",inline"`
 
 	Current CurrentState `json:"current"`
 	Target  *TargetState `json:"target,omitempty"`
 }
 
-var _ support2.InternalDBObject = (*NodeState)(nil)
+var _ support.InternalDBObject = (*NodeState)(nil)
 
 type CurrentState struct {
 	Operands      []string `json:"operands"`

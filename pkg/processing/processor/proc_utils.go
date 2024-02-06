@@ -43,7 +43,7 @@ func GetResultState(args ...interface{}) model.OutputState {
 	return nil
 }
 
-func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem Element, status model.ProcessingStatus, message string, args ...any) error {
+func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem Element, status model.Status, message string, args ...any) error {
 	for _, t := range p.processingModel.MetaModel().GetTriggeringTypesForInternalType(elem.GetType()) {
 		oid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
 

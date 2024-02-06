@@ -87,7 +87,7 @@ func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveVa
 		})
 }
 
-func (n *ValueState) Process(req model.Request) model.Status {
+func (n *ValueState) Process(req model.Request) model.ProcessingREsult {
 	log := req.Logging.Logger(REALM)
 
 	target := n.GetTargetState(req.Element.GetPhase())

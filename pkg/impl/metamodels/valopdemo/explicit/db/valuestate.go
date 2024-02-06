@@ -12,7 +12,7 @@ func init() {
 }
 
 type ValueState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	support.DefaultInternalDBObjectSupport `json:",inline"`
 
 	Current ValueCurrentState `json:"current"`
 	Target  *ValueTargetState `json:"target,omitempty"`

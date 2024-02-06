@@ -11,6 +11,8 @@ import (
 type _Element interface {
 	Element
 
+	GetStatus() model.Status
+	SetStatus(ob objectbase.Objectbase, s model.Status) (bool, error)
 	GetLock() RunId
 	GetExternalState(o model.ExternalObject) model.ExternalState
 	GetCurrentState() CurrentState
@@ -63,6 +65,14 @@ func (e *element) Id() ElementId {
 
 func (e *element) GetPhase() Phase {
 	return e.id.GetPhase()
+}
+
+func (e *element) GetStatus() model.Status {
+	return e.object.GetStatus(e.GetPhase())
+}
+
+func (e *element) SetStatus(ob objectbase.Objectbase, s model.Status) (bool, error) {
+	return e.object.SetStatus(ob, e.GetPhase(), s)
 }
 
 func (e *element) GetObject() model.InternalObject {

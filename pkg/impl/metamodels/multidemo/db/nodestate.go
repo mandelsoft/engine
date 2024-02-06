@@ -12,7 +12,7 @@ func init() {
 }
 
 type NodeState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	support.DefaultInternalDBObjectSupport `json:",inline"`
 
 	// shared state for all phases.
 	// This stores the node state commonly fixed for all phases when the first phase is started.

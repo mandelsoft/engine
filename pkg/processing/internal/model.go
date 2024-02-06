@@ -1,9 +1,8 @@
 package internal
 
 import (
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/engine/pkg/database"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 )
 
 type Object interface {
@@ -47,8 +46,11 @@ type InternalObject interface {
 	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId) (bool, error)
 	Commit(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 
+	GetStatus(Phase) Status
+	SetStatus(ob Objectbase, phase Phase, status Status) (bool, error)
+
 	SetExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) error
-	Process(Request) Status
+	Process(Request) ProcessingResult
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -105,10 +107,10 @@ type Creation struct {
 	Phase    Phase
 }
 
-type ProcessingStatus string
+type Status string
 
-type Status struct {
-	Status      ProcessingStatus
+type ProcessingResult struct {
+	Status      Status
 	Creation    []Creation
 	ResultState OutputState
 	Error       error
@@ -124,7 +126,7 @@ type StatusUpdate struct {
 	// EffectiveVersion is the graph version reached.
 	EffectiveVersion *string
 	// Status is a state value.
-	Status *ProcessingStatus
+	Status *Status
 	// Message is an explaining text for the state.
 	Message *string
 	// ResultState is some state info provided by the internal object.

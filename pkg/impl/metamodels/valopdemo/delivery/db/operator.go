@@ -43,13 +43,13 @@ type Operation struct {
 }
 
 type OperatorStatus struct {
-	Phase            Phase                  `json:"phase,omitempty"`
-	Status           model.ProcessingStatus `json:"status,omitempty"`
-	Message          string                 `json:"message,omitempty"`
-	RunId            RunId                  `json:"runid,omitempty"`
-	DetectedVersion  string                 `json:"detectedVersion,omitempty"`
-	ObservedVersion  string                 `json:"observedVersion,omitempty"`
-	EffectiveVersion string                 `json:"effectiveVersion,omitempty"`
+	Phase            Phase        `json:"phase,omitempty"`
+	Status           model.Status `json:"status,omitempty"`
+	Message          string       `json:"message,omitempty"`
+	RunId            RunId        `json:"runid,omitempty"`
+	DetectedVersion  string       `json:"detectedVersion,omitempty"`
+	ObservedVersion  string       `json:"observedVersion,omitempty"`
+	EffectiveVersion string       `json:"effectiveVersion,omitempty"`
 
 	Result CalculationOutput `json:"result,omitempty"`
 }

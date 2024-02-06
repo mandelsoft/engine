@@ -23,7 +23,7 @@ type Phase[I InternalObject, T InternalDBObject, E model.ExternalState] interfac
 	GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o I, phase mmids.Phase) model.CurrentState
 	GetTargetState(o I, phase mmids.Phase) model.TargetState
-	Process(o I, phase mmids.Phase, req model.Request) model.Status
+	Process(o I, phase mmids.Phase, req model.Request) model.ProcessingREsult
 }
 
 type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interface {
@@ -35,7 +35,7 @@ type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interfa
 	GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase mmids.Phase) model.TargetState
-	Process(o InternalObject, req model.Request) model.Status
+	Process(o InternalObject, req model.Request) model.ProcessingREsult
 }
 
 type DefaultPhase[I InternalObject] struct{}
@@ -100,14 +100,14 @@ func (p *phases[I, T, E]) DBSetExternalState(lctx model.Logging, _o InternalDBOb
 	}
 }
 
-func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.Status {
+func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.ProcessingREsult {
 	phase := req.Element.GetPhase()
 	ph := p.phases[phase]
 	if ph != nil {
 		req.Logging = req.Logging.WithContext(p.realm)
 		return ph.Process(o.(I), phase, req)
 	}
-	return model.Status{
+	return model.ProcessingREsult{
 		Status: model.STATUS_FAILED,
 		Error:  fmt.Errorf("unknown phase %q", phase),
 	}
@@ -171,6 +171,23 @@ func (n *InternalPhaseObjectSupport[I, T, E]) TryLock(ob objectbase.Objectbase, 
 	return wrapped.Modify(ob, n, mod)
 }
 
+func (n *InternalPhaseObjectSupport[I, T, E]) GetStatus(phase mmids.Phase) model.Status {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+	return n.GetDBObject().GetStatus(phase)
+}
+
+func (n *InternalPhaseObjectSupport[I, T, E]) SetStatus(ob objectbase.Objectbase, phase mmids.Phase, status model.Status) (bool, error) {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	mod := func(o DBObject) (bool, bool) {
+		b := utils.Cast[InternalDBObject](o).SetStatus(phase, status)
+		return b, b
+	}
+	return wrapped.Modify(ob, n, mod)
+}
+
 func (n *InternalPhaseObjectSupport[I, T, E]) GetExternalState(ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
 	return n.phases.GetExternalState(n.self, ext, phase)
 }
@@ -198,7 +215,7 @@ func (n *InternalPhaseObjectSupport[I, T, E]) SetExternalState(lctx model.Loggin
 	return err
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) model.Status {
+func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) model.ProcessingREsult {
 	return n.phases.Process(n.self, request)
 }
 

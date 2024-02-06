@@ -69,7 +69,7 @@ type Value struct {
 
 func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.Status {
 	log := lctx.Logger()
-	log.Info("processing external element trigger for {{element}}")
+	log.Info("processing external element trigger for {{element}} (status {{status}})", "status", e.GetStatus())
 	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(e.Id().TypeId())
 	if len(types) > 0 {
 		log.Info("checking state of external objects for element {{element}}")

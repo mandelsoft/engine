@@ -58,12 +58,12 @@ func (n *NodeState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbas
 	return err
 }
 
-func (n *NodeState) Process(req model.Request) model.Status {
+func (n *NodeState) Process(req model.Request) model.ProcessingREsult {
 	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
 	if err != nil {
-		return model.Status{
+		return model.ProcessingREsult{
 			Status:      model.STATUS_FAILED, // final failure
 			ResultState: nil,
 			Error:       err,
