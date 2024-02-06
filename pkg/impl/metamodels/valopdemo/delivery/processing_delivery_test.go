@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
@@ -13,7 +14,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -218,12 +218,14 @@ func (m *ValueMon) StateObjectId() database.ObjectId {
 }
 
 func (m *ValueMon) Wait(ctx context.Context) bool {
-	b := m.future.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+	ctx = ctxutil.TimeoutContext(ctx, 20*time.Second)
+	b := m.future.Wait(ctx)
 	if b {
 		fmt.Printf("FOUND %s %s\n", m.sid, m.etype)
 	} else {
 		fmt.Printf("ABORTED %s %s\n", m.sid, m.etype)
 	}
+	ctxutil.Cancel(ctx)
 	return b
 }
 

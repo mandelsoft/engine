@@ -5,18 +5,10 @@ import (
 	"time"
 )
 
-func WatchdogContext(ctx context.Context, duration time.Duration) context.Context {
-	cancel := CancelContext(ctx)
-	timer := time.NewTimer(duration)
+func TimeoutContext(ctx context.Context, duration time.Duration) context.Context {
+	return cancelContext(context.WithTimeout(ctx, duration))
+}
 
-	go func() {
-		select {
-		case <-ctx.Done():
-			Cancel(cancel)
-		case <-timer.C:
-			Cancel(cancel)
-		}
-	}()
-
-	return cancel
+func DeadlineContext(ctx context.Context, deadline time.Time) context.Context {
+	return cancelContext(context.WithDeadline(ctx, deadline))
 }

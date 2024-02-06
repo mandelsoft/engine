@@ -10,13 +10,16 @@ import (
 	"context"
 )
 
-var cancelkey = ""
+var cancelkey = SimpleKey("cancel")
 
 func CancelContext(ctx context.Context) context.Context {
-	ctx, cancel := context.WithCancel(ctx)
-	return context.WithValue(ctx, &cancelkey, cancel)
+	return cancelContext(context.WithCancel(ctx))
+}
+
+func cancelContext(ctx context.Context, cancel context.CancelFunc) context.Context {
+	return context.WithValue(ctx, cancelkey, cancel)
 }
 
 func Cancel(ctx context.Context) {
-	ctx.Value(&cancelkey).(context.CancelFunc)()
+	ctx.Value(cancelkey).(context.CancelFunc)()
 }

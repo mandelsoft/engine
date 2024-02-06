@@ -64,7 +64,7 @@ var _ = Describe("Processing", func() {
 			opCcompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
 			MustBeSuccessfull(env.SetObject(opC))
 
-			Expect(opCcompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
+			Expect(opCcompleted.Wait(ctxutil.TimeoutContext(env.Context(), 20*time.Second))).To(BeTrue())
 			nan := Must(env.GetObject(opC))
 
 			Expect(nan.(*db.Operator).Status.Result).NotTo(BeNil())
@@ -89,7 +89,7 @@ var _ = Describe("Processing", func() {
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(nacompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
+				Expect(nacompleted.Wait(ctxutil.TimeoutContext(env.Context(), 20*time.Second))).To(BeTrue())
 				fmt.Printf("found completed\n")
 				n := Must(env.GetObject(na))
 				result = n.(*db.Operator).Status.Result
@@ -112,7 +112,7 @@ var _ = Describe("Processing", func() {
 				return true, true
 			}))
 
-			Expect(nacompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
+			Expect(nacompleted.Wait(ctxutil.TimeoutContext(env.Context(), 20*time.Second))).To(BeTrue())
 
 			n := Must(env.GetObject(na))
 			result = n.(*db.Operator).Status.Result
@@ -120,7 +120,7 @@ var _ = Describe("Processing", func() {
 			Expect(*result).To(Equal(12))
 
 			nrcompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "D", mymetamodel.FINAL_VALUE_PHASE))
-			Expect(nrcompleted.Wait(ctxutil.WatchdogContext(env.Context(), 20*time.Second))).To(BeTrue())
+			Expect(nrcompleted.Wait(ctxutil.TimeoutContext(env.Context(), 20*time.Second))).To(BeTrue())
 
 			n = Must(env.GetObject(nr))
 			result = n.(*db.Value).Status.Result
@@ -148,7 +148,7 @@ func NewValueMon(env *TestEnv, name string, retrigger ...bool) *ValueMon {
 }
 
 func (m *ValueMon) Wait(ctx context.Context) bool {
-	b := m.completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))
+	b := m.completed.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))
 	if b {
 		fmt.Printf("FOUND %s completed\n", m.sid)
 	} else {

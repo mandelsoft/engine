@@ -82,7 +82,7 @@ var _ = Describe("Processing", func() {
 
 			MustBeSuccessfull(odb.SetObject(n5))
 
-			Expect(n5completed.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+			Expect(n5completed.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 
 			n5n := Must(odb.GetObject(n5))
 
@@ -101,7 +101,7 @@ var _ = Describe("Processing", func() {
 			nacompleted := proc.FutureFor(processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))
 			MustBeSuccessfull(odb.SetObject(na))
 
-			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+			Expect(nacompleted.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 			nan := Must(odb.GetObject(na))
 
 			Expect(nan.(*db.Operator).Status.Result).NotTo(BeNil())
@@ -127,7 +127,7 @@ var _ = Describe("Processing", func() {
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+				Expect(nacompleted.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 				fmt.Printf("found completed\n")
 				n := Must(odb.GetObject(na))
 				result = n.(*db.Operator).Status.Result
@@ -150,7 +150,7 @@ var _ = Describe("Processing", func() {
 				return true, true
 			}))
 
-			Expect(nacompleted.Wait(ctxutil.WatchdogContext(ctx, 20*time.Second))).To(BeTrue())
+			Expect(nacompleted.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 
 			n := Must(odb.GetObject(na))
 			result = n.(*db.Operator).Status.Result
