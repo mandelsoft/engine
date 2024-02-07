@@ -113,11 +113,11 @@ func (t *TestEnv) SetObject(o support.DBObject) error {
 }
 
 func (t *TestEnv) CompletedFuture(id mmids.ElementId, retrigger ...bool) processor.Future {
-	return t.proc.FutureFor(processor.EVENT_COMPLETED, id, retrigger...)
+	return t.proc.FutureFor(model.STATUS_COMPLETED, id, retrigger...)
 }
 
 func (t *TestEnv) DeletedFuture(id mmids.ElementId, retrigger ...bool) processor.Future {
-	return t.proc.FutureFor(processor.EVENT_DELETED, id, retrigger...)
+	return t.proc.FutureFor(model.STATUS_DELETED, id, retrigger...)
 }
 
 func (t *TestEnv) FutureFor(etype processor.EventType, id mmids.ElementId, retrigger ...bool) processor.Future {

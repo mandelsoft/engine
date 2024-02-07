@@ -55,9 +55,9 @@ type registry[I Id] struct {
 
 var _ HandlerRegistrationTest[Id] = (*registry[Id])(nil)
 
-func NewHandlerRegistry[I Id](k KeyFunc[I], l ObjectLister[I]) HandlerRegistry[I] {
+func NewHandlerRegistry[I Id](l ObjectLister[I], k ...KeyFunc[I]) HandlerRegistry[I] {
 	return &registry[I]{
-		key:    k,
+		key:    utils.OptionalDefaulted[KeyFunc[I]](func(id I) I { return id }, k...),
 		types:  map[string]namespaces[I]{},
 		lister: l,
 	}

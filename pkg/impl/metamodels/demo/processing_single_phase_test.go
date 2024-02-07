@@ -99,7 +99,7 @@ var _ = Describe("Processing", func() {
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			MustBeSuccessfull(odb.SetObject(na))
 
-			Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
+			Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 
 			nan := Must(odb.GetObject(na))
 
@@ -125,7 +125,7 @@ var _ = Describe("Processing", func() {
 			var result *int
 			for i := 0; i < 3; i++ {
 				fmt.Printf("snyc %d\n", i+1)
-				Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
+				Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 				n := Must(odb.GetObject(na))
 				result = n.(*db.Node).Status.Result
 				if result != nil && *result == 11 {
@@ -140,7 +140,7 @@ var _ = Describe("Processing", func() {
 				return true, true
 			}))
 
-			Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), processor.EVENT_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
+			Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 
 			n := Must(odb.GetObject(na))
 			result = n.(*db.Node).Status.Result

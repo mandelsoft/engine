@@ -15,6 +15,8 @@ import (
 )
 
 func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId) pool.Status {
+	defer p.events.TriggerElementHandled(id)
+
 	nctx := lctx.WithValues("namespace", id.GetNamespace(), "element", id).WithName(id.String())
 	elem := p.processingModel._GetElement(id)
 	if elem == nil {

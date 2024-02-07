@@ -140,3 +140,17 @@ func (ni *namespaceInfo) getChildren(id ElementId) []Element {
 	}
 	return r
 }
+
+func (ni *namespaceInfo) list(typ string) []ElementId {
+	ni.lock.Lock()
+	defer ni.lock.Unlock()
+
+	var list []ElementId
+
+	for _, e := range ni.elements {
+		if typ == "" || e.GetType() == typ {
+			list = append(list, e.Id())
+		}
+	}
+	return list
+}

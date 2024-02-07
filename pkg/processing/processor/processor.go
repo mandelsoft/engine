@@ -35,14 +35,22 @@ type Processor struct {
 
 func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, worker int) (*Processor, error) {
 	pool := pool.NewPool(ctx, lctx, m.MetaModel().Name(), worker, 0, false)
-	return &Processor{
+	p := &Processor{
 		ctx:             ctx,
 		logging:         lctx.WithContext(REALM),
 		processingModel: newProcessingModel(m),
 		pool:            pool,
+	}
+	p.events = newEventManager(p.processingModel)
+	return p, nil
+}
 
-		events: NewEventManager(),
-	}, nil
+func (p *Processor) RegisterHandler(handler EventHandler, current bool, kind string, nss ...string) {
+	p.events.RegisterHandler(handler, current, kind, nss...)
+}
+
+func (p *Processor) UnregisterHandler(handler EventHandler, kind string, nss ...string) {
+	p.events.UnregisterHandler(handler, kind, nss...)
 }
 
 func (p *Processor) Model() ProcessingModel {
@@ -172,9 +180,13 @@ func (p *Processor) EnqueueNamespace(name string) {
 	p.pool.EnqueueCommand(EncodeNamespace(name))
 }
 
+func (p *Processor) GetElement(id ElementId) _Element {
+	return p.processingModel._GetElement(id)
+}
+
 func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Status) error {
 	if status == model.STATUS_DELETED {
-		p.events.Trigger(log, status, e.Id())
+		p.events.TriggerStatusEvent(log, status, e.Id())
 		return nil
 	}
 	ok, err := e.SetStatus(p.processingModel.ObjectBase(), status)
@@ -183,7 +195,7 @@ func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Statu
 	}
 	if ok {
 		log.Info("status updated to {{status}} for {{element}}", "status", status, "element", e.Id())
-		p.events.Trigger(log, status, e.Id())
+		p.events.TriggerStatusEvent(log, status, e.Id())
 	}
 	return nil
 }

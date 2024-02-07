@@ -5,12 +5,25 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mandelsoft/engine/pkg/events"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/utils"
 )
+
+type ObjectLister = events.ObjectLister[ElementId]
+type EventHandler = events.EventHandler[ElementId]
+type HandlerRegistration = events.HandlerRegistration[ElementId]
+type HandlerRegistrationTest = events.HandlerRegistrationTest[ElementId]
+type HandlerRegistry = events.HandlerRegistry[ElementId]
+
+func newHandlerRegistry(l ObjectLister) HandlerRegistry {
+	return events.NewHandlerRegistry[ElementId](l, nil)
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 type PendingCounter struct {
 	lock    sync.Mutex
@@ -137,30 +150,35 @@ type waiting map[ElementId][]*future
 
 type EventType = model.Status
 
-const (
-	EVENT_PENDING    = model.STATUS_PENDING
-	EVENT_PREPARING  = model.STATUS_PREPARING
-	EVENT_BLOCKED    = model.STATUS_BLOCKED
-	EVENT_PROCESSING = model.STATUS_PROCESSING
-	EVENT_WAITING    = model.STATUS_WAITING
-	EVENT_COMPLETED  = model.STATUS_COMPLETED
-	EVENT_FAILED     = model.STATUS_FAILED
-	EVENT_DELETED    = model.STATUS_DELETED
-)
+var _ ObjectLister = (*lister)(nil)
 
 type EventManager struct {
-	lock  sync.Mutex
-	types map[EventType]waiting
+	lock     sync.Mutex
+	types    map[EventType]waiting
+	registry HandlerRegistry
 }
 
-func NewEventManager() *EventManager {
+func newEventManager(proc *processingModel) *EventManager {
 	return &EventManager{
-		types: map[EventType]waiting{},
+		types:    map[EventType]waiting{},
+		registry: newHandlerRegistry(proc.lister()),
 	}
 }
 
-func (p *EventManager) Trigger(log logging.Logger, etype EventType, id ElementId) {
-	log.Debug("trigger event {{event}} for {{target}}", "event", etype, "target", id)
+func (p *EventManager) RegisterHandler(handler EventHandler, current bool, kind string, nss ...string) {
+	p.registry.RegisterHandler(handler, current, kind, nss...)
+}
+
+func (p *EventManager) UnregisterHandler(handler EventHandler, kind string, nss ...string) {
+	p.registry.UnregisterHandler(handler, kind, nss...)
+}
+
+func (p *EventManager) TriggerElementHandled(id ElementId) {
+	p.registry.TriggerEvent(id)
+}
+
+func (p *EventManager) TriggerStatusEvent(log logging.Logger, etype EventType, id ElementId) {
+	log.Debug("trigger status event {{event}} for {{target}}", "event", etype, "target", id)
 	p.lock.Lock()
 	defer p.lock.Unlock()
 

@@ -9,6 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -198,11 +199,11 @@ func NewValueMon(env *TestEnv, etype processor.EventType, name string, retrigger
 }
 
 func ValueCompleted(env *TestEnv, name string, retrigger ...bool) *ValueMon {
-	return NewValueMon(env, processor.EVENT_COMPLETED, name, retrigger...)
+	return NewValueMon(env, model.STATUS_COMPLETED, name, retrigger...)
 }
 
 func ValueDeleted(env *TestEnv, name string, retrigger ...bool) *ValueMon {
-	return NewValueMon(env, processor.EVENT_DELETED, name, retrigger...)
+	return NewValueMon(env, model.STATUS_DELETED, name, retrigger...)
 }
 
 func (m *ValueMon) ObjectId() database.ObjectId {

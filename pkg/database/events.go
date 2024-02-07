@@ -11,5 +11,5 @@ type HandlerRegistrationTest = events.HandlerRegistrationTest[ObjectId]
 type HandlerRegistry = events.HandlerRegistry[ObjectId]
 
 func NewHandlerRegistry(l ObjectLister) HandlerRegistry {
-	return events.NewHandlerRegistry[ObjectId](NewObjectIdFor, l)
+	return events.NewHandlerRegistry[ObjectId](l, NewObjectIdFor)
 }
