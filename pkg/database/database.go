@@ -4,14 +4,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
-type EventHandler interface {
-	HandleEvent(ObjectId)
-}
-
-type ObjectLister interface {
-	ListObjectIds(typ string, ns string, atomic ...func()) ([]ObjectId, error)
-}
-
 type SchemeTypes[O Object] interface {
 	runtime.SchemeTypes[O]
 }
