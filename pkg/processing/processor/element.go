@@ -20,7 +20,7 @@ type _Element interface {
 	SetTargetState(TargetState)
 
 	TryLock(ob objectbase.Objectbase, id RunId) (bool, error)
-	Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId) (bool, error)
+	Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved ...bool) (bool, error)
 	Commit(lctx model.Logging, ob objectbase.Objectbase, id RunId, commit *model.CommitInfo) (bool, error)
 }
 
@@ -103,7 +103,12 @@ func (e *element) TryLock(ob objectbase.Objectbase, id RunId) (bool, error) {
 	return e.GetObject().TryLock(ob, e.id.GetPhase(), id)
 }
 
-func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId) (bool, error) {
+func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved ...bool) (bool, error) {
+	if e.target != nil && utils.Optional(keepobserved...) {
+		lctx.Logger().Info("rollback target state and update observed version")
+		return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, e.target.GetObjectVersion())
+	}
+	lctx.Logger().Info("rollback target state")
 	return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id)
 }
 

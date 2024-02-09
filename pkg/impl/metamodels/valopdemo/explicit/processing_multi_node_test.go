@@ -131,7 +131,7 @@ var _ = Describe("Processing", func() {
 	})
 
 	Context("blocked", func() {
-		FIt("blocks node", func() {
+		It("blocks node", func() {
 			env.Start()
 
 			n5 := db.NewValueNode(NS, "A", 5)

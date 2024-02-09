@@ -69,7 +69,7 @@ var _ = Describe("Processing", func() {
 			mCA.Check(env, 11, "C")
 		})
 
-		FIt("multiple operators with multiple outputs creating value node", func() {
+		It("multiple operators with multiple outputs creating value node", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)

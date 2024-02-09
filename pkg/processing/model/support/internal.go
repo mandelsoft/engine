@@ -18,11 +18,14 @@ type ElementInfo interface {
 
 	GetStatus() model.Status
 	SetStatus(model.Status) bool
+	GetObservedVersion() string
+	SetObservedVersion(v string) bool
 }
 
 type DefaultElementInfo struct {
-	RunId  mmids.RunId  `json:"runid"`
-	Status model.Status `json:"status"`
+	RunId           mmids.RunId  `json:"runid"`
+	Status          model.Status `json:"status"`
+	ObservedVersion string       `json:"observedVersion"`
 }
 
 var _ ElementInfo = (*DefaultElementInfo)(nil)
@@ -44,6 +47,18 @@ func (n *DefaultElementInfo) TryLock(id mmids.RunId) bool {
 		return false
 	}
 	n.RunId = id
+	return true
+}
+
+func (n *DefaultElementInfo) GetObservedVersion() string {
+	return n.ObservedVersion
+}
+
+func (n *DefaultElementInfo) SetObservedVersion(v string) bool {
+	if n.ObservedVersion == v {
+		return false
+	}
+	n.ObservedVersion = v
 	return true
 }
 
@@ -138,6 +153,29 @@ func (n *ElementInfos[P, E]) SetStatus(phase mmids.Phase, status model.Status) b
 	return ok
 }
 
+func (n *ElementInfos[P, E]) GetObservedVersion(phase mmids.Phase) string {
+	if len(n.PhaseInfos) == 0 {
+		return ""
+	}
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
+	}
+	i := n.PhaseInfos[phase]
+	return P(&i).GetObservedVersion()
+}
+
+func (n *ElementInfos[P, E]) SetObservedVersion(phase mmids.Phase, v string) bool {
+	if n.PhaseInfos == nil {
+		n.PhaseInfos = map[mmids.Phase]E{}
+	}
+	i := n.PhaseInfos[phase]
+	ok := P(&i).SetObservedVersion(v)
+	if ok {
+		n.PhaseInfos[phase] = i
+	}
+	return ok
+}
+
 type InternalDBObjectSupport[P pointer[E], E any] struct {
 	database.GenerationObjectMeta
 
@@ -152,6 +190,9 @@ type DefaultInternalDBObjectSupport = InternalDBObjectSupport[*DefaultElementInf
 
 type InternalDBObject interface {
 	DBObject
+
+	GetObservedVersion(phase mmids.Phase) string
+	SetObservedVersion(phase mmids.Phase, v string) bool
 
 	GetLock(phase mmids.Phase) mmids.RunId
 	TryLock(phase mmids.Phase, id mmids.RunId) bool
@@ -221,12 +262,17 @@ func (n *InternalObjectSupport) TryLock(ob objectbase.Objectbase, phase mmids.Ph
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
+func (n *InternalObjectSupport) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, observed ...string) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
 	mod := func(_o DBObject) (bool, bool) {
 		o := utils.Cast[InternalDBObject](_o)
+		v := utils.Optional(observed...)
+		if v != "" {
+			lctx.Logger().Info("setting observed version {{observed}}", "observed", v)
+			o.SetObservedVersion(phase, v)
+		}
 		b := o.ClearLock(phase, id)
 		return b, b
 	}
@@ -243,14 +289,20 @@ func (f CommitFunc) Commit(lctx model.Logging, o InternalDBObject, phase mmids.P
 	f(lctx, o, phase, spec)
 }
 
-func (n *InternalObjectSupport) Commit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, committer Committer) (bool, error) {
+func (n *InternalObjectSupport) HandleCommit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, observed string, committer Committer) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
+	log := lctx.Logger()
 	mod := func(_o DBObject) (bool, bool) {
+		log.Info("Commit target state for {{element}}")
 		o := utils.Cast[InternalDBObject](_o)
 		b := o.ClearLock(phase, id)
-		if b && commit != nil {
+		log.Info("  observed version {{observed}}", "observed", observed)
+		if observed != "" {
+			o.SetObservedVersion(phase, observed)
+		}
+		if b && committer != nil {
 			committer.Commit(lctx, o, phase, commit)
 		}
 		return b, b

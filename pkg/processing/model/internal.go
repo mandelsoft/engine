@@ -14,6 +14,7 @@ type CommitInfo = internal.CommitInfo
 type Request = internal.Request
 type CurrentState = internal.CurrentState
 type TargetState = internal.TargetState
+type AcceptStatus = internal.AcceptStatus
 type ExternalState = internal.ExternalState
 type ExternalStates = internal.ExternalStates
 type OutputState = internal.OutputState
@@ -25,15 +26,23 @@ type Inputs = internal.Inputs
 
 type Logging = internal.Logging
 
-const STATUS_INITIAL = Status("")
-const STATUS_PENDING = Status("Pending")
-const STATUS_BLOCKED = Status("Blocked")
-const STATUS_PREPARING = Status("Preparing")
-const STATUS_PROCESSING = Status("Processing")
-const STATUS_WAITING = Status("Waiting")
-const STATUS_COMPLETED = Status("Completed")
-const STATUS_FAILED = Status("Failed")
-const STATUS_DELETED = Status("Deleted")
+const (
+	ACCEPT_OK = iota
+	ACCEPT_REJECTED
+	ACCEPT_INVALID
+)
+
+const (
+	STATUS_INITIAL    = Status("")
+	STATUS_PENDING    = Status("Pending")
+	STATUS_BLOCKED    = Status("Blocked")
+	STATUS_PREPARING  = Status("Preparing")
+	STATUS_PROCESSING = Status("Processing")
+	STATUS_WAITING    = Status("Waiting")
+	STATUS_COMPLETED  = Status("Completed")
+	STATUS_FAILED     = Status("Failed")
+	STATUS_DELETED    = Status("Deleted")
+)
 
 func StatusFailed(err error) ProcessingREsult {
 	return ProcessingREsult{

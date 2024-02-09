@@ -129,7 +129,6 @@ func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.NodeState, pha
 func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
-		log.Info("commit phase {{phase}} for NodeState {{name}}")
 		log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
 		log.Info("  object version {{objvers}}", "objvers", o.Gather.Target.ObjectVersion)
 		log.Info("  output version {{outvers}}", "outvers", spec.State.(*GatherOutputState).GetOutputVersion())
@@ -209,7 +208,6 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, 
 func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Calculation.Target != nil && spec != nil {
 		// update state specific
-		log.Info("commit phase {{phase}} for NodeState {{name}}")
 		log.Info("  input version {{inpvers}}", "inpvers", spec.InputVersion)
 		log.Info("  object version {{objvers}}", "objvers", o.Calculation.Target.ObjectVersion)
 		log.Info("  output version {{outvers}}", "outvers", spec.State.(*CalcOutputState).GetOutputVersion())
@@ -309,6 +307,10 @@ func (c *CurrentGatherState) GetLinks() []ElementId {
 	return r
 }
 
+func (c *CurrentGatherState) GetObservedVersion() string {
+	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_GATHER)
+}
+
 func (c *CurrentGatherState) GetInputVersion() string {
 	return c.get().InputVersion
 }
@@ -333,6 +335,10 @@ var _ model.CurrentState = (*CurrentCalcState)(nil)
 
 func (c *CurrentCalcState) get() *db.CalculationCurrentState {
 	return &c.n.GetBase().(*db.NodeState).Calculation.Current
+}
+
+func (c *CurrentCalcState) GetObservedVersion() string {
+	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_GATHER)
 }
 
 func (c *CurrentCalcState) GetLinks() []ElementId {

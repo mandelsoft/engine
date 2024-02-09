@@ -46,7 +46,7 @@ func (n *ValueState) GetExternalState(o model.ExternalObject, phase mmids.Phase)
 	return n.EffectiveTargetSpec(o.GetState())
 }
 
-func (n *ValueState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) error {
+func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.ValueState).Target
 		if t == nil {
@@ -72,7 +72,7 @@ func (n *ValueState) SetExternalState(lcxt model.Logging, ob objectbase.Objectba
 		_o.(*db.ValueState).Target = t
 		return mod, mod
 	})
-	return err
+	return 0, err
 }
 
 func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveValueState {
@@ -172,7 +172,7 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 }
 
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc(n.commitTargetState))
 }
 
 func (n *ValueState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
@@ -219,6 +219,10 @@ func (c *CurrentValueState) GetLinks() []ElementId {
 		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), c.get().Provider, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
+}
+
+func (c *CurrentValueState) GetObservedVersion() string {
+	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_PROPAGATE)
 }
 
 func (c *CurrentValueState) GetInputVersion() string {

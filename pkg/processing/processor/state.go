@@ -42,6 +42,14 @@ func (s *cstate) GetLinks() []ElementId {
 	return nil
 }
 
+func (s *cstate) GetObservedVersion() string {
+	state := s.GetState()
+	if state != nil {
+		return state.GetObservedVersion()
+	}
+	return ""
+}
+
 func (s *cstate) GetInputVersion() string {
 	state := s.GetState()
 	if state != nil {

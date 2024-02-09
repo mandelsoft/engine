@@ -16,6 +16,7 @@ import (
 )
 
 type EffectiveVersion string
+type ObservedVersion string
 
 func CalcEffectiveVersion(inputs model.Inputs, objvers string) EffectiveVersion {
 	keys := utils.MapKeys(inputs)
@@ -84,6 +85,9 @@ func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _E
 		case model.OutputState:
 			update.ResultState = opt
 			keys = append(keys, "result", DescribeObject(opt))
+		case ObservedVersion:
+			update.ObservedVersion = utils.Pointer(string(opt))
+			keys = append(keys, "observed version", opt)
 		case EffectiveVersion:
 			update.EffectiveVersion = utils.Pointer(string(opt))
 			keys = append(keys, "effective version", opt)

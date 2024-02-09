@@ -2,9 +2,7 @@ package support
 
 import (
 	"fmt"
-	"sync"
 
-	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -20,6 +18,7 @@ type Phase[I InternalObject, T InternalDBObject, E model.ExternalState] interfac
 	DBCommit(log logging.Logger, o T, phase mmids.Phase, spec *model.CommitInfo, mod *bool)
 	DBSetExternalState(log logging.Logger, o T, phase mmids.Phase, state E, mod *bool)
 
+	AcceptExternalState(lctx model.Logging, o I, states model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error)
 	GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o I, phase mmids.Phase) model.CurrentState
 	GetTargetState(o I, phase mmids.Phase) model.TargetState
@@ -32,6 +31,7 @@ type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interfa
 	DBCommit(lctx model.Logging, _o InternalDBObject, phase mmids.Phase, commit *model.CommitInfo, mod *bool)
 	DBSetExternalState(lctx model.Logging, _o InternalDBObject, phase mmids.Phase, s model.ExternalState, mod *bool)
 
+	AcceptExternalState(lctx model.Logging, o InternalObject, phase mmids.Phase, states model.ExternalStates) (model.AcceptStatus, error)
 	GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase mmids.Phase) model.TargetState
@@ -39,6 +39,10 @@ type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interfa
 }
 
 type DefaultPhase[I InternalObject] struct{}
+
+func (p DefaultPhase[I]) AcceptExternalState(lctx model.Logging, o I, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+	return model.ACCEPT_OK, nil
+}
 
 func (p DefaultPhase[I]) GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
 	return ext.GetState()
@@ -58,6 +62,14 @@ func NewPhases[I InternalObject, T InternalDBObject, E model.ExternalState](real
 
 func (p *phases[I, T, E]) Register(name mmids.Phase, ph Phase[I, T, E]) {
 	p.phases[name] = ph
+}
+
+func (p *phases[I, T, E]) AcceptExternalState(lctx model.Logging, o InternalObject, phase mmids.Phase, states model.ExternalStates) (model.AcceptStatus, error) {
+	ph := p.phases[phase]
+	if ph != nil {
+		return ph.AcceptExternalState(lctx, o.(I), states, phase)
+	}
+	return model.ACCEPT_INVALID, fmt.Errorf("unknown phase %q", phase)
 }
 
 func (p *phases[I, T, E]) GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
@@ -120,10 +132,9 @@ func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.Pro
 // It requires the effective [model.InternalObject] to implement
 // [runtime.InitializedObject] to init the Phases attribute
 type InternalPhaseObjectSupport[I InternalObject, T InternalDBObject, E model.ExternalState] struct {
-	Lock sync.Mutex
-	Wrapper
-	self   I
-	phases Phases[I, T, E] `json:",omitempty"`
+	InternalObjectSupport `json:",inline"`
+	self                  I
+	phases                Phases[I, T, E] `json:",omitempty"`
 }
 
 var _ model.InternalObject = (*InternalPhaseObjectSupport[InternalObject, InternalDBObject, model.ExternalState])(nil)
@@ -146,46 +157,8 @@ func (n *InternalPhaseObjectSupport[I, T, E]) setSelf(i I, phases Phases[I, T, E
 	n.self = i
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) GetDatabase(ob objectbase.Objectbase) database.Database[DBObject] {
-	return objectbase.GetDatabase[DBObject](ob)
-}
-
-func (n *InternalPhaseObjectSupport[I, T, E]) GetDBObject() InternalDBObject {
-	return utils.Cast[InternalDBObject](n.GetBase())
-}
-
-func (n *InternalPhaseObjectSupport[I, T, E]) GetLock(phase mmids.Phase) mmids.RunId {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
-	return n.GetDBObject().GetLock(phase)
-}
-
-func (n *InternalPhaseObjectSupport[I, T, E]) TryLock(ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
-
-	mod := func(o DBObject) (bool, bool) {
-		b := utils.Cast[InternalDBObject](o).TryLock(phase, id)
-		return b, b
-	}
-	return wrapped.Modify(ob, n, mod)
-}
-
-func (n *InternalPhaseObjectSupport[I, T, E]) GetStatus(phase mmids.Phase) model.Status {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
-	return n.GetDBObject().GetStatus(phase)
-}
-
-func (n *InternalPhaseObjectSupport[I, T, E]) SetStatus(ob objectbase.Objectbase, phase mmids.Phase, status model.Status) (bool, error) {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
-
-	mod := func(o DBObject) (bool, bool) {
-		b := utils.Cast[InternalDBObject](o).SetStatus(phase, status)
-		return b, b
-	}
-	return wrapped.Modify(ob, n, mod)
+func (n *InternalPhaseObjectSupport[I, T, E]) GetDBObject() T {
+	return utils.Cast[T](n.GetBase())
 }
 
 func (n *InternalPhaseObjectSupport[I, T, E]) GetExternalState(ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
@@ -200,10 +173,14 @@ func (n *InternalPhaseObjectSupport[I, T, E]) GetTargetState(phase mmids.Phase) 
 	return n.phases.GetTargetState(n.self, phase)
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) SetExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, states model.ExternalStates) error {
+func (n *InternalPhaseObjectSupport[I, T, E]) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, states model.ExternalStates) (model.AcceptStatus, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
+	status, err := n.phases.AcceptExternalState(lctx, n.self, phase, states)
+	if status != model.ACCEPT_OK || err != nil {
+		return status, err
+	}
 	mod := func(_o DBObject) (bool, bool) {
 		mod := false
 		for _, s := range states {
@@ -211,37 +188,35 @@ func (n *InternalPhaseObjectSupport[I, T, E]) SetExternalState(lctx model.Loggin
 		}
 		return mod, mod
 	}
-	_, err := wrapped.Modify(ob, n, mod)
-	return err
+	_, err = wrapped.Modify(ob, n, mod)
+	return model.ACCEPT_OK, err
 }
 
 func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) model.ProcessingREsult {
 	return n.phases.Process(n.self, request)
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
+func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, observed ...string) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
 	mod := func(_o DBObject) (bool, bool) {
 		o := utils.Cast[InternalDBObject](_o)
+		v := utils.Optional(observed...)
 		b := o.ClearLock(phase, id)
+		if v != "" {
+			b = o.SetObservedVersion(phase, v) || b
+		}
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
 }
 
 func (n *InternalPhaseObjectSupport[I, T, E]) Commit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo) (bool, error) {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
 
-	mod := func(_o DBObject) (bool, bool) {
-		o := utils.Cast[InternalDBObject](_o)
-		b := o.ClearLock(phase, id)
-		if b {
-			n.phases.DBCommit(lctx, o, phase, commit, &b)
-		}
-		return b, b
-	}
-	return wrapped.Modify(ob, n, mod)
+	f := CommitFunc(func(lctx model.Logging, o InternalDBObject, phase mmids.Phase, spec *model.CommitInfo) {
+		var b bool
+		n.phases.DBCommit(lctx, o, phase, commit, &b)
+	})
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.phases.GetTargetState(n.self, phase).GetObjectVersion(), f)
 }

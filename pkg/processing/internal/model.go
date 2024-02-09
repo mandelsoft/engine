@@ -33,6 +33,8 @@ type ExternalObject interface {
 	UpdateStatus(lctx Logging, ob Objectbase, elem ElementId, update StatusUpdate) error
 }
 
+type AcceptStatus int
+
 type InternalObject interface {
 	Object
 
@@ -43,13 +45,13 @@ type InternalObject interface {
 
 	GetLock(Phase) RunId
 	TryLock(Objectbase, Phase, RunId) (bool, error)
-	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId) (bool, error)
+	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId, observed ...string) (bool, error)
 	Commit(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 
 	GetStatus(Phase) Status
 	SetStatus(ob Objectbase, phase Phase, status Status) (bool, error)
 
-	SetExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) error
+	AcceptExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) (AcceptStatus, error)
 	Process(Request) ProcessingResult
 }
 
@@ -67,6 +69,7 @@ type LinkState interface {
 
 type CurrentState interface {
 	LinkState
+	GetObservedVersion() string
 	GetInputVersion() string
 	GetObjectVersion() string
 	GetOutputVersion() string

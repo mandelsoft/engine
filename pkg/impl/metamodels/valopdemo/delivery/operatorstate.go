@@ -127,6 +127,18 @@ func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState,
 	o.Gather.Target = t
 }
 
+func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+	exp := o.GetDBObject().Gather.Current.ObjectVersion
+	for _, s := range state {
+		own := s.(*ExternalOperatorState).GetVersion()
+		if own == exp {
+			return model.ACCEPT_OK, nil
+		}
+		lctx.Logger(REALM).Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
+	}
+	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
+}
+
 func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
@@ -339,6 +351,10 @@ func (c *CurrentGatherState) GetLinks() []ElementId {
 	return r
 }
 
+func (c *CurrentGatherState) GetObservedVersion() string {
+	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_GATHER)
+}
+
 func (c *CurrentGatherState) GetInputVersion() string {
 	return c.get().InputVersion
 }
@@ -367,6 +383,10 @@ func (c *CurrentCalcState) get() *db.CalculationCurrentState {
 
 func (c *CurrentCalcState) GetLinks() []ElementId {
 	return []ElementId{mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), c.n.GetName(), mymetamodel.PHASE_GATHER)}
+}
+
+func (c *CurrentCalcState) GetObservedVersion() string {
+	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_CALCULATION)
 }
 
 func (c *CurrentCalcState) GetInputVersion() string {

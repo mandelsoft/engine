@@ -34,7 +34,7 @@ func (n *NodeState) GetTargetState(phase Phase) model.TargetState {
 	return &TargetState{n}
 }
 
-func (n *NodeState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) error {
+func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
 		t := _o.(*db.NodeState).Target
 		if t == nil {
@@ -55,7 +55,7 @@ func (n *NodeState) SetExternalState(lcxt model.Logging, ob objectbase.Objectbas
 		_o.(*db.NodeState).Target = t
 		return mod, mod
 	})
-	return err
+	return 0, err
 }
 
 func (n *NodeState) Process(req model.Request) model.ProcessingREsult {
@@ -154,7 +154,7 @@ func (n *NodeState) Validate() error {
 }
 
 func (n *NodeState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.Commit(lctx, ob, phase, id, commit, support.CommitFunc(n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc(n.commitTargetState))
 }
 
 func (n *NodeState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
@@ -163,13 +163,12 @@ func (n *NodeState) commitTargetState(lctx model.Logging, _o support.InternalDBO
 	if o.Target != nil && spec != nil {
 		o.Current.Operands = o.Target.Spec.Operands
 		o.Current.InputVersion = spec.InputVersion
-		log.Info("Commit object version for NodeState {{name}}", "name", o.Name)
 		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
 		o.Current.ObjectVersion = o.Target.ObjectVersion
 		o.Current.OutputVersion = spec.State.(*OutputState).GetOutputVersion()
 		o.Current.Output.Value = spec.State.(*OutputState).GetState()
 	} else {
-		log.Info("bothing to commit for NodeState {{name}}", "name", o.Name)
+		log.Info("  nothing to commit for NodeState {{name}}", "name", o.Name)
 	}
 	o.Target = nil
 }
@@ -199,6 +198,10 @@ func (c *CurrentState) GetLinks() []ElementId {
 		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
+}
+
+func (c *CurrentState) GetObservedVersion() string {
+	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_UPDATING)
 }
 
 func (c *CurrentState) GetInputVersion() string {

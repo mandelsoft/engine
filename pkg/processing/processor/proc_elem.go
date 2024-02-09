@@ -85,7 +85,8 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 
 	log.Info("checking state of external objects for element {{element}}", "exttypes", types)
 	changed := false
-	cur := e.GetCurrentState().GetObjectVersion()
+	cur := e.GetCurrentState().GetObservedVersion()
+	// cur := e.GetCurrentState().GetObjectVersion()
 	for _, t := range types {
 		id := database.NewObjectId(t, e.GetNamespace(), e.GetName())
 		log := log.WithValues("extid", id)
@@ -149,18 +150,31 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 			for _, l := range links {
 				if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-					// TODO: Fail handling
-					return pool.StatusFailed(fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+					return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
 				}
 			}
-			missing, waiting, inputs = p.checkReady(log, ni, "current", links)
 
-			// first check current state
+			// first, check current state
+			missing, waiting, inputs = p.checkReady(log, ni, "current", links)
 			if ok := p.notifyCurrentWaitingState(lctx, log, e, missing, waiting, inputs); ok {
 				return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
 			}
-			// fix target state by transferring the current external state to the internal object
-			err := p.hardenTargetState(lctx, log, e)
+
+			// second, assign target state by transferring the current external state to the internal object
+			s, err := p.assignTargetState(lctx, log, e)
+			switch s {
+			case model.ACCEPT_OK:
+				if err != nil {
+					log.Error("cannot update external state for internal object", "error", err)
+				}
+			case model.ACCEPT_REJECTED:
+				log.Error("external state for internal object from parent rejected -> block element", "error", err)
+				return pool.StatusCompleted(p.block(lctx, log, e, err.Error()))
+
+			case model.ACCEPT_INVALID:
+				log.Error("external state for internal object invalid -> block element", "error", err)
+				return pool.StatusCompleted(p.failed(lctx, log, e, err.Error()))
+			}
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
@@ -170,21 +184,22 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
 			for _, l := range links {
 				if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-					// TODO: failure handling
-					return pool.StatusFailed(fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+					return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
 				}
 			}
 		} else {
 			links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
 		}
+
 		missing, waiting, inputs = p.checkReady(log, ni, "target", links)
 		ok, blocked, err := p.notifyTargetWaitingState(lctx, log, e, missing, waiting, inputs)
 		if err != nil {
 			return pool.StatusCompleted(fmt.Errorf("notifying blocked status failed: %w", err))
 		}
 		if blocked {
+			p.pending.Add(-1)
 			p.triggerChildren(log, ni, e, true)
-			return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", waiting))
+			return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", utils.Join(waiting)))
 		}
 		if ok {
 			return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
@@ -412,14 +427,7 @@ func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Log
 	}
 	if len(missing) > 0 {
 		log.Info("inputs according to target state not ready", keys...)
-		err := p.updateStatus(lctx, log, e, model.STATUS_BLOCKED, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), e.GetLock())
-		if err == nil {
-			_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock())
-		}
-		if err == nil {
-			err = p.setStatus(log, e, model.STATUS_BLOCKED)
-		}
-		return true, true, err
+		return true, true, p.block(lctx, log, e, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)))
 	}
 	if len(waiting) > 0 {
 		log.Info("inputs according to target state not ready", keys...)
@@ -429,7 +437,39 @@ func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Log
 	return false, false, nil
 }
 
-func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e _Element) error {
+func (p *Processor) block(lctx model.Logging, log logging.Logger, e _Element, msg string) error {
+	err := p.updateStatus(lctx, log, e, model.STATUS_BLOCKED, msg, e.GetLock())
+	if err == nil {
+		_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock(), true)
+	}
+	if err == nil {
+		err = p.setStatus(log, e, model.STATUS_BLOCKED)
+	}
+	return err
+}
+
+func (p *Processor) fail(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, fail error) pool.Status {
+	err := p.failed(lctx, log, e, fail.Error())
+	if err != nil {
+		return pool.StatusCompleted(err)
+	}
+	p.pending.Add(-1)
+	p.triggerChildren(log, ni, e, true)
+	return pool.StatusFailed(fail)
+
+}
+func (p *Processor) failed(lctx model.Logging, log logging.Logger, e _Element, msg string) error {
+	err := p.updateStatus(lctx, log, e, model.STATUS_FAILED, msg, e.GetLock())
+	if err == nil {
+		_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock(), true)
+	}
+	if err == nil {
+		err = p.setStatus(log, e, model.STATUS_FAILED)
+	}
+	return err
+}
+
+func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e _Element) (model.AcceptStatus, error) {
 	// determine potential external objects
 	if e.GetObject().GetTargetState(e.GetPhase()) == nil {
 		log.Info("target state for internal object of {{element}} already set for actual phase -> update state")
@@ -439,9 +479,9 @@ func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e 
 
 	mod := func(log logging.Logger, o model.ExternalObject) error {
 		state := e.GetExternalState(o)
+		v := state.GetVersion()
 		log.Trace("  found effective external state from {{extid}} for phase {{phase}}: {{state}}",
 			"phase", e.GetPhase(), "state", DescribeObject(state))
-		v := state.GetVersion()
 		err := o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
 			RunId:           utils.Pointer(e.GetLock()),
 			DetectedVersion: &v,
@@ -462,22 +502,21 @@ func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e 
 	log.Info("gathering state for external object types")
 	err := p.forExtObjects(log, e, mod)
 	if err != nil {
-		return err
+		return model.ACCEPT_OK, err
 	}
 
-	log.Info("hardening external state for {{element}}")
+	log.Info("assigning external state for processing {{element}}")
 	if len(extstate) == 0 {
 		log.Info("no external object states found for {{element}}  -> propagate empty state")
 	}
-	err = e.GetObject().SetExternalState(lctx, p.processingModel.ObjectBase(), e.GetPhase(), extstate)
-	if err != nil {
-		log.Error("cannot update external state for internal object from {{extid}}", "error", err)
-		return err
+	s, err := e.GetObject().AcceptExternalState(lctx, p.processingModel.ObjectBase(), e.GetPhase(), extstate)
+	if s != model.ACCEPT_OK || err != nil {
+		return s, err
 	}
-	for t, s := range extstate {
-		log.Info("- internal object hardened state for phase {{phase}} from type {{type}} to {{version}}", "phase", e.GetPhase(), "type", t, "version", s.GetVersion())
+	for t, st := range extstate {
+		log.Info("- assigned state for phase {{phase}} from type {{type}} to {{version}}", "phase", e.GetPhase(), "type", t, "version", st.GetVersion())
 	}
-	return nil
+	return s, nil
 }
 
 func (p *Processor) lockGraph(lctx model.Logging, log logging.Logger, elem _Element) (*RunId, error) {
