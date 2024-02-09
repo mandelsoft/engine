@@ -2,10 +2,11 @@ package processor
 
 import (
 	"github.com/mandelsoft/engine/pkg/pool"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/logging"
 )
 
-func (p *Processor) processNamespace(log logging.Logger, name string) pool.Status {
+func (p *Processor) processNamespace(lctx model.Logging, log logging.Logger, name string) pool.Status {
 	var err error
 	ni := p.getNamespace(name)
 	if ni != nil {
@@ -14,7 +15,7 @@ func (p *Processor) processNamespace(log logging.Logger, name string) pool.Statu
 
 		if ni.pendingOperation != nil {
 			log := log.WithName(name).WithValues("namespace", name, "runid", ni.namespace.GetLock())
-			err = ni.pendingOperation(log)
+			err = ni.pendingOperation(lctx, log)
 			if err == nil {
 				ni.pendingOperation = nil
 			}

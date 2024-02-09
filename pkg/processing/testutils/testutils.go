@@ -128,6 +128,10 @@ func (t *TestEnv) Wait(w Waitable) bool {
 	return w.Wait(t.ctx)
 }
 
+func Modify[O support.DBObject, R any](env *TestEnv, o *O, mod func(o O) (R, bool)) (R, error) {
+	return database.Modify(env.db, o, mod)
+}
+
 func (t *TestEnv) Cleanup() {
 	ctxutil.Cancel(t.ctx)
 	if t.wg != nil {

@@ -29,7 +29,7 @@ func (a *action) Command(p pool.Pool, ctx pool.MessageContext, command pool.Comm
 	ctx = ctx.WithContext(REALM)
 	cmd, ns, id := DecodeCommand(command)
 	if cmd == CMD_NS {
-		a.proc.processNamespace(a.proc.logging.Logger(ctx), ns)
+		a.proc.processNamespace(ctx, a.proc.logging.Logger(ctx), ns)
 	}
 	if id != nil {
 		return a.proc.processElement(a.proc.logging.AttributionContext().WithContext(ctx), cmd, *id)

@@ -153,10 +153,10 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 					return pool.StatusFailed(fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
 				}
 			}
-			missing, waiting, inputs = p.checkReady(log, ni, links)
+			missing, waiting, inputs = p.checkReady(log, ni, "current", links)
 
 			// first check current state
-			if p.notifyCurrentWaitingState(lctx, log, e, missing, waiting, inputs) {
+			if ok := p.notifyCurrentWaitingState(lctx, log, e, missing, waiting, inputs); ok {
 				return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
 			}
 			// fix target state by transferring the current external state to the internal object
@@ -177,9 +177,17 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		} else {
 			links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
 		}
-		missing, waiting, inputs = p.checkReady(log, ni, links)
-		if p.notifyTargetWaitingState(lctx, log, e, missing, waiting, inputs) {
-			return pool.StatusCompleted(fmt.Errorf("still waiting for effective predecessors"))
+		missing, waiting, inputs = p.checkReady(log, ni, "target", links)
+		ok, blocked, err := p.notifyTargetWaitingState(lctx, log, e, missing, waiting, inputs)
+		if err != nil {
+			return pool.StatusCompleted(fmt.Errorf("notifying blocked status failed: %w", err))
+		}
+		if blocked {
+			p.triggerChildren(log, ni, e, true)
+			return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", waiting))
+		}
+		if ok {
+			return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
 		}
 
 		if e.GetTargetState() == nil {
@@ -190,8 +198,11 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 		// check effective version for required phase processing.
 		target := e.GetObject().GetTargetState(e.GetPhase())
-		if target.GetInputVersion(inputs) == e.GetCurrentState().GetInputVersion() &&
-			target.GetObjectVersion() == e.GetCurrentState().GetObjectVersion() {
+
+		// shit if object state is shared with rollbacked predecessor!!!!!!
+		indiff := diff(log, "input version", e.GetCurrentState().GetInputVersion(), target.GetInputVersion(inputs))
+		obdiff := diff(log, "object version", e.GetCurrentState().GetObjectVersion(), target.GetObjectVersion())
+		if !indiff && !obdiff {
 			log.Info("effective version unchanged -> skip processing of phase")
 			err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil)
 			if err == nil {
@@ -212,7 +223,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		}
 
 		log.Info("update processing status external objects")
-		err := p.forExtObjects(log, e, upstate)
+		err = p.forExtObjects(log, e, upstate)
 		if err != nil {
 			return pool.StatusCompleted(err)
 		}
@@ -282,6 +293,16 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		log.Info("element with status {{status}} is not processable")
 	}
 	return pool.StatusCompleted()
+}
+
+func diff(log logging.Logger, kind string, old, new string) bool {
+	diff := old != new
+	if diff {
+		log.Info(fmt.Sprintf("%s changed from {{old}} -> {{new}}", kind), "new", new, "old", old)
+	} else {
+		log.Info(fmt.Sprintf("%s unchanged", kind))
+	}
+	return diff
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -360,7 +381,7 @@ func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger,
 func (p *Processor) notifyCurrentWaitingState(lctx model.Logging, log logging.Logger, e _Element, missing, waiting []ElementId, inputs model.Inputs) bool {
 	var keys []interface{}
 	if len(missing) > 0 {
-		keys = append(keys, "missing", utils.Join(missing))
+		keys = append(keys, "ignored missing", utils.Join(missing))
 	}
 	if len(inputs) > 0 {
 		keys = append(keys, "found", utils.Join(utils.MapKeys(inputs)))
@@ -368,11 +389,6 @@ func (p *Processor) notifyCurrentWaitingState(lctx model.Logging, log logging.Lo
 	if len(waiting) > 0 {
 		keys = append(keys, "waiting", utils.Join(waiting))
 		log.Info("inputs according to current state not ready", keys...)
-		if len(missing) > 0 {
-			p.updateStatus(lctx, log, e, model.STATUS_BLOCKED, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), nil, e.GetLock())
-		} else {
-			p.updateStatus(lctx, log, e, model.STATUS_PENDING, fmt.Sprintf("waiting for %s", utils.Join(waiting)), e.GetLock())
-		}
 		return true
 	}
 	if len(missing) > 0 {
@@ -383,28 +399,34 @@ func (p *Processor) notifyCurrentWaitingState(lctx model.Logging, log logging.Lo
 	return false
 }
 
-func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Logger, e _Element, missing, waiting []ElementId, inputs model.Inputs) bool {
+func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Logger, e _Element, missing, waiting []ElementId, inputs model.Inputs) (bool, bool, error) {
 	var keys []interface{}
 	if len(inputs) > 0 {
 		keys = append(keys, "found", utils.Join(utils.MapKeys(inputs)))
 	}
-	if len(waiting) > 0 || len(missing) > 0 {
-		if len(missing) > 0 {
-			keys = append(keys, "missing", utils.Join(missing))
-		}
-		if len(waiting) > 0 {
-			keys = append(keys, "waiting", utils.Join(waiting))
-		}
+	if len(missing) > 0 {
+		keys = append(keys, "missing", utils.Join(missing))
+	}
+	if len(waiting) > 0 {
+		keys = append(keys, "waiting", utils.Join(waiting))
+	}
+	if len(missing) > 0 {
 		log.Info("inputs according to target state not ready", keys...)
-		if len(missing) > 0 {
-			p.updateStatus(lctx, log, e, model.STATUS_WAITING, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), e.GetLock())
-		} else {
-			p.updateStatus(lctx, log, e, model.STATUS_PENDING, fmt.Sprintf("waiting for %s", utils.Join(waiting)), e.GetLock())
+		err := p.updateStatus(lctx, log, e, model.STATUS_BLOCKED, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)), e.GetLock())
+		if err == nil {
+			_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock())
 		}
-		return true
+		if err == nil {
+			err = p.setStatus(log, e, model.STATUS_BLOCKED)
+		}
+		return true, true, err
+	}
+	if len(waiting) > 0 {
+		log.Info("inputs according to target state not ready", keys...)
+		return true, false, nil
 	}
 	log.Info("inputs according to target state ready", keys...)
-	return false
+	return false, false, nil
 }
 
 func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e _Element) error {
@@ -460,38 +482,40 @@ func (p *Processor) hardenTargetState(lctx model.Logging, log logging.Logger, e 
 
 func (p *Processor) lockGraph(lctx model.Logging, log logging.Logger, elem _Element) (*RunId, error) {
 	id := NewRunId()
-	ns := p.getNamespace(elem.GetNamespace())
+	ni := p.getNamespace(elem.GetNamespace())
 
-	if !ns.lock.TryLock() {
+	if !ni.lock.TryLock() {
 		return nil, nil
 	}
-	defer ns.lock.Unlock()
+	defer ni.lock.Unlock()
 
 	log = log.WithValues("runid", id)
-	ok, err := ns.namespace.TryLock(p.processingModel.ObjectBase(), id)
+	ok, err := ni.tryLock(p, id)
 	if err != nil {
 		log.Info("locking namespace {{namespace}} for new runid {{runid}} failed", "error", err)
 		return nil, err
 	}
 	if !ok {
-		log.Info("cannot lock namespace {{namespace}} for already locked for {{current}}", "current", ns.namespace.GetLock())
+		log.Info("cannot lock namespace {{namespace}} already locked for {{current}}", "current", ni.namespace.GetLock())
 		return nil, nil
 	}
 	log.Info("namespace {{namespace}} locked for new runid {{runid}}")
 	defer func() {
-		err := ns.clearLocks(lctx, log, p)
+		err := ni.clearLocks(lctx, log, p)
 		if err != nil {
 			log.Error("cannot clear namespace lock for {{namespace}} -> requeue", "error", err)
-			p.EnqueueNamespace(ns.GetNamespaceName())
+			p.EnqueueNamespace(ni.GetNamespaceName())
+		} else {
+
 		}
 	}()
 
 	elems := map[ElementId]_Element{}
-	ok, err = p._tryLockGraph(log, ns, elem, elems)
+	ok, err = p._tryLockGraph(log, ni, elem, elems)
 	if !ok || err != nil {
 		return nil, err
 	}
-	ok, err = p._lockGraph(log, ns, elems, id)
+	ok, err = p._lockGraph(log, ni, elems, id)
 	if !ok || err != nil {
 		return nil, err
 	}
@@ -502,6 +526,7 @@ func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, elem _E
 	if elems[elem.Id()] == nil {
 		cur := elem.GetLock()
 		if cur != "" {
+			log.Info("element {{candidate}} already locked for {{lock}}", "candidate", elem.Id(), "lock", cur)
 			return false, nil
 		}
 		elems[elem.Id()] = elem
@@ -531,6 +556,7 @@ func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems map[
 			return false, err
 		}
 		ns.pendingElements[elem.Id()] = elem
+		p.events.TriggerElementHandled(elem.Id())
 		p.pending.Add(1)
 
 	}
@@ -540,31 +566,36 @@ func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems map[
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (p *Processor) checkReady(log logging.Logger, ni *namespaceInfo, links []ElementId) ([]ElementId, []ElementId, model.Inputs) {
+func (p *Processor) checkReady(log logging.Logger, ni *namespaceInfo, kind string, links []ElementId) ([]ElementId, []ElementId, model.Inputs) {
 	var missing []ElementId
 	var waiting []ElementId
 	inputs := model.Inputs{}
 
+	log.Debug(fmt.Sprintf("evaluating %s links {{links}}", kind), "links", links)
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
 
 	for _, l := range links {
 		t := ni.elements[l]
 		if t == nil {
+			log.Debug(" - {{link}} not found", "link", l)
 			missing = append(missing, l)
-		} else {
-			if t.GetLock() == "" && t.GetCurrentState().GetOutputVersion() != "" {
-				inputs[l] = t.GetCurrentState().GetOutput()
-			} else {
-				if t.GetLock() != "" {
-					log.Debug(" - {{link}} still locked", "link", l)
-				}
-				if t.GetCurrentState().GetOutputVersion() == "" {
-					log.Debug("-  {{link}} has no output version", "link", l)
-				}
-				waiting = append(waiting, l)
-			}
+			continue
 		}
+		if t.GetLock() == "" && t.GetCurrentState().GetOutputVersion() != "" {
+			inputs[l] = t.GetCurrentState().GetOutput()
+			log.Debug(" - {{link}} is unlocked and has output state", "link", l)
+			continue
+		}
+		if t.GetLock() != "" {
+			log.Debug(" - {{link}} still locked", "link", l)
+		}
+		if t.GetCurrentState().GetOutputVersion() == "" {
+			log.Debug("-  {{link}} has no output version", "link", l)
+			missing = append(missing, l)
+			continue
+		}
+		waiting = append(waiting, l)
 	}
 	return missing, waiting, inputs
 }

@@ -112,7 +112,9 @@ func (w *worker) processNextWorkItem() bool {
 				}
 				if status.Error != nil {
 					err = status.Error
-					w.Error("command failed", "command", cmd, "error", err)
+					if !ok {
+						w.Error("command {{command}} failed", "command", cmd, "error", err)
+					}
 				}
 				updateSchedule(&reschedule, status.Interval)
 			}
@@ -145,6 +147,7 @@ func (w *worker) processNextWorkItem() bool {
 		}
 
 	}
+
 	if err != nil {
 		if ok && reschedule < 0 {
 			w.Warn("add rate limited because of problem", "key", obj, "problem", err)

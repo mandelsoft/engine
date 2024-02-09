@@ -20,7 +20,7 @@ type namespaceInfo struct {
 	elements  map[ElementId]_Element
 	internal  map[mmids.ObjectId]model.InternalObject
 
-	pendingOperation func(log logging.Logger) error
+	pendingOperation func(lctx model.Logging, log logging.Logger) error
 	pendingElements  map[ElementId]_Element
 }
 
@@ -75,6 +75,14 @@ func (ni *namespaceInfo) _AddElement(i model.InternalObject, phase Phase) _Eleme
 	return e
 }
 
+func (ni *namespaceInfo) tryLock(p *Processor, runid RunId) (bool, error) {
+	ok, err := ni.namespace.TryLock(p.processingModel.ObjectBase(), runid)
+	if ok {
+		p.events.TriggerElementHandled(NewElementIdForPhase(ni.namespace, ""))
+	}
+	return ok, err
+}
+
 func (ni *namespaceInfo) clearElementLock(lctx model.Logging, log logging.Logger, p *Processor, elem _Element, rid RunId) error {
 	// first: reset run id in in external objects
 	err := p.updateRunId(lctx, log, "reset", elem, "")
@@ -88,6 +96,7 @@ func (ni *namespaceInfo) clearElementLock(lctx model.Logging, log logging.Logger
 		return err
 	}
 	if ok {
+		p.events.TriggerElementHandled(elem.Id())
 		p.pending.Add(-1)
 	}
 	return nil
@@ -115,9 +124,17 @@ func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *P
 				log.Info("releasing namespace lock {{runid}} succeeded")
 			}
 			ni.pendingElements = nil
+		} else {
+			ni.pendingOperation = func(lctx model.Logging, log logging.Logger) error {
+				return ni.clearLocks(lctx, log, p)
+			}
 		}
 	}
 	_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), ni.namespace.GetLock())
+	if err == nil {
+		p.events.TriggerElementHandled(NewElementIdForPhase(ni.namespace, ""))
+		log.Info("namespace {{namespace}} unlocked")
+	}
 	return err
 }
 

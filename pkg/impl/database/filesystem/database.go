@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type _HandlerRegistry = database.HandlerRegistrationTest
+type _HandlerRegistry database.HandlerRegistrationTest
 
 type Database[O database.Object] struct {
 	lock sync.Mutex

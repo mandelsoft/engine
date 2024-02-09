@@ -7,6 +7,7 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -128,6 +129,41 @@ var _ = Describe("Processing", func() {
 			Expect(*result).To(Equal(12))
 		})
 	})
+
+	Context("blocked", func() {
+		FIt("blocks node", func() {
+			env.Start()
+
+			n5 := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(n5))
+			n6 := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(n6))
+			opC := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
+			opCcompleted := env.FutureFor(model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
+			MustBeSuccessfull(env.SetObject(opC))
+
+			nd := db.NewResultNode(NS, "D", "C")
+			vdCompleted := NewValueStateMon(env, "D", model.STATUS_COMPLETED, true)
+			MustBeSuccessfull(env.SetObject(nd))
+
+			Expect(env.Wait(opCcompleted)).To(BeTrue())
+			Expect(env.Wait(vdCompleted)).To(BeTrue())
+
+			od := Must(env.GetObject(nd)).(*db.Value)
+
+			Expect(od.Status.Result).NotTo(BeNil())
+			Expect(*od.Status.Result).To(Equal(11))
+
+			opCblocked := env.FutureFor(model.STATUS_BLOCKED, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.PHASE_GATHER))
+
+			fmt.Printf("*** MODIFY Operator C ***\n")
+			Modify(env, &opC, func(o *db.Operator) (any, bool) {
+				o.Spec.Operands = []string{"A", "X"}
+				return nil, true
+			})
+			Expect(env.Wait(opCblocked)).To(BeTrue())
+		})
+	})
 })
 
 type ValueMon struct {
@@ -144,6 +180,17 @@ func NewValueMon(env *TestEnv, name string, retrigger ...bool) *ValueMon {
 		oid:       oid,
 		sid:       sid,
 		completed: env.CompletedFuture(sid, retrigger...),
+	}
+}
+
+func NewValueStateMon(env *TestEnv, name string, state model.Status, retrigger ...bool) *ValueMon {
+	oid := mmids.NewObjectId(mymetamodel.TYPE_VALUE, NS, name)
+	sid := mmids.NewElementIdForPhase(mmids.NewObjectId(mymetamodel.TYPE_VALUE_STATE, NS, name), mymetamodel.FINAL_VALUE_PHASE)
+
+	return &ValueMon{
+		oid:       oid,
+		sid:       sid,
+		completed: env.FutureFor(state, sid, retrigger...),
 	}
 }
 
