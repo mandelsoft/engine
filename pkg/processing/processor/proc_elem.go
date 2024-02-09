@@ -169,11 +169,11 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				}
 			case model.ACCEPT_REJECTED:
 				log.Error("external state for internal object from parent rejected -> block element", "error", err)
-				return pool.StatusCompleted(p.block(lctx, log, e, err.Error()))
+				return p.block(lctx, log, ni, e, err.Error())
 
 			case model.ACCEPT_INVALID:
 				log.Error("external state for internal object invalid -> block element", "error", err)
-				return pool.StatusCompleted(p.failed(lctx, log, e, err.Error()))
+				return p.fail(lctx, log, nil, e, err)
 			}
 			if err != nil {
 				return pool.StatusCompleted(err)
@@ -427,7 +427,7 @@ func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Log
 	}
 	if len(missing) > 0 {
 		log.Info("inputs according to target state not ready", keys...)
-		return true, true, p.block(lctx, log, e, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)))
+		return true, true, p.blocked(lctx, log, e, fmt.Sprintf("unresolved dependencies %s", utils.Join(missing)))
 	}
 	if len(waiting) > 0 {
 		log.Info("inputs according to target state not ready", keys...)
@@ -437,7 +437,17 @@ func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Log
 	return false, false, nil
 }
 
-func (p *Processor) block(lctx model.Logging, log logging.Logger, e _Element, msg string) error {
+func (p *Processor) block(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, msg string) pool.Status {
+	err := p.blocked(lctx, log, e, msg)
+	if err != nil {
+		return pool.StatusCompleted(err)
+	}
+	p.pending.Add(-1)
+	p.triggerChildren(log, ni, e, true)
+	return pool.StatusCompleted()
+}
+
+func (p *Processor) blocked(lctx model.Logging, log logging.Logger, e _Element, msg string) error {
 	err := p.updateStatus(lctx, log, e, model.STATUS_BLOCKED, msg, e.GetLock())
 	if err == nil {
 		_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock(), true)
@@ -458,6 +468,7 @@ func (p *Processor) fail(lctx model.Logging, log logging.Logger, ni *namespaceIn
 	return pool.StatusFailed(fail)
 
 }
+
 func (p *Processor) failed(lctx model.Logging, log logging.Logger, e _Element, msg string) error {
 	err := p.updateStatus(lctx, log, e, model.STATUS_FAILED, msg, e.GetLock())
 	if err == nil {

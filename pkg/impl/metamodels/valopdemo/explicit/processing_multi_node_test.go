@@ -131,14 +131,19 @@ var _ = Describe("Processing", func() {
 	})
 
 	Context("blocked", func() {
-		It("blocks node", func() {
+		var opC *db.Operator
+
+		BeforeEach(func() {
 			env.Start()
 
+			// A     B
+			//    C
+			//    D
 			n5 := db.NewValueNode(NS, "A", 5)
 			MustBeSuccessfull(env.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
 			MustBeSuccessfull(env.SetObject(n6))
-			opC := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
+			opC = db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			opCcompleted := env.FutureFor(model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
 			MustBeSuccessfull(env.SetObject(opC))
 
@@ -150,9 +155,40 @@ var _ = Describe("Processing", func() {
 			Expect(env.Wait(vdCompleted)).To(BeTrue())
 
 			od := Must(env.GetObject(nd)).(*db.Value)
-
 			Expect(od.Status.Result).NotTo(BeNil())
 			Expect(*od.Status.Result).To(Equal(11))
+		})
+
+		It("blocks node", func() {
+			opCblocked := env.FutureFor(model.STATUS_BLOCKED, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.PHASE_GATHER))
+
+			fmt.Printf("*** MODIFY Operator C ***\n")
+			Modify(env, &opC, func(o *db.Operator) (any, bool) {
+				o.Spec.Operands = []string{"A", "X"}
+				return nil, true
+			})
+			Expect(env.Wait(opCblocked)).To(BeTrue())
+		})
+
+		It("continues to process unblocked side branch", func() {
+			// ...
+			// D   E
+			//   F
+			//   G
+			vE := db.NewValueNode(NS, "E", 7)
+			opF := db.NewOperatorNode(NS, "F", db.OP_ADD, "D", "E")
+			vG := db.NewResultNode(NS, "G", "F")
+
+			vGCompleted := NewValueStateMon(env, "G", model.STATUS_COMPLETED, true)
+
+			MustBeSuccessfull(env.SetObject(opF))
+			MustBeSuccessfull(env.SetObject(vE))
+			MustBeSuccessfull(env.SetObject(vG))
+
+			Expect(env.Wait(vGCompleted)).To(BeTrue())
+			o := Must(env.GetObject(vG)).(*db.Value)
+			Expect(o.Status.Result).NotTo(BeNil())
+			Expect(*o.Status.Result).To(Equal(18))
 
 			opCblocked := env.FutureFor(model.STATUS_BLOCKED, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.PHASE_GATHER))
 
@@ -162,6 +198,17 @@ var _ = Describe("Processing", func() {
 				return nil, true
 			})
 			Expect(env.Wait(opCblocked)).To(BeTrue())
+
+			fmt.Printf("*** MODIFY Value E ***\n")
+			Modify(env, &vE, func(o *db.Value) (any, bool) {
+				o.Spec.Value = 4
+				return nil, true
+			})
+
+			Expect(env.Wait(vGCompleted)).To(BeTrue())
+			o = Must(env.GetObject(vG)).(*db.Value)
+			Expect(o.Status.Result).NotTo(BeNil())
+			Expect(*o.Status.Result).To(Equal(15))
 		})
 	})
 })
