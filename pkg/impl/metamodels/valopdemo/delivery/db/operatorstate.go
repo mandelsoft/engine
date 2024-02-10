@@ -5,37 +5,33 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
+
+var OperatorPhaseStateAccess = support.NewPhaseStateAccess[*OperatorState]()
 
 func init() {
 	database.MustRegisterType[OperatorState, support.DBObject](Scheme) // Goland requires second type parameter
+
+	// register acc to phase info parts in OperatorState
+	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *OperatorState) support.PhaseState { return &o.Gather })
+	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_CALCULATION, func(o *OperatorState) support.PhaseState { return &o.Calculation })
 }
 
 type OperatorState struct {
-	support.DefaultInternalDBObjectSupport `json:",inline"`
+	support.InternalDBObjectSupport `json:",inline"`
 
-	// shared state for all phases.
-	// This stores the node state commonly fixed for all phases when the first phase is started.
-
-	Current ObjectCurrentState `json:"current"`
-	Target  *ObjectTargetState `json:"target,omitempty"`
-
-	// phase specif states
-
-	Gather struct {
-		Current GatherCurrentState `json:"current"`
-		Target  *GatherTargetState `json:"target,omitempty"`
-	} `json:"gather"`
-	Calculation struct {
-		Current CalculationCurrentState `json:"current"`
-		Target  *CalculationTargetState `json:"target,omitempty"`
-	} `json:"calculation"`
+	Gather      GatherState      `json: "gather"`
+	Calculation CalculationState `json: "calculation"`
 }
 
 var _ support.InternalDBObject = (*OperatorState)(nil)
 
-type ObjectCurrentState struct {
-	Operands []string `json:"operands"`
+////////////////////////////////////////////////////////////////////////////////
+
+type GatherState struct {
+	support.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
 }
 
 type ObjectTargetState struct {
@@ -44,32 +40,37 @@ type ObjectTargetState struct {
 }
 
 type GatherCurrentState struct {
-	InputVersion  string       `json:"inputVersion"`
-	ObjectVersion string       `json:"objectVersion"`
-	OutputVersion string       `json:"outputVersion"`
-	Output        GatherOutput `json:"output"`
+	support.StandardCurrentState
+	Operands []string     `json:"operands,omitempty"`
+	Output   GatherOutput `json:"output"`
 }
 
-type CalculationCurrentState struct {
-	InputVersion  string            `json:"inputVersion"`
-	ObjectVersion string            `json:"objectVersion"`
-	OutputVersion string            `json:"outputVersion"`
-	Output        CalculationOutput `json:"output"`
+type GatherTargetState struct {
+	support.StandardTargetState
+	Spec OperatorSpec `json:"spec"`
 }
 
 type GatherOutput struct {
 	Values []Operand `json:"operands"`
 }
 
-type GatherTargetState struct {
-	ObjectVersion string `json:"version"`
-}
-
-type CalculationTargetState struct {
-	ObjectVersion string `json:"version"`
-}
-
 type Operand struct {
 	Origin ObjectId `json:"origin,omitempty"`
 	Value  int      `json:"value"`
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type CalculationState struct {
+	support.DefaultPhaseState[CalculationCurrentState, CalculationTargetState, *CalculationCurrentState, *CalculationTargetState]
+}
+
+type CalculationCurrentState struct {
+	support.StandardCurrentState
+	Output CalculationOutput `json:"output"`
+}
+
+type CalculationTargetState struct {
+	support.StandardCurrentState
+	Operations []Operation `json:"operations,omitempty"`
 }

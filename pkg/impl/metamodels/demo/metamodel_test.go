@@ -57,6 +57,8 @@ Element types:
   - NodeState:Updating
   triggered by:
   - Node
+  external states:
+  - Node
 `))
 	})
 })

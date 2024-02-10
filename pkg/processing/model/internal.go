@@ -12,6 +12,7 @@ type NamespaceObject = internal.NamespaceObject
 
 type CommitInfo = internal.CommitInfo
 type Request = internal.Request
+type LinkState = internal.LinkState
 type CurrentState = internal.CurrentState
 type TargetState = internal.TargetState
 type AcceptStatus = internal.AcceptStatus

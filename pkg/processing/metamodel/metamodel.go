@@ -43,7 +43,7 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 		}
 
 		for _, p := range i.Phases {
-			e := newElementType(i.Name, p.Name)
+			e := newElementType(i.Name, p.Name, p.ExternalStates)
 			m.elements[e.id] = e
 			def.phases[p.Name] = e
 		}
@@ -85,10 +85,24 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 				}
 			}
 		}
+
 		sort.Strings(i.extTypes)
 		if len(i.extTypes) == 0 {
 			return nil, fmt.Errorf("no trigger for any phase of internal type %q",
 				i.intType.Name())
+		}
+
+		for _, p := range i.phases {
+			for _, t := range p.AssignedExternalStates() {
+				if m.external[t] == nil {
+					return nil, fmt.Errorf("external type %q for state assigned to phase %q of internal type %q not defined",
+						t, p.id.GetPhase(), p.id.GetType())
+				}
+				if !slices.Contains(i.extTypes, t) {
+					return nil, fmt.Errorf("no phase of internal type %q triggered by external type %q for state assigned to phase %q",
+						i.intType.Name(), t, p.id.GetPhase())
+				}
+			}
 		}
 	}
 	return m, nil
@@ -217,6 +231,14 @@ func (m *metaModel) GetTriggeringTypesForElementType(id TypeId) []string {
 	return e.TriggeredBy()
 }
 
+func (m *metaModel) GetAssignedExternalTypes(id TypeId) []string {
+	e := m.elements[id]
+	if e == nil {
+		return nil
+	}
+	return e.AssignedExternalStates()
+}
+
 func (m *metaModel) GetTriggeringTypesForInternalType(name string) []string {
 	e := m.internal[name]
 	if e == nil {
@@ -257,6 +279,10 @@ func (m *metaModel) Dump(w io.Writer) {
 		}
 		fmt.Fprintf(w, "  triggered by:\n")
 		for _, d := range i.TriggeredBy() {
+			fmt.Fprintf(w, "  - %s\n", d)
+		}
+		fmt.Fprintf(w, "  external states:\n")
+		for _, d := range i.AssignedExternalStates() {
 			fmt.Fprintf(w, "  - %s\n", d)
 		}
 	}

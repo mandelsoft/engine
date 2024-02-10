@@ -3,27 +3,32 @@ package db
 import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
+
+var NodePhaseStateAccess = support.NewPhaseStateAccess[*NodeState]()
 
 func init() {
 	database.MustRegisterType[NodeState, support.DBObject](Scheme) // Goland requires second type parameter
+
+	NodePhaseStateAccess.Register(mymetamodel.PHASE_UPDATING, func(o *NodeState) support.PhaseState { return &o.State })
 }
 
 type NodeState struct {
-	support.DefaultInternalDBObjectSupport `json:",inline"`
+	support.InternalDBObjectSupport `json:",inline"`
 
-	Current CurrentState `json:"current"`
-	Target  *TargetState `json:"target,omitempty"`
+	State State `json:"state"`
 }
 
 var _ support.InternalDBObject = (*NodeState)(nil)
 
+type State = support.DefaultPhaseState[CurrentState, TargetState, *CurrentState, *TargetState]
+
 type CurrentState struct {
-	Operands      []string `json:"operands"`
-	InputVersion  string   `json:"inputVersion"`
-	ObjectVersion string   `json:"objectVersion"`
-	OutputVersion string   `json:"outputVersion"`
-	Output        Output   `json:"output"`
+	support.StandardCurrentState
+	Operands []string `json:"operands"`
+	Output   Output   `json:"output"`
 }
 
 type Output struct {
@@ -31,6 +36,6 @@ type Output struct {
 }
 
 type TargetState struct {
-	ObjectVersion string   `json:"version"`
-	Spec          NodeSpec `json:"spec"`
+	support.StandardTargetState
+	Spec NodeSpec `json:"spec"`
 }

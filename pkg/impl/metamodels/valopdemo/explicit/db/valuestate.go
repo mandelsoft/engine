@@ -5,27 +5,35 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
+
+var ValuePhaseStateAccess = support.NewPhaseStateAccess[*ValueState]()
 
 func init() {
 	database.MustRegisterType[ValueState, support.DBObject](Scheme) // Goland requires second type parameter
+
+	// register access to phase info parts in ValueState
+	ValuePhaseStateAccess.Register(mymetamodel.PHASE_PROPAGATE, func(o *ValueState) support.PhaseState { return &o.PropagateState })
 }
 
 type ValueState struct {
-	support.DefaultInternalDBObjectSupport `json:",inline"`
+	support.InternalDBObjectSupport `json:",inline"`
 
-	Current ValueCurrentState `json:"current"`
-	Target  *ValueTargetState `json:"target,omitempty"`
+	PropagateState `json:",inline"`
 }
 
 var _ support.InternalDBObject = (*ValueState)(nil)
 
+type PropagateState struct {
+	support.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]
+}
+
 type ValueCurrentState struct {
-	Owner         string      `json:"owner,omitempty"`
-	InputVersion  string      `json:"inputVersion"`
-	ObjectVersion string      `json:"objectVersion"`
-	OutputVersion string      `json:"outputVersion"`
-	Output        ValueOutput `json:"output"`
+	support.StandardCurrentState
+	Owner  string      `json:"owner,omitempty"`
+	Output ValueOutput `json:"output"`
 }
 
 type ValueOutput struct {
@@ -34,6 +42,6 @@ type ValueOutput struct {
 }
 
 type ValueTargetState struct {
-	ObjectVersion string    `json:"version"`
-	Spec          ValueSpec `json:"spec"`
+	support.StandardTargetState
+	Spec ValueSpec `json:"spec"`
 }

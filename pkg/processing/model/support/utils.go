@@ -69,7 +69,7 @@ func AssureElement[I InternalDBObject, R any](log logging.Logger, ob objectbase.
 		r, err := wrapped.Modify(ob, i.(wrapper.Object[DBObject]), func(_o DBObject) (R, bool) {
 			o := _o.(I)
 			for _, ph := range tolock {
-				o.TryLock(ph, req.Element.GetLock())
+				i.(InternalObject).GetPhaseInfoFor(o, ph).TryLock(req.Element.GetLock())
 			}
 			r, _ := mod(o)
 			return r, true

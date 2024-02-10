@@ -2,7 +2,6 @@ package delivery
 
 import (
 	"errors"
-	"reflect"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
@@ -24,21 +23,21 @@ func init() {
 }
 
 type ValueState struct {
-	support.InternalObjectSupport
-}
-
-type ValueStateCurrent struct {
-	Value int `json:"value"`
+	support.InternalObjectSupport[*db.ValueState] `json:",inline"`
 }
 
 var _ model.InternalObject = (*ValueState)(nil)
 
+func (n *ValueState) Initialize() error {
+	return support.SetPhaseStateAccess(n, db.ValuePhaseStateAccess)
+}
+
 func (n *ValueState) GetCurrentState(phase Phase) model.CurrentState {
-	return &CurrentValueState{n}
+	return NewCurrentValueState(n)
 }
 
 func (n *ValueState) GetTargetState(phase Phase) model.TargetState {
-	return &TargetValueState{n}
+	return NewTargetValueState(n)
 }
 
 func (n *ValueState) GetExternalState(o model.ExternalObject, phase mmids.Phase) model.ExternalState {
@@ -46,12 +45,13 @@ func (n *ValueState) GetExternalState(o model.ExternalObject, phase mmids.Phase)
 	return n.EffectiveTargetSpec(o.GetState())
 }
 
+func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
+	return o.CreateTarget().(*db.ValueTargetState)
+}
+
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
-		t := _o.(*db.ValueState).Target
-		if t == nil {
-			t = &db.ValueTargetState{}
-		}
+		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
 		if len(state) == 0 {
@@ -60,16 +60,9 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		}
 		for _, _s := range state { // we have just one external object here, but just for demonstration
 			s := _s.(*EffectiveValueState).GetState()
-
-			m := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != _s.GetVersion()
-			if m {
-				t.Spec = *s
-				t.ObjectVersion = _s.GetVersion()
-			}
-			mod = mod || m
+			support.UpdateField(&t.Spec, s, &mod)
+			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
 		}
-
-		_o.(*db.ValueState).Target = t
 		return mod, mod
 	})
 	return 0, err
@@ -172,26 +165,19 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 }
 
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc(n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc[*db.ValueState](n.commitTargetState))
 }
 
-func (n *ValueState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
-	o := _o.(*db.ValueState)
+func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
-	if nil != o.Target && spec != nil {
-		o.Current.InputVersion = spec.InputVersion
-		log.Info("Commit object version for ValueState {{name}}", "name", o.Name)
-		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
-		o.Current.ObjectVersion = o.Target.ObjectVersion
-		o.Current.OutputVersion = spec.State.(*ValueOutputState).GetOutputVersion()
+	if o.Target != nil && spec != nil {
+		log.Info("  output {{output}}", "output", spec.State.(*ValueOutputState).GetState())
 		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
-
 		log.Info("  provider {{provider}}", "provider", o.Target.Spec.ValueStateSpec.Provider)
 		o.Current.Provider = o.Target.Spec.ValueStateSpec.Provider
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of ValueState {{name}}")
 	}
-	o.Target = nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -203,86 +189,62 @@ var NewValueOutputState = support.NewOutputState[db.ValueOutput]
 ////////////////////////////////////////////////////////////////////////////////
 
 type CurrentValueState struct {
-	n *ValueState
+	support.CurrentStateSupport[*db.ValueState, *db.ValueCurrentState]
 }
 
 var _ model.CurrentState = (*CurrentValueState)(nil)
 
-func (c *CurrentValueState) get() *db.ValueCurrentState {
-	return &c.n.GetBase().(*db.ValueState).Current
+func NewCurrentValueState(n *ValueState) model.CurrentState {
+	return &CurrentValueState{support.NewCurrentStateSupport[*db.ValueState, *db.ValueCurrentState](n, mymetamodel.PHASE_PROPAGATE)}
 }
 
 func (c *CurrentValueState) GetLinks() []ElementId {
 	var r []ElementId
 
-	if c.get().Provider != "" {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), c.get().Provider, mymetamodel.PHASE_CALCULATION))
+	if c.Get().Provider != "" {
+		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), c.Get().Provider, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
 
-func (c *CurrentValueState) GetObservedVersion() string {
-	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_PROPAGATE)
-}
-
-func (c *CurrentValueState) GetInputVersion() string {
-	return c.get().InputVersion
-}
-
-func (c *CurrentValueState) GetObjectVersion() string {
-	return c.get().ObjectVersion
-}
-
-func (c *CurrentValueState) GetOutputVersion() string {
-	return c.get().OutputVersion
-}
-
 func (c *CurrentValueState) GetProvider() string {
-	return c.get().Provider
+	return c.Get().Provider
 }
 
 func (c *CurrentValueState) GetOutput() model.OutputState {
-	return NewValueOutputState(c.get().Output)
+	return NewValueOutputState(c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type TargetValueState struct {
-	n *ValueState
+	support.TargetStateSupport[*db.ValueState, *db.ValueTargetState]
 }
 
 var _ model.TargetState = (*TargetValueState)(nil)
 
-func (c *TargetValueState) get() *db.ValueTargetState {
-	return c.n.GetBase().(*db.ValueState).Target
+func NewTargetValueState(n *ValueState) model.TargetState {
+	return &TargetValueState{support.NewTargetStateSupport[*db.ValueState, *db.ValueTargetState](n, mymetamodel.PHASE_PROPAGATE)}
 }
 
 func (c *TargetValueState) GetLinks() []mmids.ElementId {
 	var r []ElementId
 
-	t := c.get()
+	t := c.Get()
 	if t == nil {
 		return nil
 	}
 
 	if t.Spec.Provider != "" {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), t.Spec.Provider, mymetamodel.PHASE_CALCULATION))
+		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Provider, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
 
-func (c *TargetValueState) GetObjectVersion() string {
-	return c.get().ObjectVersion
-}
-
-func (c *TargetValueState) GetInputVersion(inputs model.Inputs) string {
-	return support.DefaultInputVersion(inputs)
-}
-
 func (c *TargetValueState) GetProvider() string {
-	return c.get().Spec.Provider
+	return c.Get().Spec.Provider
 }
 
 func (c *TargetValueState) GetValue() int {
-	return c.get().Spec.Value
+	return c.Get().Spec.Value
 }

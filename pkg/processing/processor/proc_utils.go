@@ -46,7 +46,7 @@ func GetResultState(args ...interface{}) model.OutputState {
 ////////////////////////////////////////////////////////////////////////////////
 
 func (p *Processor) forExtObjects(log logging.Logger, e _Element, f func(log logging.Logger, object model.ExternalObject) error) error {
-	exttypes := p.processingModel.MetaModel().GetTriggeringTypesForInternalType(e.Id().GetType())
+	exttypes := p.processingModel.MetaModel().GetAssignedExternalTypes(e.Id().TypeId())
 	for _, t := range exttypes {
 		id := NewObjectId(t, e.GetNamespace(), e.GetName())
 		log = log.WithValues("extid", id)

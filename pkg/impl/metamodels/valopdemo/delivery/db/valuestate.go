@@ -1,25 +1,30 @@
 package db
 
 import (
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
+var ValuePhaseStateAccess = support.NewPhaseStateAccess[*ValueState]()
+
 func init() {
 	database.MustRegisterType[ValueState, support.DBObject](Scheme) // Goland requires second type parameter
+
+	// register access to phase info parts in ValueState
+	ValuePhaseStateAccess.Register(mymetamodel.PHASE_PROPAGATE, func(o *ValueState) support.PhaseState { return &o.PropagateState })
 }
 
 type ValueState struct {
-	support.DefaultInternalDBObjectSupport `json:",inline"`
+	support.InternalDBObjectSupport `json:",inline"`
 
 	// Spec is the part of the object state held exclusively in the state object and not
 	// on the external object. (there it is found as status)
 	Spec ValueStateSpec `json:"spec,omitempty"`
 
-	Current ValueCurrentState `json:"current"`
-	Target  *ValueTargetState `json:"target,omitempty"`
+	PropagateState `json:",inline"`
 }
 
 var _ support.InternalDBObject = (*ValueState)(nil)
@@ -28,13 +33,14 @@ type ValueStateSpec struct {
 	Provider string `json:"provider,omitempty"`
 }
 
+type PropagateState struct {
+	support.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]
+}
 type ValueCurrentState struct {
-	Provider string `json:"provider,omitempty"`
+	support.StandardCurrentState
 
-	InputVersion  string      `json:"inputVersion"`
-	ObjectVersion string      `json:"objectVersion"`
-	OutputVersion string      `json:"outputVersion"`
-	Output        ValueOutput `json:"output"`
+	Provider string      `json:"provider,omitempty"`
+	Output   ValueOutput `json:"output"`
 }
 
 type ValueOutput struct {
@@ -43,8 +49,8 @@ type ValueOutput struct {
 }
 
 type ValueTargetState struct {
-	ObjectVersion string             `json:"version"`
-	Spec          EffectiveValueSpec `json:"spec"`
+	support.StandardTargetState
+	Spec EffectiveValueSpec `json:"spec"`
 }
 
 // EffectiveValueSpec bundles the external spec

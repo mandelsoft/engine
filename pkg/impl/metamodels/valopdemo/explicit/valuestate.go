@@ -8,7 +8,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 
@@ -20,7 +19,7 @@ func init() {
 }
 
 type ValueState struct {
-	support.InternalObjectSupport
+	support.InternalObjectSupport[*db.ValueState] `json:",inline"`
 }
 
 type ValueStateCurrent struct {
@@ -29,28 +28,33 @@ type ValueStateCurrent struct {
 
 var _ model.InternalObject = (*ValueState)(nil)
 
+func (n *ValueState) Initialize() error {
+	return support.SetPhaseStateAccess(n, db.ValuePhaseStateAccess)
+}
+
 func (n *ValueState) GetCurrentState(phase Phase) model.CurrentState {
-	return &CurrentValueState{n}
+	return NewCurrentValueState(n)
 }
 
 func (n *ValueState) GetTargetState(phase Phase) model.TargetState {
-	return &TargetValueState{n}
+	return NewTargetValueState(n)
 }
 
-func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
+func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
+	return o.CreateTarget().(*db.ValueTargetState)
+}
+
+func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
-		t := _o.(*db.ValueState).Target
-		if t == nil {
-			t = &db.ValueTargetState{}
-		}
+		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
 		for _, _s := range state { // we have just one external object here, but just for demonstration
 			s := _s.(*ExternalValueState).GetState()
-			m := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != _s.GetVersion()
+			m := !reflect.DeepEqual(t.Spec, *s) || t.GetObjectVersion() != _s.GetVersion()
 			if m {
 				t.Spec = *s
-				t.ObjectVersion = _s.GetVersion()
+				t.SetObjectVersion(_s.GetVersion())
 			}
 			mod = mod || m
 		}
@@ -87,18 +91,13 @@ func (n *ValueState) Process(req model.Request) model.ProcessingREsult {
 }
 
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc(n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc[*db.ValueState](n.commitTargetState))
 }
 
-func (n *ValueState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
-	o := _o.(*db.ValueState)
+func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
-	if nil != o.Target && spec != nil {
-		o.Current.InputVersion = spec.InputVersion
-		log.Info("Commit object version for ValueState {{name}}", "name", o.Name)
-		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
-		o.Current.ObjectVersion = o.Target.ObjectVersion
-		o.Current.OutputVersion = spec.State.(*ValueOutputState).GetOutputVersion()
+	if o.Target != nil && spec != nil {
+		log.Info("  output {{output}}", "output", spec.State.(*ValueOutputState).GetState())
 		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
 
 		log.Info("  owner {{owner}}", "owner", o.Target.Spec.Owner)
@@ -116,72 +115,52 @@ var NewValueOutputState = support.NewOutputState[db.ValueOutput]
 ////////////////////////////////////////////////////////////////////////////////
 
 type CurrentValueState struct {
-	n *ValueState
+	support.CurrentStateSupport[*db.ValueState, *db.ValueCurrentState]
 }
 
 var _ model.CurrentState = (*CurrentValueState)(nil)
 
-func (c *CurrentValueState) get() *db.ValueState {
-	return c.n.GetBase().(*db.ValueState)
+func NewCurrentValueState(n *ValueState) model.CurrentState {
+	return &CurrentValueState{support.NewCurrentStateSupport[*db.ValueState, *db.ValueCurrentState](n, mymetamodel.PHASE_PROPAGATE)}
 }
 
 func (c *CurrentValueState) GetLinks() []ElementId {
 	var r []ElementId
-
-	if c.get().Current.Owner != "" {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), c.get().Current.Owner, mymetamodel.PHASE_CALCULATION))
+	t := c.Get()
+	if t.Owner != "" {
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Owner, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
 
-func (c *CurrentValueState) GetObservedVersion() string {
-	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_PROPAGATE)
-}
-
-func (c *CurrentValueState) GetInputVersion() string {
-	return c.get().Current.InputVersion
-}
-
-func (c *CurrentValueState) GetObjectVersion() string {
-	return c.get().Current.ObjectVersion
-}
-
-func (c *CurrentValueState) GetOutputVersion() string {
-	return c.get().Current.OutputVersion
-}
-
 func (c *CurrentValueState) GetOutput() model.OutputState {
-	return NewValueOutputState(c.get().Current.Output)
+	return NewValueOutputState(c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type TargetValueState struct {
-	n *ValueState
+	support.TargetStateSupport[*db.ValueState, *db.ValueTargetState]
 }
 
 var _ model.TargetState = (*TargetValueState)(nil)
 
-func (c *TargetValueState) get() *db.ValueTargetState {
-	return c.n.GetBase().(*db.ValueState).Target
+func NewTargetValueState(n *ValueState) model.TargetState {
+	return &TargetValueState{support.NewTargetStateSupport[*db.ValueState, *db.ValueTargetState](n, mymetamodel.PHASE_PROPAGATE)}
 }
 
-func (c *TargetValueState) GetLinks() []mmids.ElementId {
+func (c *TargetValueState) GetLinks() []ElementId {
 	var r []ElementId
 
-	t := c.get()
+	t := c.Get()
 	if t == nil {
 		return nil
 	}
 
 	if t.Spec.Owner != "" {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.n.GetNamespace(), t.Spec.Owner, mymetamodel.PHASE_CALCULATION))
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Owner, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
-}
-
-func (c *TargetValueState) GetObjectVersion() string {
-	return c.get().ObjectVersion
 }
 
 func (c *TargetValueState) GetInputVersion(inputs model.Inputs) string {
@@ -189,5 +168,5 @@ func (c *TargetValueState) GetInputVersion(inputs model.Inputs) string {
 }
 
 func (c *TargetValueState) GetValue() int {
-	return c.get().Spec.Value
+	return c.Get().Spec.Value
 }

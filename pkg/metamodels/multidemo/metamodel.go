@@ -23,7 +23,7 @@ var externalTypes = []metamodel2.ExternalTypeSpecification{
 var internalTypes = []metamodel2.InternalTypeSpecification{
 	metamodel2.IntSpec(TYPE_NODE_STATE,
 		metamodel2.PhaseSpec(PHASE_GATHER, metamodel2.Dep(TYPE_NODE_STATE, PHASE_CALCULATION)),
-		metamodel2.PhaseSpec(PHASE_CALCULATION, metamodel2.Dep(TYPE_NODE_STATE, PHASE_GATHER)),
+		metamodel2.PhaseSpec(PHASE_CALCULATION, metamodel2.Dep(TYPE_NODE_STATE, PHASE_GATHER)).Assign(TYPE_NODE),
 	),
 }
 

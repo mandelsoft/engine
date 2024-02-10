@@ -66,15 +66,21 @@ Element types:
   dependencies:
   - OperatorState:Gathering
   triggered by:
+  external states:
+  - Operator
 - OperatorState:Gathering
   dependencies:
   - ValueState:Propagating
   triggered by:
   - Operator
+  external states:
+  - Operator
 - ValueState:Propagating
   dependencies:
   - OperatorState:Calculating
   triggered by:
+  - Value
+  external states:
   - Value
 `))
 	})

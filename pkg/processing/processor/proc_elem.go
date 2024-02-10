@@ -173,7 +173,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 			case model.ACCEPT_INVALID:
 				log.Error("external state for internal object invalid -> block element", "error", err)
-				return p.fail(lctx, log, nil, e, err)
+				return p.fail(lctx, log, ni, e, err)
 			}
 			if err != nil {
 				return pool.StatusCompleted(err)

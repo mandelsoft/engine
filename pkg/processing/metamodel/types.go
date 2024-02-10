@@ -18,14 +18,18 @@ type elementType struct {
 	id           TypeId
 	dependencies []*elementType
 	triggers     []string
+	states       []string
 }
 
 var _ ElementType = (*elementType)(nil)
 var _elementType = utils.CastPointer[ElementType, elementType]
 
-func newElementType(objtype string, phase Phase) *elementType {
+func newElementType(objtype string, phase Phase, states []string) *elementType {
+	states = slices.Clone(states)
+	sort.Strings(states)
 	return &elementType{
-		id: NewTypeId(objtype, phase),
+		id:     NewTypeId(objtype, phase),
+		states: states,
 	}
 }
 
@@ -45,6 +49,10 @@ func (e *elementType) addTrigger(typ string) {
 		e.triggers = append(e.triggers, typ)
 		sort.Strings(e.triggers)
 	}
+	if !slices.Contains(e.states, typ) {
+		e.states = append(e.states, typ)
+		sort.Strings(e.states)
+	}
 }
 
 func (e *elementType) Dependencies() []ElementType {
@@ -62,6 +70,10 @@ func (e *elementType) HasDependency(name TypeId) bool {
 
 func (e *elementType) TriggeredBy() []string {
 	return slices.Clone(e.triggers)
+}
+
+func (e *elementType) AssignedExternalStates() []string {
+	return slices.Clone(e.states)
 }
 
 func CompareElementType(a, b ElementType) int {

@@ -2,6 +2,7 @@ package explicit_test
 
 import (
 	"bytes"
+	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -40,6 +41,7 @@ var _ = Describe("meta model", func() {
 		m := Must(spec.GetMetaModel())
 		m.Dump(buf)
 
+		fmt.Printf("\n%s\n", buf.String())
 		Expect("\n" + buf.String()).To(Equal(`
 Namespace type: Namespace
 External types:
@@ -66,15 +68,21 @@ Element types:
   dependencies:
   - OperatorState:Gathering
   triggered by:
+  external states:
+  - Operator
 - OperatorState:Gathering
   dependencies:
   - ValueState:Propagating
   triggered by:
   - Operator
+  external states:
+  - Operator
 - ValueState:Propagating
   dependencies:
   - OperatorState:Calculating
   triggered by:
+  - Value
+  external states:
   - Value
 `))
 	})

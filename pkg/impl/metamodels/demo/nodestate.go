@@ -2,9 +2,10 @@ package demo
 
 import (
 	"fmt"
-	"reflect"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/runtime"
+	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
@@ -21,38 +22,40 @@ func init() {
 }
 
 type NodeState struct {
-	support.InternalObjectSupport
+	support.InternalObjectSupport[*db.NodeState]
 }
 
-var _ model.InternalObject = (*NodeState)(nil)
+var (
+	_ model.InternalObject      = (*NodeState)(nil)
+	_ runtime.InitializedObject = (*NodeState)(nil)
+)
+
+func (n *NodeState) Initialize() error {
+	return support.SetPhaseStateAccess(n, db.NodePhaseStateAccess)
+}
 
 func (n *NodeState) GetCurrentState(phase Phase) model.CurrentState {
-	return &CurrentState{n}
+	return NewCurrentState(n)
 }
 
 func (n *NodeState) GetTargetState(phase Phase) model.TargetState {
-	return &TargetState{n}
+	return NewTargetState(n)
+}
+
+func (n *NodeState) assureTarget(o *db.NodeState) *db.TargetState {
+	return o.State.CreateTarget().(*db.TargetState)
 }
 
 func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
-		t := _o.(*db.NodeState).Target
-		if t == nil {
-			t = &db.TargetState{}
-		}
+		t := n.assureTarget(_o.(*db.NodeState))
 
 		mod := false
 		for _, _s := range state { // we have just one external object here, but just for demonstration
 			s := _s.(*ExternalNodeState).GetState()
-			m := !reflect.DeepEqual(t.Spec, *s) || t.ObjectVersion != _s.GetVersion()
-			if m {
-				t.Spec = *s
-				t.ObjectVersion = _s.GetVersion()
-			}
-			mod = mod || m
+			support.UpdateField(&t.Spec, s, &mod)
+			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
 		}
-
-		_o.(*db.NodeState).Target = t
 		return mod, mod
 	})
 	return 0, err
@@ -154,23 +157,21 @@ func (n *NodeState) Validate() error {
 }
 
 func (n *NodeState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc(n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc[*db.NodeState](n.commitTargetState))
 }
 
-func (n *NodeState) commitTargetState(lctx model.Logging, _o support.InternalDBObject, phase Phase, spec *model.CommitInfo) {
-	o := _o.(*db.NodeState)
+func (n *NodeState) commitTargetState(lctx model.Logging, o *db.NodeState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
-	if o.Target != nil && spec != nil {
-		o.Current.Operands = o.Target.Spec.Operands
-		o.Current.InputVersion = spec.InputVersion
-		log.Info("  object version {{version}}", "version", o.Target.ObjectVersion)
-		o.Current.ObjectVersion = o.Target.ObjectVersion
-		o.Current.OutputVersion = spec.State.(*OutputState).GetOutputVersion()
-		o.Current.Output.Value = spec.State.(*OutputState).GetState()
+	if o.State.Target != nil && spec != nil {
+		o.State.Current.Operands = o.State.Target.Spec.Operands
+		o.State.Current.InputVersion = spec.InputVersion
+		log.Info("  object version {{version}}", "version", o.State.Target.ObjectVersion)
+		o.State.Current.ObjectVersion = o.State.Target.ObjectVersion
+		o.State.Current.OutputVersion = spec.State.(*OutputState).GetOutputVersion()
+		o.State.Current.Output.Value = spec.State.(*OutputState).GetState()
 	} else {
 		log.Info("  nothing to commit for NodeState {{name}}", "name", o.Name)
 	}
-	o.Target = nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,82 +183,61 @@ var NewOutputState = support.NewOutputState[int]
 ////////////////////////////////////////////////////////////////////////////////
 
 type CurrentState struct {
-	n *NodeState
+	support.CurrentStateSupport[*db.NodeState, *db.CurrentState]
 }
 
 var _ model.CurrentState = (*CurrentState)(nil)
 
-func (c *CurrentState) get() *db.NodeState {
-	return c.n.GetBase().(*db.NodeState)
+func NewCurrentState(n *NodeState) *CurrentState {
+	return &CurrentState{
+		support.NewCurrentStateSupport[*db.NodeState, *db.CurrentState](n, mymetamodel.PHASE_UPDATING),
+	}
 }
 
 func (c *CurrentState) GetLinks() []ElementId {
 	var r []ElementId
 
-	for _, o := range c.get().Current.Operands {
-		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
+	for _, o := range c.Get().Operands {
+		r = append(r, mmids.NewElementId(c.GetType(), c.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
 }
 
-func (c *CurrentState) GetObservedVersion() string {
-	return c.n.GetDBObject().GetObservedVersion(mymetamodel.PHASE_UPDATING)
-}
-
-func (c *CurrentState) GetInputVersion() string {
-	return c.get().Current.InputVersion
-}
-
-func (c *CurrentState) GetObjectVersion() string {
-	return c.get().Current.ObjectVersion
-}
-
-func (c *CurrentState) GetOutputVersion() string {
-	return c.get().Current.OutputVersion
-}
-
 func (c *CurrentState) GetOutput() model.OutputState {
-	return support.NewOutputState[int](c.get().Current.Output.Value)
+	return support.NewOutputState[int](c.Get().Output.Value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type TargetState struct {
-	n *NodeState
+	support.TargetStateSupport[*db.NodeState, *db.TargetState]
 }
 
 var _ model.TargetState = (*TargetState)(nil)
 
-func (c *TargetState) get() *db.NodeState {
-	return c.n.GetBase().(*db.NodeState)
+func NewTargetState(n *NodeState) *TargetState {
+	return &TargetState{
+		support.NewTargetStateSupport[*db.NodeState, *db.TargetState](n, mymetamodel.PHASE_UPDATING),
+	}
 }
 
 func (c *TargetState) GetLinks() []mmids.ElementId {
 	var r []ElementId
 
-	t := c.get().Target
+	t := c.Get()
 	if t == nil {
 		return nil
 	}
-
 	for _, o := range t.Spec.Operands {
-		r = append(r, mmids.NewElementId(c.n.GetType(), c.n.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
+		r = append(r, mmids.NewElementId(c.GetType(), c.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
 	}
 	return r
 }
 
-func (c *TargetState) GetObjectVersion() string {
-	return c.get().Target.ObjectVersion
-}
-
-func (c *TargetState) GetInputVersion(inputs model.Inputs) string {
-	return support.DefaultInputVersion(inputs)
-}
-
 func (c *TargetState) GetOperator() *db.OperatorName {
-	return c.get().Target.Spec.Operator
+	return c.Get().Spec.Operator
 }
 
 func (c *TargetState) GetValue() *int {
-	return c.get().Target.Spec.Value
+	return c.Get().Spec.Value
 }
