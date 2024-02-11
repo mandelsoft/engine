@@ -17,6 +17,10 @@ type State[O any] struct {
 	state O
 }
 
+func NewState[O any](o O) *State[O] {
+	return &State[O]{o}
+}
+
 var _ Describable = (*State[any])(nil)
 
 func (s *State[O]) GetVersion() string {

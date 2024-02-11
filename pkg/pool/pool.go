@@ -44,7 +44,7 @@ type pool struct {
 	name       string
 	size       int
 	ctx        context.Context
-	lctx       logging.Context
+	lctx       logging.AttributionContext
 	period     time.Duration
 	workqueue  Queue
 	actions    *actionMapping
@@ -52,14 +52,14 @@ type pool struct {
 	key        string
 }
 
-func NewPool(ctx context.Context, lctx logging.Context, name string, size int, period time.Duration, useKeyName ...bool) Pool {
-	lctx = lctx.WithContext(REALM, logging.NewAttribute("pool", name))
+func NewPool(ctx context.Context, lctxp logging.AttributionContextProvider, name string, size int, period time.Duration, useKeyName ...bool) Pool {
+	lctx := lctxp.AttributionContext().WithContext(REALM, logging.NewAttribute("pool", name)).WithName(name)
 	pool := &pool{
 		UnboundLogger: logging.DynamicLogger(lctx),
 		name:          name,
 		size:          size,
 		period:        period,
-		lctx:          lctx,
+		lctx:          lctx.AttributionContext(),
 		useKeyName:    utils.Optional(useKeyName...),
 		key:           fmt.Sprintf("pool %s", name),
 		workqueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{

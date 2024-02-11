@@ -6,7 +6,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 var ValuePhaseStateAccess = support.NewPhaseStateAccess[*ValueState]()

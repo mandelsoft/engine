@@ -22,12 +22,14 @@ import (
 )
 
 type TestEnv struct {
-	wg     *sync.WaitGroup
-	fs     vfs.FileSystem
-	ctx    context.Context
-	logbuf *bytes.Buffer
-	db     database.Database[support.DBObject]
-	proc   *processor.Processor
+	wg          *sync.WaitGroup
+	fs          vfs.FileSystem
+	ctx         context.Context
+	lctx        logging.Context
+	logbuf      *bytes.Buffer
+	db          database.Database[support.DBObject]
+	proc        *processor.Processor
+	procStarted bool
 }
 
 type Waitable interface {
@@ -77,8 +79,10 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 	db := objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
 
 	return &TestEnv{
+		wg:     &sync.WaitGroup{},
 		fs:     fs,
 		ctx:    ctx,
+		lctx:   lctx,
 		logbuf: logbuf,
 		db:     db,
 		proc:   proc,
@@ -87,6 +91,10 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 
 func (t *TestEnv) Context() context.Context {
 	return t.ctx
+}
+
+func (t *TestEnv) Logging() logging.Context {
+	return t.lctx
 }
 
 func (t *TestEnv) Processor() *processor.Processor {
@@ -98,10 +106,14 @@ func (t *TestEnv) Database() database.Database[support.DBObject] {
 }
 
 func (t *TestEnv) Start() {
-	if t.wg == nil {
-		t.wg = &sync.WaitGroup{}
+	if !t.procStarted {
+		t.procStarted = true
 		t.proc.Start(t.wg)
 	}
+}
+
+func (t *TestEnv) WaitGroup() *sync.WaitGroup {
+	return t.wg
 }
 
 func (t *TestEnv) GetObject(id database.ObjectId) (support.DBObject, error) {
