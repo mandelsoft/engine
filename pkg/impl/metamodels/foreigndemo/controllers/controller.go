@@ -33,12 +33,13 @@ func NewExpressionController(ctx context.Context, lctx logging.AttributionContex
 	return c
 }
 
-func (c *ExpressionController) Start(wg *sync.WaitGroup) {
+func (c *ExpressionController) Start(wg *sync.WaitGroup) error {
 	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_EXPRESSION), c)
 
 	h := &Handler{c}
 	c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION)
 	c.pool.Start(wg)
+	return nil
 }
 
 func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.MessageContext, id database.ObjectId) pool.Status {
@@ -101,7 +102,7 @@ func (h *Handler) HandleEvent(id database.ObjectId) {
 var _ database.EventHandler = (*Handler)(nil)
 
 func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression, msg string, err error) pool.Status {
-	v := support.NewState(&o.Spec).GetVersion()
+	v := o.Spec.GetVersion()
 
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false

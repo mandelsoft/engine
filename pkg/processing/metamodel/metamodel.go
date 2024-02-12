@@ -103,6 +103,9 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 						i.intType.Name(), t, p.id.GetPhase())
 				}
 			}
+			if len(p.AssignedExternalStates()) > 1 {
+				return nil, fmt.Errorf("multiple object state updates for internal element %q not supported", p.Id())
+			}
 		}
 	}
 	return m, nil
@@ -141,6 +144,14 @@ func (m *metaModel) ElementTypes() []TypeId {
 
 func (m *metaModel) IsExternalType(name string) bool {
 	return m.external[name] != nil
+}
+
+func (m *metaModel) IsForeignControlled(name string) bool {
+	t := m.external[name]
+	if t == nil {
+		return false
+	}
+	return t.IsForeignControlled()
 }
 
 func (m *metaModel) GetExternalType(name string) ExternalObjectType {

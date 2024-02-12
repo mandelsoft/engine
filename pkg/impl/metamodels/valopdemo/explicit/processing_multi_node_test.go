@@ -7,7 +7,6 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -17,6 +16,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 
@@ -47,8 +47,10 @@ var _ = Describe("Processing", func() {
 			vA := db.NewValueNode(NS, "A", 5)
 			mvA := NewValueMon(env, "A")
 
+			fmt.Printf("set A\n")
 			MustBeSuccessfull(env.SetObject(vA))
 
+			fmt.Printf("wait A\n")
 			Expect(env.Wait(mvA)).To(BeTrue())
 			mvA.Check(env, 5)
 		})

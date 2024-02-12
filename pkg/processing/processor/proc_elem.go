@@ -72,10 +72,6 @@ type Value struct {
 func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.Status {
 	log := lctx.Logger()
 	log.Info("processing external element trigger for {{element}} with status {{status}}", "status", e.GetStatus())
-	if !isExtTriggerable(e) {
-		log.Info("state for element in status {{status}} is already hardened", "status", e.GetStatus())
-		return pool.StatusCompleted()
-	}
 
 	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(e.Id().TypeId())
 	if len(types) == 0 {
@@ -83,10 +79,17 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		return pool.StatusCompleted()
 	}
 
+	if !isExtTriggerable(e) {
+		if !p.isReTriggerable(e, types...) {
+			log.Info("state for element in status {{status}} is already assigned", "status", e.GetStatus())
+			return pool.StatusCompleted()
+		}
+		log.Info("state for element in status {{status}} is already assigned but retriggerable", "status", e.GetStatus())
+	}
+
 	log.Info("checking state of external objects for element {{element}}", "exttypes", types)
-	changed := false
+	var changed []string
 	cur := e.GetCurrentState().GetObservedVersion()
-	// cur := e.GetCurrentState().GetObjectVersion()
 	for _, t := range types {
 		id := database.NewObjectId(t, e.GetNamespace(), e.GetName())
 		log := log.WithValues("extid", id)
@@ -106,27 +109,43 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		if v == cur {
 			log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
 		} else {
-			changed = true
+			changed = append(changed, t)
 			log.Info("state of {{extid}} changed from {{current}} to {{target}}", "current", cur, "target", v)
 		}
 	}
-	if changed {
-		log.Info("trying to initiate new run for {{element}}")
+	if len(changed) == 0 {
+		log.Info("no external object state change found for {{element}}")
+		return pool.StatusCompleted()
+	}
 
-		rid, err := p.lockGraph(lctx, log, e)
-		if err == nil {
-			if rid != nil {
-				log.Info("starting run {{runid}}", "runid", *rid)
-				return pool.StatusRedo()
-			} else {
-				err = fmt.Errorf("delay initiation of new run")
+	if p.isReTriggerable(e, changed...) {
+		log.Info("retrigger state change of external object for {{element}}", "exttypes", changed)
+		p.Enqueue(CMD_ELEM, e)
+		return pool.StatusCompleted()
+	}
+
+	log.Info("trying to initiate new run for {{element}}")
+	rid, err := p.lockGraph(lctx, log, e)
+	if err == nil {
+		if rid != nil {
+			log.Info("starting run {{runid}}", "runid", *rid)
+			return pool.StatusRedo()
+		} else {
+			err = fmt.Errorf("delay initiation of new run")
+		}
+	}
+	return pool.StatusCompleted(err)
+}
+
+func (p *Processor) isReTriggerable(e _Element, ext ...string) bool {
+	for _, t := range ext {
+		if p.processingModel.MetaModel().IsForeignControlled(t) {
+			if isProcessable(e) {
+				return true
 			}
 		}
-		return pool.StatusCompleted(err)
-	} else {
-		log.Info("no external object state change found for {{element}}")
 	}
-	return pool.StatusCompleted()
+	return false
 }
 
 func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
@@ -159,7 +178,9 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			if ok := p.notifyCurrentWaitingState(lctx, log, e, missing, waiting, inputs); ok {
 				return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
 			}
+		}
 
+		if e.GetTargetState() == nil || p.isReTriggerable(e) {
 			// second, assign target state by transferring the current external state to the internal object
 			s, err := p.assignTargetState(lctx, log, e)
 			switch s {
@@ -371,7 +392,7 @@ func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger,
 	if result != nil {
 		ci = &model.CommitInfo{
 			InputVersion: target.GetInputVersion(inputs),
-			State:        result,
+			OutputState:  result,
 		}
 	}
 	if target != nil {
@@ -489,6 +510,9 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 	extstate := model.ExternalStates{}
 
 	mod := func(log logging.Logger, o model.ExternalObject) error {
+		if isProcessable(e) && !p.isReTriggerable(e, o.GetType()) {
+			return nil
+		}
 		state := e.GetExternalState(o)
 		v := state.GetVersion()
 		log.Trace("  found effective external state from {{extid}} for phase {{phase}}: {{state}}",
@@ -516,9 +540,10 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 		return model.ACCEPT_OK, err
 	}
 
-	log.Info("assigning external state for processing {{element}}")
 	if len(extstate) == 0 {
 		log.Info("no external object states found for {{element}}  -> propagate empty state")
+	} else {
+		log.Info("assigning external state for processing {{element}}", "exttypes", utils.MapKeys(extstate))
 	}
 	s, err := e.GetObject().AcceptExternalState(lctx, p.processingModel.ObjectBase(), e.GetPhase(), extstate)
 	if s != model.ACCEPT_OK || err != nil {

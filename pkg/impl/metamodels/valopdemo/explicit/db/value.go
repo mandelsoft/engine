@@ -23,6 +23,10 @@ type Value struct {
 
 var _ database.Object = (*Value)(nil)
 
+func (n *Value) GetStatusValue() string {
+	return string(n.Status.Status)
+}
+
 type ValueSpec struct {
 	Owner string `json:"owner"`
 	Value int    `json:"value"`

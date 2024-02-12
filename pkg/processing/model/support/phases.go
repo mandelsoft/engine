@@ -23,7 +23,7 @@ type Phase[I InternalObject, T InternalDBObject, E model.ExternalState] interfac
 	GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o I, phase mmids.Phase) model.CurrentState
 	GetTargetState(o I, phase mmids.Phase) model.TargetState
-	Process(o I, phase mmids.Phase, req model.Request) model.ProcessingREsult
+	Process(o I, phase mmids.Phase, req model.Request) model.ProcessingResult
 }
 
 type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interface {
@@ -37,7 +37,7 @@ type Phases[I InternalObject, T InternalDBObject, E model.ExternalState] interfa
 	GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase mmids.Phase) model.TargetState
-	Process(o InternalObject, req model.Request) model.ProcessingREsult
+	Process(o InternalObject, req model.Request) model.ProcessingResult
 }
 
 type DefaultPhase[I InternalObject, T InternalDBObject] struct{}
@@ -126,14 +126,14 @@ func (p *phases[I, T, E]) DBRollback(lctx model.Logging, _o InternalDBObject, ph
 	}
 }
 
-func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.ProcessingREsult {
+func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.ProcessingResult {
 	phase := req.Element.GetPhase()
 	ph := p.phases[phase]
 	if ph != nil {
 		req.Logging = req.Logging.WithContext(p.realm)
 		return ph.Process(o.(I), phase, req)
 	}
-	return model.ProcessingREsult{
+	return model.ProcessingResult{
 		Status: model.STATUS_FAILED,
 		Error:  fmt.Errorf("unknown phase %q", phase),
 	}
@@ -207,7 +207,7 @@ func (n *InternalPhaseObjectSupport[I, T, E]) AcceptExternalState(lctx model.Log
 	return model.ACCEPT_OK, err
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) model.ProcessingREsult {
+func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) model.ProcessingResult {
 	return n.phases.Process(n.self, request)
 }
 

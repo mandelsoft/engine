@@ -19,7 +19,7 @@ type AcceptStatus = internal.AcceptStatus
 type ExternalState = internal.ExternalState
 type ExternalStates = internal.ExternalStates
 type OutputState = internal.OutputState
-type ProcessingREsult = internal.ProcessingResult
+type ProcessingResult = internal.ProcessingResult
 type Creation = internal.Creation
 type StatusUpdate = internal.StatusUpdate
 type Status = internal.Status
@@ -45,29 +45,35 @@ const (
 	STATUS_DELETED    = Status("Deleted")
 )
 
-func StatusFailed(err error) ProcessingREsult {
-	return ProcessingREsult{
+func StatusFailed(err error) ProcessingResult {
+	return ProcessingResult{
 		Status: STATUS_FAILED,
 		Error:  err,
 	}
 }
 
-func StatusCompleted(result OutputState, err ...error) ProcessingREsult {
-	return ProcessingREsult{
+func StatusCompleted(result OutputState, err ...error) ProcessingResult {
+	return ProcessingResult{
 		Status:      STATUS_COMPLETED,
 		ResultState: result,
 		Error:       utils.Optional(err...),
 	}
 }
 
-func StatusDeleted() ProcessingREsult {
-	return ProcessingREsult{
+func StatusDeleted() ProcessingResult {
+	return ProcessingResult{
 		Status: STATUS_DELETED,
 	}
 }
 
-func StatusCompletedWithCreation(creation []Creation, result OutputState, err ...error) ProcessingREsult {
-	return ProcessingREsult{
+func StatusWaiting() ProcessingResult {
+	return ProcessingResult{
+		Status: STATUS_WAITING,
+	}
+}
+
+func StatusCompletedWithCreation(creation []Creation, result OutputState, err ...error) ProcessingResult {
+	return ProcessingResult{
 		Status:      STATUS_COMPLETED,
 		Creation:    creation,
 		ResultState: result,

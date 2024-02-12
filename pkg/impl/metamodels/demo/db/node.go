@@ -25,6 +25,10 @@ type Node struct {
 
 var _ database.Object = (*Node)(nil)
 
+func (n *Node) GetStatusValue() string {
+	return string(n.Status.Status)
+}
+
 type OperatorName string
 
 const OP_ADD = OperatorName("add")
@@ -41,10 +45,10 @@ type NodeSpec struct {
 type NodeStatus struct {
 	Status           model.Status `json:"status,omitempty"`
 	Message          string       `json:"message,omitempty"`
-	RunId            RunId                  `json:"runid,omitempty"`
-	DetectedVersion  string                 `json:"detectedVersion,omitempty"`
-	ObservedVersion  string                 `json:"observedVersion,omitempty"`
-	EffectiveVersion string                 `json:"effectiveVersion,omitempty"`
+	RunId            RunId        `json:"runid,omitempty"`
+	DetectedVersion  string       `json:"detectedVersion,omitempty"`
+	ObservedVersion  string       `json:"observedVersion,omitempty"`
+	EffectiveVersion string       `json:"effectiveVersion,omitempty"`
 
 	Result *int `json:"result,omitempty"`
 }

@@ -17,6 +17,9 @@ func init() {
 	database.MustRegisterType[Node, support.DBObject](Scheme) // Goland requires second type parameter
 }
 
+type Value = Node
+type Operator = Node
+
 type Node struct {
 	database.GenerationObjectMeta
 
@@ -24,8 +27,9 @@ type Node struct {
 	Status NodeStatus `json:"status"`
 }
 
-type Value = Node
-type Operator = Node
+func (n *Node) GetStatusValue() string {
+	return string(n.Status.Status)
+}
 
 var _ database.Object = (*Node)(nil)
 

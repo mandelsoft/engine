@@ -23,9 +23,17 @@ type Expression struct {
 
 var _ database.Object = (*Value)(nil)
 
+func (n *Expression) GetStatusValue() string {
+	return string(n.Status.Status)
+}
+
 type ExpressionSpec struct {
 	Operands    map[string]int           `json:"operands,omitempty"`
 	Expressions map[string]ExpressionDef `json:"expressions,omitempty"`
+}
+
+func (e *ExpressionSpec) GetVersion() string {
+	return support.NewState(e).GetVersion()
 }
 
 type ExpressionDef struct {
@@ -52,15 +60,29 @@ func NewExpression(ns, n string) *Expression {
 	}
 }
 
-func (e *Expression) AddOperand(name string, value int) *Expression {
-	e.Spec.Operands[name] = value
+func (e *ExpressionSpec) AddOperand(name string, value int) *ExpressionSpec {
+	e.Operands[name] = value
 	return e
 }
 
-func (e *Expression) AddExpression(name string, op OperatorName, operands ...string) *Expression {
-	e.Spec.Expressions[name] = ExpressionDef{
+func (e *ExpressionSpec) AddOperation(name string, op OperatorName, operands ...string) *ExpressionSpec {
+	e.Expressions[name] = ExpressionDef{
 		Operands: slices.Clone(operands),
 		Operator: op,
 	}
+	return e
+}
+
+func (e *Expression) GetStatus() string {
+	return string(e.Status.Status)
+}
+
+func (e *Expression) AddOperand(name string, value int) *Expression {
+	e.Spec.AddOperand(name, value)
+	return e
+}
+
+func (e *Expression) AddOperation(name string, op OperatorName, operands ...string) *Expression {
+	e.Spec.AddOperation(name, op, operands...)
 	return e
 }

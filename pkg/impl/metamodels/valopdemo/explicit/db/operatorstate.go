@@ -30,6 +30,10 @@ type OperatorState struct {
 
 var _ support.InternalDBObject = (*OperatorState)(nil)
 
+func (n *OperatorState) GetStatusValue() string {
+	return string(support.CombinedPhaseStatus(OperatorPhaseStateAccess, n))
+}
+
 type GatherState struct {
 	support.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
 }

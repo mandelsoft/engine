@@ -56,10 +56,15 @@ func (_ PhaseBase) AcceptExternalState(lctx model.Logging, o *OperatorState, sta
 			return model.ACCEPT_INVALID, fmt.Errorf("operator node requires at least one operand")
 		}
 
-		for i, e := range s.Operations {
+		for n := range s.Operations {
+			if _, ok := s.Operands[n]; ok {
+				return model.ACCEPT_INVALID, fmt.Errorf("operands name %q also used as operation name", n)
+			}
+		}
+		for n, e := range s.Operations {
 			op := e.Operator
 			if op == "" {
-				return model.ACCEPT_INVALID, fmt.Errorf("operator missing for operation %d", i+1)
+				return model.ACCEPT_INVALID, fmt.Errorf("operator missing for operation %q", n)
 			}
 
 			switch op {
@@ -68,12 +73,12 @@ func (_ PhaseBase) AcceptExternalState(lctx model.Logging, o *OperatorState, sta
 			case db.OP_DIV:
 			case db.OP_MUL:
 			default:
-				return model.ACCEPT_INVALID, fmt.Errorf("unknown operator %q for operation %d", op, i+1)
+				return model.ACCEPT_INVALID, fmt.Errorf("unknown operator %q for operation %q", op, n)
 			}
 
-			for j, c := range s.Operations {
-				if i != j && c.Target == e.Target {
-					return model.ACCEPT_INVALID, fmt.Errorf("operation %d and %d use the same target (%s)", i+1, j+1, c.Target)
+			for i, c := range e.Operands {
+				if _, ok := s.Operands[c]; !ok {
+					return model.ACCEPT_INVALID, fmt.Errorf("operand %d of operation %q: unknown input %q", i+1, n, c)
 				}
 			}
 		}
@@ -97,13 +102,6 @@ func (g GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetS
 	return NewTargetGatherState(o)
 }
 
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
-	t := o.Gather.Target
-
-	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
-	support.UpdateField(&t.Spec, state.GetState(), mod)
-}
-
 func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	exp := o.GetDBObject().Gather.Current.ObjectVersion
 	for _, s := range state {
@@ -116,45 +114,48 @@ func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState
 	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
 }
 
+func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
+	t := o.Gather.Target
+
+	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
+	support.UpdateField(&t.Spec, state.GetState(), mod)
+}
+
 func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
-		log.Info("  output {{output}}", "output", spec.State.(*GatherOutputState).GetState())
+		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
 		c := &o.Gather.Current
-		c.Output.Values = spec.State.(*GatherOutputState).GetState()
+		support.UpdateField(&c.Output, spec.OutputState.(*GatherOutputState).GetState(), mod)
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
-func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingREsult {
+func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
-	links := NewTargetGatherState(o).GetLinks()
-	operands := make([]db.Operand, len(links))
+	t := NewTargetGatherState(o)
+	operands := map[string]db.Operand{}
 	for iid, e := range req.Inputs {
 		s := e.(*ValueOutputState).GetState()
-		for i, oid := range links {
-			if iid == oid {
-				operands[i] = db.Operand{
+		for n, src := range t.GetOperands() {
+			if iid.GetName() == src {
+				operands[n] = db.Operand{
 					Origin: iid.ObjectId(),
 					Value:  s.Value,
 				}
-				log.Info("found operand {{index}} from {{link}}: {{value}}", "index", i, "link", iid, "value", operands[i].Value)
+				log.Info("found operand {{name}} from {{link}}: {{value}}", "name", n, "link", iid, "value", s.Value)
 				break
 			}
 		}
 	}
 
-	if len(links) == 0 {
-		operands = []db.Operand{
-			{
-				Origin: mmids.NewObjectIdFor(req.Element.GetObject()),
-				Value:  0,
-			},
-		}
+	out := &db.GatherOutput{
+		Operands:   operands,
+		Operations: t.GetOperations(),
 	}
-	return model.StatusCompleted(NewGatherOutputState(operands))
+	return model.StatusCompleted(NewGatherOutputState(out))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,64 +178,45 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorSta
 	log.Info("set target state for phase {{phase}} of Operator {{name}}")
 	t := o.Calculation.Target
 	s := state.GetState()
-	support.UpdateField(&t.Operations, &s.Operations, mod)
+	support.UpdateField(&t.Operands, &s.Operands, mod)
+	support.UpdateField(&t.Outputs, &s.Outputs, mod)
 }
 
 func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Calculation.Target != nil && spec != nil {
 		c := &o.Calculation.Current
-		log.Info("  output {{output}}", "output", spec.State.(*CalcOutputState).GetState())
-		c.Output = spec.State.(*CalcOutputState).GetState()
+		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
+		support.UpdateField(&c.Output, utils.Pointer(spec.OutputState.(*CalcOutputState).GetState()), mod)
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
-func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingREsult {
+func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
-	var operands []db.Operand
-	for _, l := range req.Inputs {
-		operands = l.(*GatherOutputState).GetState()
-	}
 	s := NewTargetCalcState(o)
 
-	// calculate target values from operation definitions
-	r := db.CalculationOutput{}
-	for i, e := range s.GetOperations() {
-		op := e.Operator
+	out := db.CalculationOutput{}
+	values := map[string]int{}
 
-		out := operands[0].Value
-		log.Info("calculate operation {{operation}}: {{operator}} {{operands}}", "operation", i+1, "operator", op, "operands", operands)
-		switch op {
-		case db.OP_ADD:
-			for _, v := range operands[1:] {
-				out += v.Value
-			}
-		case db.OP_SUB:
-			for _, v := range operands[1:] {
-				out -= v.Value
-			}
-		case db.OP_MUL:
-			for _, v := range operands[1:] {
-				out *= v.Value
-			}
-		case db.OP_DIV:
-			for i, v := range operands[1:] {
-				if v.Value == 0 {
-					return model.StatusFailed(fmt.Errorf("division by zero for operand %d[%s]", i, operands[i+1].Origin))
-				}
-				out /= v.Value
-			}
-		}
-		r[e.Target] = out
+	log.Info("preparing effective value set")
+	op := req.Inputs[s.PhaseLink(mymetamodel.PHASE_GATHER)].(*GatherOutputState).GetState()
+	for n, o := range op.Operands {
+		values[n] = o.Value
+	}
+	log.Info("- value set from inputs: {{values}}", "values", values)
+	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION, mymetamodel.PHASE_GATHER)].(*EvaluationOutputState).GetState()
+	log.Info("- value set from expressions: {{values}}", "values", ex)
+	for n, v := range ex {
+		values[n] = v
 	}
 
 	ob := req.Model.ObjectBase()
 
 	// check target value objects.
 	var creations []model.Creation
-	for k := range r {
+	for k := range s.GetOutputs() {
 		eid := mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, req.Element.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE)
 		log := log.WithValues("target", k)
 		log.Info("checking target {{target}}")
@@ -259,15 +241,15 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 			}
 		}
 	}
-	return model.StatusCompletedWithCreation(creations, NewCalcOutputState(r))
+	return model.StatusCompletedWithCreation(creations, NewCalcOutputState(out))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type GatherOutputState = support.OutputState[[]db.Operand]
+type GatherOutputState = support.OutputState[*db.GatherOutput]
 type CalcOutputState = support.OutputState[db.CalculationOutput]
 
-var NewGatherOutputState = support.NewOutputState[[]db.Operand]
+var NewGatherOutputState = support.NewOutputState[*db.GatherOutput]
 var NewCalcOutputState = support.NewOutputState[db.CalculationOutput]
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -285,14 +267,14 @@ var _ model.CurrentState = (*CurrentGatherState)(nil)
 func (c *CurrentGatherState) GetLinks() []ElementId {
 	var r []ElementId
 
-	for _, o := range c.Get().Operands {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), o, mymetamodel.PHASE_PROPAGATE))
+	for _, o := range c.Get().Output.Operands {
+		r = append(r, mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, o.Origin.GetNamespace(), o.Origin.GetName(), mymetamodel.PHASE_PROPAGATE))
 	}
 	return r
 }
 
 func (c *CurrentGatherState) GetOutput() model.OutputState {
-	return NewGatherOutputState(c.Get().Output.Values)
+	return NewGatherOutputState(&c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -321,8 +303,12 @@ func (c *TargetGatherState) GetLinks() []mmids.ElementId {
 	return r
 }
 
-func (c *TargetGatherState) GetOperations() []db.Operation {
+func (c *TargetGatherState) GetOperations() map[string]db.Operation {
 	return c.Get().Spec.Operations
+}
+
+func (c *TargetGatherState) GetOperands() map[string]string {
+	return c.Get().Spec.Operands
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -336,7 +322,7 @@ func NewCurrentCalcState(n *OperatorState) model.CurrentState {
 }
 
 func (c *CurrentCalcState) GetLinks() []ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER)}
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION, mymetamodel.PHASE_EVALUATION)}
 }
 
 func (c *CurrentCalcState) GetOutput() model.OutputState {
@@ -359,6 +345,10 @@ func (c *TargetCalcState) GetLinks() []mmids.ElementId {
 	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER)}
 }
 
-func (c *TargetCalcState) GetOperations() []db.Operation {
-	return c.Get().Operations
+func (c *TargetCalcState) GetOperands() map[string]string {
+	return c.Get().Operands
+}
+
+func (c *TargetCalcState) GetOutputs() map[string]string {
+	return c.Get().Outputs
 }

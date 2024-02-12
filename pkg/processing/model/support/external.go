@@ -3,11 +3,13 @@ package support
 import (
 	"sync"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type ExternalDBObject interface {
 	DBObject
+	database.StatusSource
 }
 
 type ExternalObjectSupport struct { // cannot use struct type here (Go)

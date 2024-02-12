@@ -98,12 +98,12 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Pha
 		c := &o.Gather.Current
 		log.Info("  operands {{operands}}", "operands", o.Gather.Target.Spec.Operands)
 		c.Operands = o.Gather.Target.Spec.Operands
-		log.Info("  output {{output}}", "output", spec.State.(*GatherOutputState).GetState())
-		c.Output.Values = spec.State.(*GatherOutputState).GetState()
+		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
+		c.Output.Values = spec.OutputState.(*GatherOutputState).GetState()
 	}
 }
 
-func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingREsult {
+func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	links := NewTargetGatherState(o).GetLinks()
@@ -169,14 +169,14 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorSta
 
 func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
-		log.Info("  output {{output}}", "output", spec.State.(*CalcOutputState).GetState())
+		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
 		cc := &o.Calculation.Current
-		cc.Output.Value = spec.State.(*CalcOutputState).GetState()
+		cc.Output.Value = spec.OutputState.(*CalcOutputState).GetState()
 	}
 	o.Calculation.Target = nil
 }
 
-func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingREsult {
+func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	var operands []db.Operand

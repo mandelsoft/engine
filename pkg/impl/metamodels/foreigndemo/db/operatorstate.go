@@ -28,21 +28,19 @@ type OperatorState struct {
 
 var _ support.InternalDBObject = (*OperatorState)(nil)
 
+func (n *OperatorState) GetStatusValue() string {
+	return string(support.CombinedPhaseStatus(OperatorPhaseStateAccess, n))
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type GatherState struct {
 	support.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
 }
 
-type ObjectTargetState struct {
-	Spec          OperatorSpec `json:"spec"`
-	ObjectVersion string       `json:"objectVersion"`
-}
-
 type GatherCurrentState struct {
 	support.StandardCurrentState
-	Operands []string     `json:"operands,omitempty"`
-	Output   GatherOutput `json:"output"`
+	Output GatherOutput `json:"output"`
 }
 
 type GatherTargetState struct {
@@ -51,7 +49,8 @@ type GatherTargetState struct {
 }
 
 type GatherOutput struct {
-	Values []Operand `json:"operands"`
+	Operands   map[string]Operand   `json:"operands"`
+	Operations map[string]Operation `json:"operations"`
 }
 
 type Operand struct {
@@ -72,5 +71,6 @@ type CalculationCurrentState struct {
 
 type CalculationTargetState struct {
 	support.StandardCurrentState
-	Operations []Operation `json:"operations,omitempty"`
+	Operands map[string]string `json:"operands,omitempty"`
+	Outputs  map[string]string `json:"outputs,omitempty"`
 }

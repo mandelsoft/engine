@@ -2,6 +2,8 @@ package demo_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
@@ -13,8 +15,12 @@ import (
 )
 
 var _ = Describe("meta model", func() {
-	It("validate", func() {
+	It("marshal nil", func() {
+		d := Must(json.Marshal(nil))
+		fmt.Printf("%s\n", string(d))
+	})
 
+	It("validate", func() {
 		spec := me.NewModelSpecification("test", nil)
 		Expect(spec.Validate()).To(Succeed())
 	})

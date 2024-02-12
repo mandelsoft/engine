@@ -119,15 +119,15 @@ func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState
 func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
-		log.Info("  output {{output}}", "output", spec.State.(*GatherOutputState).GetState())
+		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
 		c := &o.Gather.Current
-		c.Output.Values = spec.State.(*GatherOutputState).GetState()
+		c.Output.Values = spec.OutputState.(*GatherOutputState).GetState()
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
-func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingREsult {
+func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	links := NewTargetGatherState(o).GetLinks()
@@ -183,14 +183,14 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorSta
 func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Calculation.Target != nil && spec != nil {
 		c := &o.Calculation.Current
-		log.Info("  output {{output}}", "output", spec.State.(*CalcOutputState).GetState())
-		c.Output = spec.State.(*CalcOutputState).GetState()
+		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
+		c.Output = spec.OutputState.(*CalcOutputState).GetState()
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
-func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingREsult {
+func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	var operands []db.Operand

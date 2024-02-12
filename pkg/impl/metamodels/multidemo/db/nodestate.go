@@ -29,6 +29,10 @@ type NodeState struct {
 
 var _ support.InternalDBObject = (*NodeState)(nil)
 
+func (n *NodeState) GetStatusValue() string {
+	return string(support.CombinedPhaseStatus(NodePhaseStateAccess, n))
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type GatherState struct {

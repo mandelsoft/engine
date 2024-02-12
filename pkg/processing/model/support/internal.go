@@ -13,6 +13,9 @@ import (
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
+// PhaseStateAccessFunc is the replacement for a C++ member pointer.
+// It describes the access to a dedicated [PhaseState] field
+// in a state object according to the type parameter.
 type PhaseStateAccessFunc[I InternalDBObject] func(I) PhaseState
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,9 +190,9 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 				v := p.GetTarget().GetObjectVersion()
 				log.Info("  object version {{object}}", "object", v)
 				c.SetObjectVersion(v)
-				v = commit.State.GetOutputVersion()
+				v = commit.OutputState.GetOutputVersion()
 				log.Info("  output version {{output}}", "output", v)
-				c.SetOutputVersion(commit.State.GetOutputVersion())
+				c.SetOutputVersion(commit.OutputState.GetOutputVersion())
 			}
 			if committer != nil {
 				committer.Commit(lctx, o, phase, commit)
@@ -228,6 +231,10 @@ func (c *stateSupportBase[I]) GetDBObject() I {
 
 func (c *stateSupportBase[I]) PhaseLink(phase mmids.Phase) mmids.ElementId {
 	return mmids.NewElementId(c.GetType(), c.GetNamespace(), c.GetName(), phase)
+}
+
+func (c *stateSupportBase[I]) SlaveLink(typ string, phase mmids.Phase) mmids.ElementId {
+	return mmids.NewElementId(typ, c.GetNamespace(), c.GetName(), phase)
 }
 
 func (c *stateSupportBase[I]) GetPhaseInfo() PhaseState {

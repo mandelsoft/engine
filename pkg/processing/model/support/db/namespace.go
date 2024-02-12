@@ -22,3 +22,10 @@ func (n *Namespace) GetRunLock() RunId {
 func (n *Namespace) SetRunLock(id RunId) {
 	n.RunLock = id
 }
+
+func (n *Namespace) GetStatusValue() string {
+	if n.RunLock != "" {
+		return "Locked"
+	}
+	return "Unlocked"
+}

@@ -64,6 +64,10 @@ func GetGeneration(o Object) int64 {
 	return -1
 }
 
+type StatusSource interface {
+	GetStatusValue() string
+}
+
 type ObjectId interface {
 	GetNamespace() string
 	GetName() string

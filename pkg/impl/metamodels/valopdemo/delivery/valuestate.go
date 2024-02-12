@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"errors"
+	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
@@ -80,7 +81,7 @@ func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveVa
 		})
 }
 
-func (n *ValueState) Process(req model.Request) model.ProcessingREsult {
+func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	target := n.GetTargetState(req.Element.GetPhase())
@@ -139,27 +140,32 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 	log = log.WithValues("extid", extid)
 	if *out.Origin != mmids.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
 		log.Info("checking slave value object {{extid}}")
-		_, err := ob.GetObject(extid)
+		mode := "update"
+		_o, err := ob.GetObject(extid)
 		if errors.Is(err, database.ErrNotExist) {
 			log.Info("value object {{extid}} not found")
-			_o, err := ob.CreateObject(extid)
-			o := _o.(*Value)
-			if err == nil {
-				_, err = wrapped.Modify(ob, o, func(_o support.DBObject) (bool, bool) {
-					o := _o.(*db.Value)
-					mod := false
-					support.UpdateField(&o.Spec.Value, &out.Value, &mod)
-					support.UpdateField(&o.Status.Provider, utils.Pointer(out.Origin.GetName()), &mod)
-					return mod, mod
-				},
-				)
-			}
+			_o, err = ob.CreateObject(extid)
 			if err != nil {
 				log.LogError(err, "creation of value object {{exitid}} failed")
 				return err
 			}
-			log.Info("slave value object {{extid}} created")
+			mode = "create"
 		}
+		if err == nil {
+			o := _o.(*Value)
+			_, err = wrapped.Modify(ob, o, func(_o support.DBObject) (bool, bool) {
+				o := _o.(*db.Value)
+				mod := false
+				support.UpdateField(&o.Spec.Value, &out.Value, &mod)
+				support.UpdateField(&o.Status.Provider, utils.Pointer(out.Origin.GetName()), &mod)
+				return mod, mod
+			})
+		}
+		if err != nil {
+			log.LogError(err, fmt.Sprintf("%s of value object {{exitid}} failed", mode))
+			return err
+		}
+		log.Info(fmt.Sprintf("slave value object {{extid}} %s", mode+"d"))
 	}
 	return nil
 }
@@ -171,8 +177,8 @@ func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase 
 func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
 	if o.Target != nil && spec != nil {
-		log.Info("  output {{output}}", "output", spec.State.(*ValueOutputState).GetState())
-		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
+		log.Info("  output {{output}}", "output", spec.OutputState.(*ValueOutputState).GetState())
+		o.Current.Output.Value = spec.OutputState.(*ValueOutputState).GetState().Value
 		log.Info("  provider {{provider}}", "provider", o.Target.Spec.ValueStateSpec.Provider)
 		o.Current.Provider = o.Target.Spec.ValueStateSpec.Provider
 	} else {

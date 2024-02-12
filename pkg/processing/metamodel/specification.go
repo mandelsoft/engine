@@ -79,6 +79,11 @@ func ExtSpec(tname string, inttype string, phase Phase) ExternalTypeSpecificatio
 	}
 }
 
+func (s ExternalTypeSpecification) Foreign() ExternalTypeSpecification {
+	s.ForeignControlled = true
+	return s
+}
+
 type MetaModelSpecification struct {
 	NamespaceType string
 

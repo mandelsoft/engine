@@ -153,6 +153,15 @@ func (d *Database[O]) SetObject(o O) error {
 		return err
 	}
 
+	err = d.doSetObject(log, path, o)
+	if err == nil {
+		// trigger must be called outside of lock
+		d.registry.TriggerEvent(o)
+	}
+	return err
+}
+
+func (d *Database[O]) doSetObject(log logging.Logger, path string, o O) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -190,7 +199,6 @@ func (d *Database[O]) SetObject(o O) error {
 		d.fs.Remove(path)
 		return err
 	}
-	d.registry.TriggerEvent(o)
 	return nil
 }
 

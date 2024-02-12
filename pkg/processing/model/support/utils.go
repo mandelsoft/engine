@@ -82,3 +82,138 @@ func AssureElement[I InternalDBObject, R any](log logging.Logger, ob objectbase.
 	log.Info("required element {{newelem}} already exists", "newelem", eid)
 	return _nil, t.GetObject().(InternalObject), false, nil
 }
+
+type StatusSource interface {
+	GetStatus() model.Status
+}
+
+var statusmerge = map[model.Status]map[model.Status]model.Status{
+	model.STATUS_INITIAL: {
+		model.STATUS_INITIAL:    model.STATUS_INITIAL,
+		model.STATUS_COMPLETED:  model.STATUS_COMPLETED,
+		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
+		model.STATUS_FAILED:     model.STATUS_FAILED,
+		model.STATUS_PENDING:    model.STATUS_PENDING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+	model.STATUS_COMPLETED: {
+		model.STATUS_INITIAL:    model.STATUS_COMPLETED,
+		model.STATUS_COMPLETED:  model.STATUS_COMPLETED,
+		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
+		model.STATUS_FAILED:     model.STATUS_FAILED,
+		model.STATUS_PENDING:    model.STATUS_PENDING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_COMPLETED,
+	},
+	model.STATUS_BLOCKED: {
+		model.STATUS_INITIAL:    model.STATUS_BLOCKED,
+		model.STATUS_COMPLETED:  model.STATUS_BLOCKED,
+		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
+		model.STATUS_FAILED:     model.STATUS_BLOCKED,
+		model.STATUS_PENDING:    model.STATUS_PENDING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+	model.STATUS_FAILED: {
+		model.STATUS_INITIAL:    model.STATUS_FAILED,
+		model.STATUS_COMPLETED:  model.STATUS_FAILED,
+		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
+		model.STATUS_FAILED:     model.STATUS_FAILED,
+		model.STATUS_PENDING:    model.STATUS_PENDING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+	model.STATUS_PENDING: {
+		model.STATUS_INITIAL:    model.STATUS_PENDING,
+		model.STATUS_COMPLETED:  model.STATUS_PENDING,
+		model.STATUS_BLOCKED:    model.STATUS_PENDING,
+		model.STATUS_FAILED:     model.STATUS_PENDING,
+		model.STATUS_PENDING:    model.STATUS_PENDING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+	model.STATUS_PREPARING: {
+		model.STATUS_INITIAL:    model.STATUS_PREPARING,
+		model.STATUS_COMPLETED:  model.STATUS_PREPARING,
+		model.STATUS_BLOCKED:    model.STATUS_PREPARING,
+		model.STATUS_FAILED:     model.STATUS_PREPARING,
+		model.STATUS_PENDING:    model.STATUS_PREPARING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+	model.STATUS_WAITING: {
+		model.STATUS_INITIAL:    model.STATUS_WAITING,
+		model.STATUS_COMPLETED:  model.STATUS_WAITING,
+		model.STATUS_BLOCKED:    model.STATUS_WAITING,
+		model.STATUS_FAILED:     model.STATUS_WAITING,
+		model.STATUS_PENDING:    model.STATUS_WAITING,
+		model.STATUS_PREPARING:  model.STATUS_WAITING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+	model.STATUS_PROCESSING: {
+		model.STATUS_INITIAL:    model.STATUS_PROCESSING,
+		model.STATUS_COMPLETED:  model.STATUS_PROCESSING,
+		model.STATUS_BLOCKED:    model.STATUS_PROCESSING,
+		model.STATUS_FAILED:     model.STATUS_PROCESSING,
+		model.STATUS_PENDING:    model.STATUS_PROCESSING,
+		model.STATUS_PREPARING:  model.STATUS_PROCESSING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_PROCESSING,
+		model.STATUS_DELETED:    model.STATUS_PROCESSING,
+	},
+	model.STATUS_DELETED: {
+		model.STATUS_INITIAL:    model.STATUS_DELETED,
+		model.STATUS_COMPLETED:  model.STATUS_COMPLETED,
+		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
+		model.STATUS_FAILED:     model.STATUS_FAILED,
+		model.STATUS_PENDING:    model.STATUS_PENDING,
+		model.STATUS_PREPARING:  model.STATUS_PREPARING,
+		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
+		model.STATUS_WAITING:    model.STATUS_WAITING,
+		model.STATUS_DELETED:    model.STATUS_DELETED,
+	},
+}
+
+func mergeStatus(a, b model.Status) model.Status {
+	n := statusmerge[a]
+	if n != nil {
+		m, ok := n[b]
+		if ok {
+			return m
+		}
+		return a
+	} else {
+		return b
+	}
+}
+
+func CombinedPhaseStatus[I InternalDBObject](access PhaseStateAccess[I], o I) model.Status {
+	status := model.STATUS_INITIAL
+	for _, a := range access {
+		status = mergeStatus(status, a(o).GetStatus())
+	}
+	return status
+}
+
+func CombinedStatus(ss ...StatusSource) model.Status {
+	status := model.STATUS_INITIAL
+	for _, s := range ss {
+		status = mergeStatus(status, s.GetStatus())
+	}
+	return status
+}

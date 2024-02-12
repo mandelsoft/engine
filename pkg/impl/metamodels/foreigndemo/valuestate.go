@@ -80,7 +80,7 @@ func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveVa
 		})
 }
 
-func (n *ValueState) Process(req model.Request) model.ProcessingREsult {
+func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	target := n.GetTargetState(req.Element.GetPhase())
@@ -171,8 +171,8 @@ func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase 
 func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
 	if o.Target != nil && spec != nil {
-		log.Info("  output {{output}}", "output", spec.State.(*ValueOutputState).GetState())
-		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
+		log.Info("  output {{output}}", "output", spec.OutputState.(*ValueOutputState).GetState())
+		o.Current.Output.Value = spec.OutputState.(*ValueOutputState).GetState().Value
 		log.Info("  provider {{provider}}", "provider", o.Target.Spec.ValueStateSpec.Provider)
 		o.Current.Provider = o.Target.Spec.ValueStateSpec.Provider
 	} else {

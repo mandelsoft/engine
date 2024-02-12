@@ -108,12 +108,12 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, 
 		// update phase specific state
 		log.Info("  operands {{operands}}", "operands", t.Spec.Operands)
 		c.Operands = t.Spec.Operands
-		log.Info("  output {{output}}", "output", spec.State.(*GatherOutputState).GetState())
-		c.Output.Values = spec.State.(*GatherOutputState).GetState()
+		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
+		c.Output.Values = spec.OutputState.(*GatherOutputState).GetState()
 	}
 }
 
-func (g GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingREsult {
+func (g GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	links := g.GetTargetState(o, phase).GetLinks()
@@ -176,13 +176,13 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, 
 func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
 		// update state specific
-		log.Info("  output {{output}}", "output", spec.State.(*CalcOutputState).GetState())
+		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
 		c := &o.Calculation.Current
-		c.Output.Value = spec.State.(*CalcOutputState).GetState()
+		c.Output.Value = spec.OutputState.(*CalcOutputState).GetState()
 	}
 }
 
-func (c CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingREsult {
+func (c CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	var operands []db.Operand

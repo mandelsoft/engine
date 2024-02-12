@@ -26,6 +26,10 @@ type ValueState struct {
 
 var _ support.InternalDBObject = (*ValueState)(nil)
 
+func (n *ValueState) GetStatusValue() string {
+	return string(support.CombinedPhaseStatus(ValuePhaseStateAccess, n))
+}
+
 type PropagateState struct {
 	support.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]
 }

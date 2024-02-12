@@ -25,6 +25,10 @@ type Operator struct {
 
 var _ database.Object = (*Operator)(nil)
 
+func (n *Operator) GetStatusValue() string {
+	return string(n.Status.Status)
+}
+
 type OperatorName string
 
 const OP_ADD = OperatorName("add")

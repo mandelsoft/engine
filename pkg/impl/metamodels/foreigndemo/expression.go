@@ -21,7 +21,10 @@ type Expression struct {
 var _ model.ExternalObject = (*Expression)(nil)
 
 func (n *Expression) GetState() model.ExternalState {
-	return support.NewExternalState[*db.OperatorSpec](&n.GetBase().(*db.Operator).Spec)
+	// The complete state of the expression object is used
+	// to reflect changes in spec as well as output and status.
+	dbo := n.GetDBObject().(*db.Expression)
+	return NewExternalExpressionState(db.NewEffectiveExpressionSpec(dbo))
 }
 
 func (n *Expression) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem ElementId, update model.StatusUpdate) error {
@@ -29,4 +32,8 @@ func (n *Expression) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, 
 	return nil
 }
 
-type ExternalExpressionState = support.ExternalState[db.ExpressionOutput]
+type ExternalExpressionState = support.ExternalState[*db.EffectiveExpressionSpec]
+
+func NewExternalExpressionState(s *db.EffectiveExpressionSpec) *ExternalExpressionState {
+	return support.NewExternalState(s)
+}

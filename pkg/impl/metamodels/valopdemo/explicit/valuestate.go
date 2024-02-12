@@ -65,7 +65,7 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 	return model.ACCEPT_OK, err
 }
 
-func (n *ValueState) Process(req model.Request) model.ProcessingREsult {
+func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	var out db.ValueOutput
@@ -97,8 +97,8 @@ func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase 
 func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
 	if o.Target != nil && spec != nil {
-		log.Info("  output {{output}}", "output", spec.State.(*ValueOutputState).GetState())
-		o.Current.Output.Value = spec.State.(*ValueOutputState).GetState().Value
+		log.Info("  output {{output}}", "output", spec.OutputState.(*ValueOutputState).GetState())
+		o.Current.Output.Value = spec.OutputState.(*ValueOutputState).GetState().Value
 
 		log.Info("  owner {{owner}}", "owner", o.Target.Spec.Owner)
 		o.Current.Owner = o.Target.Spec.Owner

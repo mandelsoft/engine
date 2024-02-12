@@ -3,15 +3,18 @@ package testutils
 import (
 	"bytes"
 	"context"
+	"errors"
 	"sync"
+	"time"
 
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/future"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
@@ -21,15 +24,24 @@ import (
 	"github.com/mandelsoft/vfs/pkg/vfs"
 )
 
+var log = logging.DefaultContext().Logger(logging.NewRealm("testenv"))
+
+type Startable interface {
+	Start(group *sync.WaitGroup) error
+}
+
 type TestEnv struct {
-	wg          *sync.WaitGroup
-	fs          vfs.FileSystem
-	ctx         context.Context
-	lctx        logging.Context
-	logbuf      *bytes.Buffer
-	db          database.Database[support.DBObject]
-	proc        *processor.Processor
-	procStarted bool
+	lock         sync.Mutex
+	wg           *sync.WaitGroup
+	fs           vfs.FileSystem
+	ctx          context.Context
+	lctx         logging.Context
+	logbuf       *bytes.Buffer
+	db           database.Database[support.DBObject]
+	proc         *processor.Processor
+	startables   []Startable
+	started      bool
+	objectStatus future.EventManager[ObjectId, model.Status]
 }
 
 type Waitable interface {
@@ -78,14 +90,19 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 	proc := Must(processor.NewProcessor(ctx, lctx, m, options.numWorker))
 	db := objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
 
+	mgr := future.NewEventManager[ObjectId, model.Status]()
+
+	db.RegisterHandler(&handler{db, mgr}, false, "")
 	return &TestEnv{
-		wg:     &sync.WaitGroup{},
-		fs:     fs,
-		ctx:    ctx,
-		lctx:   lctx,
-		logbuf: logbuf,
-		db:     db,
-		proc:   proc,
+		wg:           &sync.WaitGroup{},
+		fs:           fs,
+		ctx:          ctx,
+		lctx:         lctx,
+		logbuf:       logbuf,
+		db:           db,
+		proc:         proc,
+		objectStatus: mgr,
+		startables:   []Startable{proc},
 	}, nil
 }
 
@@ -105,11 +122,46 @@ func (t *TestEnv) Database() database.Database[support.DBObject] {
 	return t.db
 }
 
-func (t *TestEnv) Start() {
-	if !t.procStarted {
-		t.procStarted = true
-		t.proc.Start(t.wg)
+func (t *TestEnv) AddService(s Startable) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.startables = append(t.startables, s)
+	if t.started {
+		err := s.Start(t.wg)
+		if err != nil {
+			ctxutil.Cancel(t.ctx)
+			return err
+		}
 	}
+	return nil
+}
+
+func (t *TestEnv) Start(st ...Startable) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if len(st) == 0 {
+		if !t.started {
+			t.started = true
+			for _, s := range t.startables {
+				err := s.Start(t.wg)
+				if err != nil {
+					ctxutil.Cancel(t.ctx)
+					return err
+				}
+			}
+		}
+	} else {
+		for _, s := range st {
+			err := s.Start(t.wg)
+			if err != nil {
+				ctxutil.Cancel(t.ctx)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (t *TestEnv) WaitGroup() *sync.WaitGroup {
@@ -124,20 +176,25 @@ func (t *TestEnv) SetObject(o support.DBObject) error {
 	return t.db.SetObject(o)
 }
 
-func (t *TestEnv) CompletedFuture(id mmids.ElementId, retrigger ...bool) processor.Future {
+func (t *TestEnv) CompletedFuture(id ElementId, retrigger ...bool) processor.Future {
 	return t.proc.FutureFor(model.STATUS_COMPLETED, id, retrigger...)
 }
 
-func (t *TestEnv) DeletedFuture(id mmids.ElementId, retrigger ...bool) processor.Future {
+func (t *TestEnv) DeletedFuture(id ElementId, retrigger ...bool) processor.Future {
 	return t.proc.FutureFor(model.STATUS_DELETED, id, retrigger...)
 }
 
-func (t *TestEnv) FutureFor(etype processor.EventType, id mmids.ElementId, retrigger ...bool) processor.Future {
+func (t *TestEnv) FutureFor(etype processor.EventType, id ElementId, retrigger ...bool) processor.Future {
 	return t.proc.FutureFor(etype, id, retrigger...)
 }
 
 func (t *TestEnv) Wait(w Waitable) bool {
 	return w.Wait(t.ctx)
+}
+
+func (t *TestEnv) WaitWithTimeout(w Waitable) bool {
+	ctx := ctxutil.TimeoutContext(t.ctx, 20*time.Second)
+	return w.Wait(ctx)
 }
 
 func Modify[O support.DBObject, R any](env *TestEnv, o *O, mod func(o O) (R, bool)) (R, error) {
@@ -150,4 +207,32 @@ func (t *TestEnv) Cleanup() {
 		t.wg.Wait()
 	}
 	vfs.Cleanup(t.fs)
+}
+
+type handler struct {
+	db  database.Database[support.DBObject]
+	mgr future.EventManager[ObjectId, model.Status]
+}
+
+var _ database.EventHandler = (*handler)(nil)
+
+func (h *handler) HandleEvent(id database.ObjectId) {
+	o, err := h.db.GetObject(id)
+	if errors.Is(err, database.ErrNotExist) {
+		h.mgr.Trigger(log, model.STATUS_DELETED, NewObjectIdFor(id))
+	} else {
+		if err == nil {
+			if s, ok := o.(database.StatusSource); ok {
+				h.mgr.Trigger(log, model.Status(s.GetStatusValue()), NewObjectIdFor(id))
+			}
+		}
+	}
+}
+
+func (t *TestEnv) FutureForObjectStatus(s model.Status, id database.ObjectId, retrigger ...bool) future.Future {
+	return t.objectStatus.Future(s, NewObjectIdFor(id), retrigger...)
+}
+
+func (t *TestEnv) WaitForObjectStatus(s model.Status, id database.ObjectId) bool {
+	return t.objectStatus.Wait(t.ctx, s, NewObjectIdFor(id))
 }

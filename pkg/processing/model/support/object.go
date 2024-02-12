@@ -10,6 +10,7 @@ import (
 type DBObject interface {
 	database.Object
 	database.GenerationAccess
+	database.StatusSource
 }
 
 type _DBObject = DBObject

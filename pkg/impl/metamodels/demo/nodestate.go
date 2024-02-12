@@ -61,12 +61,12 @@ func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Object
 	return 0, err
 }
 
-func (n *NodeState) Process(req model.Request) model.ProcessingREsult {
+func (n *NodeState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	err := n.Validate()
 	if err != nil {
-		return model.ProcessingREsult{
+		return model.ProcessingResult{
 			Status:      model.STATUS_FAILED, // final failure
 			ResultState: nil,
 			Error:       err,
@@ -167,8 +167,8 @@ func (n *NodeState) commitTargetState(lctx model.Logging, o *db.NodeState, phase
 		o.State.Current.InputVersion = spec.InputVersion
 		log.Info("  object version {{version}}", "version", o.State.Target.ObjectVersion)
 		o.State.Current.ObjectVersion = o.State.Target.ObjectVersion
-		o.State.Current.OutputVersion = spec.State.(*OutputState).GetOutputVersion()
-		o.State.Current.Output.Value = spec.State.(*OutputState).GetState()
+		o.State.Current.OutputVersion = spec.OutputState.(*OutputState).GetOutputVersion()
+		o.State.Current.Output.Value = spec.OutputState.(*OutputState).GetState()
 	} else {
 		log.Info("  nothing to commit for NodeState {{name}}", "name", o.Name)
 	}

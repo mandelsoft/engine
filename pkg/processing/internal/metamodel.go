@@ -41,6 +41,8 @@ type MetaModel interface {
 	IsInternalType(name string) bool
 	HasElementType(name TypeId) bool
 
+	IsForeignControlled(name string) bool
+
 	GetExternalType(name string) ExternalObjectType
 	GetInternalType(name string) InternalObjectType
 	GetElementType(name TypeId) ElementType

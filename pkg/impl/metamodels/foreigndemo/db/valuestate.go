@@ -30,6 +30,12 @@ type ValueState struct {
 
 var _ support.InternalDBObject = (*ValueState)(nil)
 
+func (n *ValueState) GetStatusValue() string {
+	return string(support.CombinedPhaseStatus(ValuePhaseStateAccess, n))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type ValueStateSpec struct {
 	Provider string `json:"provider,omitempty"`
 }

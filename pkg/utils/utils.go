@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/gowebpki/jcs"
+	"github.com/modern-go/reflect2"
 )
 
 func Optional[T any](args ...T) T {
@@ -30,7 +31,9 @@ func OptionalDefaulted[T any](def T, args ...T) T {
 }
 
 func HashData(d interface{}) string {
-
+	if reflect2.IsNil(d) {
+		return ""
+	}
 	var err error
 	var data []byte
 	switch b := d.(type) {

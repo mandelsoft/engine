@@ -92,7 +92,7 @@ type OutputState interface {
 
 type CommitInfo struct {
 	InputVersion string
-	State        OutputState
+	OutputState  OutputState
 }
 
 ////////////////////////////////////////////////////////////////////////////////
