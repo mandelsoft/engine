@@ -206,7 +206,14 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 	path := d.OPath(id)
 	log := logging.DefaultContext().Logger(REALM)
 	log.Debug("delete object", "path", path)
+	err := d.deleteObject(log, path, id)
+	if err == nil {
+		d.registry.TriggerEvent(id)
+	}
+	return err
+}
 
+func (d *Database[O]) deleteObject(log logging.Logger, path string, id database.ObjectId) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -218,7 +225,6 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 		log.LogError(err, "cannot delete file", "path", path)
 		return err
 	}
-	d.registry.TriggerEvent(id)
 	return nil
 }
 

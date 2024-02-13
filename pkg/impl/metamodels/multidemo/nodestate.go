@@ -161,7 +161,7 @@ func (c CalculatePhase) GetTargetState(o *NodeState, phase Phase) model.TargetSt
 
 func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *NodeState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	for _, s := range state {
-		if s.(*ExternalNodeState).GetVersion() == o.GetPhaseInfo(mymetamodel.PHASE_GATHER).GetCurrent().GetObjectVersion() {
+		if s.(*ExternalNodeState).GetVersion() == o.GetPhaseState(mymetamodel.PHASE_GATHER).GetCurrent().GetObjectVersion() {
 			return c.PhaseBase.AcceptExternalState(lctx, o, state, phase)
 		}
 	}

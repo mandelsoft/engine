@@ -45,9 +45,9 @@ var _ = Describe("meta model", func() {
 		Expect("\n" + buf.String()).To(Equal(`
 Namespace type: Namespace
 External types:
-- Expression  (-> OperatorState:Calculating)
-  internal type: OperatorState
-  phase:         Calculating
+- Expression  (-> ExpressionState:Evaluating)
+  internal type: ExpressionState
+  phase:         Evaluating
 - Operator  (-> OperatorState:Gathering)
   internal type: OperatorState
   phase:         Gathering
@@ -55,12 +55,16 @@ External types:
   internal type: ValueState
   phase:         Propagating
 Internal types:
+- ExpressionState
+  phases:
+  - Evaluating
+  trigger types:
+  - Expression
 - OperatorState
   phases:
   - Calculating
   - Gathering
   trigger types:
-  - Expression
   - Operator
 - ValueState
   phases:
@@ -68,13 +72,19 @@ Internal types:
   trigger types:
   - Value
 Element types:
-- OperatorState:Calculating
+- ExpressionState:Evaluating
   dependencies:
   - OperatorState:Gathering
   triggered by:
   - Expression
   external states:
   - Expression
+- OperatorState:Calculating
+  dependencies:
+  - ExpressionState:Evaluating
+  - OperatorState:Gathering
+  triggered by:
+  external states:
   - Operator
 - OperatorState:Gathering
   dependencies:

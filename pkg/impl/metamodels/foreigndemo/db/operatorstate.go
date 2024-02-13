@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -49,13 +51,23 @@ type GatherTargetState struct {
 }
 
 type GatherOutput struct {
-	Operands   map[string]Operand   `json:"operands"`
-	Operations map[string]Operation `json:"operations"`
+	Operands   OperandInfos `json:"operands"`
+	Operations Operations   `json:"operations"`
 }
 
-type Operand struct {
+type OperandInfos map[string]OperandInfo
+
+func (o OperandInfos) String() string {
+	return fmt.Sprintf("%#v", map[string]OperandInfo(o))
+}
+
+type OperandInfo struct {
 	Origin ObjectId `json:"origin,omitempty"`
 	Value  int      `json:"value"`
+}
+
+func (o OperandInfo) String() string {
+	return fmt.Sprintf("%d[%s]", o.Value, o.Origin)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

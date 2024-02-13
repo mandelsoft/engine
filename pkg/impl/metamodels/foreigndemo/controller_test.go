@@ -1,13 +1,15 @@
 package foreigndemo_test
 
 import (
+	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/controllers"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/db"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
-	. "github.com/mandelsoft/engine/pkg/testutils"
-	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("Controller Test", func() {
@@ -27,8 +29,8 @@ var _ = Describe("Controller Test", func() {
 		}
 	})
 
-	Context("", func() {
-		FIt("", func() {
+	Context("expression", func() {
+		It("completes", func() {
 			env.Start(cntr)
 
 			vEXPR := db.NewExpression(NS, "EXPR").
@@ -40,6 +42,24 @@ var _ = Describe("Controller Test", func() {
 			env.SetObject(vEXPR)
 
 			env.WaitWithTimeout(completed)
+			o := Must(env.GetObject(vEXPR))
+			Expect(o.(*db.Expression).Status.Output).To(Equal(db.ExpressionOutput{"E": 3}))
+		})
+
+		It("fails", func() {
+			env.Start(cntr)
+
+			vEXPR := db.NewExpression(NS, "EXPR").
+				AddOperand("A", 1).
+				AddOperand("B", 2).
+				AddOperation("E", db.OP_ADD, "A", "C")
+
+			failed := env.FutureForObjectStatus(model.STATUS_FAILED, vEXPR)
+			env.SetObject(vEXPR)
+
+			env.WaitWithTimeout(failed)
+			o := Must(env.GetObject(vEXPR))
+			Expect(o.(*db.Expression).Status.Message).To(Equal("operand \"C\" for expression \"E\" not found"))
 		})
 	})
 })

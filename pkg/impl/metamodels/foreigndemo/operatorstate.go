@@ -136,12 +136,12 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	log := req.Logging.Logger()
 
 	t := NewTargetGatherState(o)
-	operands := map[string]db.Operand{}
+	operands := map[string]db.OperandInfo{}
 	for iid, e := range req.Inputs {
 		s := e.(*ValueOutputState).GetState()
 		for n, src := range t.GetOperands() {
 			if iid.GetName() == src {
-				operands[n] = db.Operand{
+				operands[n] = db.OperandInfo{
 					Origin: iid.ObjectId(),
 					Value:  s.Value,
 				}
@@ -151,11 +151,32 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		}
 	}
 
+	// check target expression object.
+	var creation *model.Creation
+	ob := req.Model.ObjectBase()
+	tid := NewTypeId(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)
+	eid := t.SlaveLinkFor(tid)
+	log.Info("checking expression state {{target}}", "target", eid)
+	_, i, created, err := support.AssureElement(log, ob, tid, t.GetName(), req,
+		func(o *db.ExpressionState) (bool, bool) {
+			return false, false
+		},
+	)
+	if created {
+		creation = &model.Creation{
+			Internal: i,
+			Phase:    tid.GetPhase(),
+		}
+	}
+	if err != nil {
+		return model.StatusCompleted(nil, err).WithCreations(creation)
+	}
+
 	out := &db.GatherOutput{
 		Operands:   operands,
 		Operations: t.GetOperations(),
 	}
-	return model.StatusCompleted(NewGatherOutputState(out))
+	return model.StatusCompleted(NewGatherOutputState(out)).WithCreations(creation)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -206,42 +227,46 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		values[n] = o.Value
 	}
 	log.Info("- value set from inputs: {{values}}", "values", values)
-	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION, mymetamodel.PHASE_GATHER)].(*EvaluationOutputState).GetState()
+	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)].(*EvaluationOutputState).GetState()
 	log.Info("- value set from expressions: {{values}}", "values", ex)
 	for n, v := range ex {
 		values[n] = v
 	}
 
+	// calculate value schedule
+	log.Info("preparing outbound assignments")
+	for i, e := range s.GetOutputs() {
+		v := values[e]
+		out[i] = v
+		log.Info("- {{outbound}}: {{value}}", "outbound", i, "value", v)
+	}
+
 	ob := req.Model.ObjectBase()
 
 	// check target value objects.
-	var creations []model.Creation
+	var creations []*model.Creation
 	for k := range s.GetOutputs() {
-		eid := mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, req.Element.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE)
 		log := log.WithValues("target", k)
 		log.Info("checking target {{target}}")
-		t := req.ElementAccess.GetElement(eid)
-		if t == nil {
-			typ := mmids.NewTypeId(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE)
-			_, i, created, err := support.AssureElement(log, ob, typ, k, req,
-				func(o *db.ValueState) (bool, bool) {
-					mod := false
-					support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
-					return mod, mod
-				},
-			)
-			if created {
-				creations = append(creations, model.Creation{
-					Internal: i,
-					Phase:    typ.GetPhase(),
-				})
-			}
-			if err != nil {
-				return model.StatusCompletedWithCreation(creations, nil, err)
-			}
+		typ := mmids.NewTypeId(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE)
+		_, i, created, err := support.AssureElement(log, ob, typ, k, req,
+			func(o *db.ValueState) (bool, bool) {
+				mod := false
+				support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+				return mod, mod
+			},
+		)
+		if created {
+			creations = append(creations, &model.Creation{
+				Internal: i,
+				Phase:    typ.GetPhase(),
+			})
+		}
+		if err != nil {
+			return model.StatusCompleted(nil, err).WithCreations(creations...)
 		}
 	}
-	return model.StatusCompletedWithCreation(creations, NewCalcOutputState(out))
+	return model.StatusCompleted(NewCalcOutputState(out)).WithCreations(creations...)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +347,7 @@ func NewCurrentCalcState(n *OperatorState) model.CurrentState {
 }
 
 func (c *CurrentCalcState) GetLinks() []ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION, mymetamodel.PHASE_EVALUATION)}
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)}
 }
 
 func (c *CurrentCalcState) GetOutput() model.OutputState {
@@ -342,7 +367,7 @@ func NewTargetCalcState(n *OperatorState) *TargetCalcState {
 }
 
 func (c *TargetCalcState) GetLinks() []mmids.ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER)}
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)}
 }
 
 func (c *TargetCalcState) GetOperands() map[string]string {

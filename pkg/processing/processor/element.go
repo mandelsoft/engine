@@ -15,9 +15,10 @@ type _Element interface {
 	SetStatus(ob objectbase.Objectbase, s model.Status) (bool, error)
 	GetLock() RunId
 	GetExternalState(o model.ExternalObject) model.ExternalState
-	GetCurrentState() CurrentState
-	GetTargetState() TargetState
-	SetTargetState(TargetState)
+	GetCurrentState() model.CurrentState
+	GetTargetState() model.TargetState
+	GetProcessingState() ProcessingState
+	SetProcessingState(ProcessingState)
 
 	TryLock(ob objectbase.Objectbase, id RunId) (bool, error)
 	Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved ...bool) (bool, error)
@@ -30,8 +31,7 @@ type element struct {
 
 	runid RunId
 
-	current CurrentState
-	target  TargetState
+	target ProcessingState
 }
 
 var _ _Element = (*element)(nil)
@@ -43,7 +43,6 @@ func newElement(phase Phase, obj model.InternalObject) *element {
 		object: obj,
 		runid:  obj.GetLock(phase),
 	}
-	e.current = NewCurrentState(e)
 	return e
 }
 
@@ -87,15 +86,19 @@ func (e *element) GetExternalState(o model.ExternalObject) model.ExternalState {
 	return e.GetObject().GetExternalState(o, e.id.GetPhase())
 }
 
-func (e *element) GetCurrentState() CurrentState {
-	return e.current
+func (e *element) GetCurrentState() model.CurrentState {
+	return e.GetObject().GetCurrentState(e.GetPhase())
 }
 
-func (e *element) GetTargetState() TargetState {
+func (e *element) GetTargetState() model.TargetState {
+	return e.GetObject().GetTargetState(e.GetPhase())
+}
+
+func (e *element) GetProcessingState() ProcessingState {
 	return e.target
 }
 
-func (e *element) SetTargetState(target TargetState) {
+func (e *element) SetProcessingState(target ProcessingState) {
 	e.target = target
 }
 

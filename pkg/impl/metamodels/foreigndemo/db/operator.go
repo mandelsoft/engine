@@ -39,9 +39,15 @@ const OP_MUL = OperatorName("mul")
 const OP_DIV = OperatorName("div")
 
 type OperatorSpec struct {
-	Operands   map[string]string    `json:"operands,omitempty"`
-	Operations map[string]Operation `json:"operations,omitempty"`
-	Outputs    map[string]string    `json:"outputs"`
+	Operands   map[string]string `json:"operands,omitempty"`
+	Operations Operations        `json:"operations,omitempty"`
+	Outputs    map[string]string `json:"outputs"`
+}
+
+type Operations map[string]Operation
+
+func (o Operations) String() string {
+	return fmt.Sprintf("%#v", map[string]Operation(o))
 }
 
 type Operation struct {

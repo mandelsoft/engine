@@ -59,6 +59,7 @@ func AssureElement[I InternalDBObject, R any](log logging.Logger, ob objectbase.
 	}
 
 	eid := mmids.NewElementIdForType(typ, req.Element.GetNamespace(), name)
+	log.Info("checking slave element {{slave}}", "slave", eid)
 	t := req.ElementAccess.GetElement(eid)
 	if t == nil {
 		tolock := req.Model.MetaModel().GetDependentTypePhases(typ)
@@ -69,17 +70,17 @@ func AssureElement[I InternalDBObject, R any](log logging.Logger, ob objectbase.
 		r, err := wrapped.Modify(ob, i.(wrapper.Object[DBObject]), func(_o DBObject) (R, bool) {
 			o := _o.(I)
 			for _, ph := range tolock {
-				i.(InternalObject).GetPhaseInfoFor(o, ph).TryLock(req.Element.GetLock())
+				i.(InternalObject).GetPhaseStateFor(o, ph).TryLock(req.Element.GetLock())
 			}
 			r, _ := mod(o)
 			return r, true
 		})
 		if err == nil {
-			log.Info("created required internal object {{newelem}}", "newelem", eid.ObjectId())
+			log.Info("created required slave object {{slave}}", "slave", eid.ObjectId())
 		}
 		return r, i.(InternalObject), true, err
 	}
-	log.Info("required element {{newelem}} already exists", "newelem", eid)
+	log.Info("required slave element {{slave}} already exists", "slave", eid)
 	return _nil, t.GetObject().(InternalObject), false, nil
 }
 

@@ -111,8 +111,8 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem 
 	id := elem.Id()
 	log.Info("triggering children for {{element}} (checking {{amount}} elements in namespace)", "amount", len(ni.elements))
 	for _, e := range ni.elements {
-		if e.GetTargetState() != nil {
-			links := e.GetTargetState().GetLinks()
+		if e.GetProcessingState() != nil {
+			links := e.GetProcessingState().GetLinks()
 			log.Debug("- elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
@@ -132,7 +132,7 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem 
 		}
 	}
 	if release {
-		elem.SetTargetState(nil)
+		elem.SetProcessingState(nil)
 	}
 }
 

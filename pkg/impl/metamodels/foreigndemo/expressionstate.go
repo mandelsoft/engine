@@ -72,33 +72,32 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 
 	target := NewTargetEvaluationState(n).Get()
 
-	var ex db.ExpressionSpec
 	var gathered *db.GatherOutput
-
 	for iid, e := range req.Inputs {
 		gathered = e.(*GatherOutputState).GetState()
 		log.Info("found output from {{link}}", "link", iid)
-
 	}
 
+	ex := db.NewExpressionSpec()
 	for n, v := range gathered.Operands {
-		log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, v.Origin)
+		log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, "oid", v.Origin)
 		ex.AddOperand(n, v.Value)
 	}
 	for n, o := range gathered.Operations {
-		log.Info("- using operation %q({{value}}) from {{expression}}", "name", n, "value", o)
+		log.Info("- using operation {{name}}({{value}})", "name", n, "value", o)
 		ex.AddOperation(n, o.Operator, o.Operands...)
 	}
 
-	updated, err := n.assureSlave(log, req.Model.ObjectBase(), &ex)
+	updated, err := n.assureSlave(log, req.Model.ObjectBase(), ex)
 	if err != nil {
 		return model.StatusCompleted(nil, err)
 	}
 	if updated {
-		return model.StatusCompleted(nil, fmt.Errorf("expression updated"))
+		log.Info("expression updated -> wait for next status change")
+		return model.StatusWaiting()
 	}
 
-	log.Info("found expression version {{version}} ", target.Spec.ObservedVersion)
+	log.Info("found expression version {{version}} ", "version", target.Spec.ObservedVersion)
 	required := ex.GetVersion()
 	if required != target.Spec.ObservedVersion {
 		log.Info("required version {{required}} not reached -> wait for next change", "required", required)
@@ -148,7 +147,7 @@ func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectba
 	if updated {
 		log.Info(fmt.Sprintf("slave expression object {{extid}} %s", mode+"d"))
 	} else {
-		log.Info("slave expression object {{extid}} unchanged")
+		log.Info("slave expression object spec for {{extid}} up to date")
 	}
 	return updated, nil
 }
@@ -182,7 +181,7 @@ type CurrentEvaluationState struct {
 var _ model.CurrentState = (*CurrentEvaluationState)(nil)
 
 func NewCurrentExpressionState(n *ExpressionState) model.CurrentState {
-	return &CurrentEvaluationState{support.NewCurrentStateSupport[*db.ExpressionState, *db.EvaluationCurrentState](n, mymetamodel.PHASE_PROPAGATE)}
+	return &CurrentEvaluationState{support.NewCurrentStateSupport[*db.ExpressionState, *db.EvaluationCurrentState](n, mymetamodel.PHASE_EVALUATION)}
 }
 
 func (c *CurrentEvaluationState) GetLinks() []ElementId {
@@ -202,7 +201,7 @@ type TargetEvaluationState struct {
 var _ model.TargetState = (*TargetEvaluationState)(nil)
 
 func NewTargetEvaluationState(n *ExpressionState) *TargetEvaluationState {
-	return &TargetEvaluationState{support.NewTargetStateSupport[*db.ExpressionState, *db.EvaluationTargetState](n, mymetamodel.PHASE_PROPAGATE)}
+	return &TargetEvaluationState{support.NewTargetStateSupport[*db.ExpressionState, *db.EvaluationTargetState](n, mymetamodel.PHASE_EVALUATION)}
 }
 
 func (c *TargetEvaluationState) GetLinks() []mmids.ElementId {

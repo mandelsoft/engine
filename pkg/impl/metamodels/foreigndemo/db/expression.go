@@ -32,6 +32,13 @@ type ExpressionSpec struct {
 	Expressions map[string]ExpressionDef `json:"expressions,omitempty"`
 }
 
+func NewExpressionSpec() *ExpressionSpec {
+	return &ExpressionSpec{
+		Operands:    map[string]int{},
+		Expressions: map[string]ExpressionDef{},
+	}
+}
+
 func (e *ExpressionSpec) GetVersion() string {
 	return support.NewState(e).GetVersion()
 }
@@ -53,10 +60,7 @@ type ExpressionOutput map[string]int
 func NewExpression(ns, n string) *Expression {
 	return &Expression{
 		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_EXPRESSION, ns, n),
-		Spec: ExpressionSpec{
-			Operands:    map[string]int{},
-			Expressions: map[string]ExpressionDef{},
-		},
+		Spec:                 *NewExpressionSpec(),
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/controllers"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
@@ -50,6 +51,48 @@ var _ = Describe("Processing", func() {
 			Expect(env.Wait(mn5)).To(BeTrue())
 
 			mn5.Check(env, 5, "")
+		})
+
+		It("reached waiting state for expression", func() {
+			env.Start()
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(vB))
+
+			opC := db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperand("iB", "B").
+				AddOperation("eA", db.OP_ADD, "iA", "iB").
+				AddOutput("C-A", "eA")
+
+			mEx := env.FutureFor(model.STATUS_WAITING, NewElementId(mymetamodel.TYPE_EXPRESSION_STATE, NS, "C", mymetamodel.PHASE_EVALUATION))
+			MustBeSuccessfull(env.SetObject(opC))
+
+			Expect(env.Wait(mEx)).To(BeTrue())
+		})
+
+		FIt("operator with two operands (in order)", func() {
+			env.AddService(controllers.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
+			env.Start()
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(vB))
+
+			opC := db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperand("iB", "B").
+				AddOperation("eA", db.OP_ADD, "iA", "iB").
+				AddOutput("C-A", "eA")
+
+			mCA := ValueCompleted(env, "C-A")
+			MustBeSuccessfull(env.SetObject(opC))
+
+			Expect(env.Wait(mCA)).To(BeTrue())
+			mCA.Check(env, 11, "C")
 		})
 	})
 })

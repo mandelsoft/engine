@@ -31,7 +31,8 @@ const FINAL_EXPRESSION_PHASE = PHASE_EVALUATION
 var externalTypes = []metamodel.ExternalTypeSpecification{
 	metamodel.ExtSpec(TYPE_VALUE, TYPE_VALUE_STATE, PHASE_PROPAGATE),
 	metamodel.ExtSpec(TYPE_OPERATOR, TYPE_OPERATOR_STATE, PHASE_GATHER),
-	metamodel.ExtSpec(TYPE_EXPRESSION, TYPE_EXPRESSION_STATE, PHASE_EVALUATION),
+	metamodel.ExtSpec(TYPE_EXPRESSION, TYPE_EXPRESSION_STATE, PHASE_EVALUATION).
+		Foreign(),
 }
 
 var internalTypes = []metamodel.InternalTypeSpecification{

@@ -113,7 +113,7 @@ func (p *phases[I, T, E]) DBSetExternalState(lctx model.Logging, i InternalObjec
 	ph := p.phases[phase]
 	if ph != nil {
 		log := lctx.Logger(p.realm).WithValues("name", _o.GetName(), "phase", phase)
-		i.GetPhaseInfoFor(_o, phase).CreateTarget().SetObjectVersion(s.GetVersion()) // TODO: handle multiple states
+		i.GetPhaseStateFor(_o, phase).CreateTarget().SetObjectVersion(s.GetVersion()) // TODO: handle multiple states
 		ph.DBSetExternalState(log, _o.(T), phase, s.(E), mod)
 	}
 }
@@ -218,7 +218,7 @@ func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx model.Logging, ob ob
 	mod := func(_o DBObject) (bool, bool) {
 		o := _o.(T)
 		v := utils.Optional(observed...)
-		p := n.GetPhaseInfoFor(o, phase)
+		p := n.GetPhaseStateFor(o, phase)
 		b := p.ClearLock(id)
 		if b {
 			if v != "" {

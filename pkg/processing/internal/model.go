@@ -114,9 +114,18 @@ type Status string
 
 type ProcessingResult struct {
 	Status      Status
-	Creation    []Creation
+	Creation    []*Creation
 	ResultState OutputState
 	Error       error
+}
+
+func (r ProcessingResult) WithCreations(creations ...*Creation) ProcessingResult {
+	for _, c := range creations {
+		if c != nil {
+			r.Creation = append(r.Creation, c)
+		}
+	}
+	return r
 }
 
 type StatusUpdate struct {

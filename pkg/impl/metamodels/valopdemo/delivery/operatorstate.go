@@ -233,33 +233,29 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 	ob := req.Model.ObjectBase()
 
 	// check target value objects.
-	var creations []model.Creation
+	var creations []*model.Creation
 	for k := range r {
-		eid := mmids.NewElementId(mymetamodel.TYPE_VALUE_STATE, req.Element.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE)
 		log := log.WithValues("target", k)
 		log.Info("checking target {{target}}")
-		t := req.ElementAccess.GetElement(eid)
-		if t == nil {
-			typ := mmids.NewTypeId(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE)
-			_, i, created, err := support.AssureElement(log, ob, typ, k, req,
-				func(o *db.ValueState) (bool, bool) {
-					mod := false
-					support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
-					return mod, mod
-				},
-			)
-			if created {
-				creations = append(creations, model.Creation{
-					Internal: i,
-					Phase:    typ.GetPhase(),
-				})
-			}
-			if err != nil {
-				return model.StatusCompletedWithCreation(creations, nil, err)
-			}
+		typ := mmids.NewTypeId(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE)
+		_, i, created, err := support.AssureElement(log, ob, typ, k, req,
+			func(o *db.ValueState) (bool, bool) {
+				mod := false
+				support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+				return mod, mod
+			},
+		)
+		if created {
+			creations = append(creations, &model.Creation{
+				Internal: i,
+				Phase:    typ.GetPhase(),
+			})
+		}
+		if err != nil {
+			return model.StatusCompleted(nil, err).WithCreations(creations...)
 		}
 	}
-	return model.StatusCompletedWithCreation(creations, NewCalcOutputState(r))
+	return model.StatusCompleted(NewCalcOutputState(r)).WithCreations(creations...)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

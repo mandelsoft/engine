@@ -30,10 +30,10 @@ func (p PhaseStateAccess[I]) Register(phase mmids.Phase, infoFunc PhaseStateAcce
 	p[phase] = infoFunc
 }
 
-func (n PhaseStateAccess[I]) GetPhaseInfo(o I, phase mmids.Phase) PhaseState {
+func (n PhaseStateAccess[I]) GetPhaseState(o I, phase mmids.Phase) PhaseState {
 	f := n[phase]
 	if f == nil {
-		return nil
+		panic(fmt.Sprintf("invalid phase %s for type %s[%T]", phase, o.GetType(), o))
 	}
 	return f(o)
 }
@@ -52,8 +52,8 @@ type pointer[P any] interface {
 type InternalObject interface {
 	model.InternalObject
 	GetBase() DBObject
-	GetPhaseInfo(phase mmids.Phase) PhaseState
-	GetPhaseInfoFor(o InternalDBObject, phase mmids.Phase) PhaseState
+	GetPhaseState(phase mmids.Phase) PhaseState
+	GetPhaseStateFor(o InternalDBObject, phase mmids.Phase) PhaseState
 }
 
 type InternalObjectSupport[I InternalDBObject] struct {
@@ -63,7 +63,7 @@ type InternalObjectSupport[I InternalDBObject] struct {
 }
 
 type phaser[T InternalDBObject] interface {
-	setPhaseInfos(pi PhaseStateAccess[T])
+	setPhaseStateAccess(pi PhaseStateAccess[T])
 }
 
 func SetPhaseStateAccess[T InternalDBObject](i InternalObject, phaseInfos PhaseStateAccess[T]) error {
@@ -71,14 +71,14 @@ func SetPhaseStateAccess[T InternalDBObject](i InternalObject, phaseInfos PhaseS
 	if !ok {
 		return fmt.Errorf("invalid object type %T", i)
 	}
-	o.setPhaseInfos(phaseInfos)
+	o.setPhaseStateAccess(phaseInfos)
 	return nil
 }
 
 // setPhaseInfos must be called by an init function of the
 // final internal object type to set up the
 // phase info access functions.
-func (n *InternalObjectSupport[I]) setPhaseInfos(pi PhaseStateAccess[I]) {
+func (n *InternalObjectSupport[I]) setPhaseStateAccess(pi PhaseStateAccess[I]) {
 	n.phaseInfos = pi
 }
 
@@ -86,12 +86,12 @@ func (n *InternalObjectSupport[I]) GetDBObject() I {
 	return n.GetBase().(I)
 }
 
-func (n *InternalObjectSupport[I]) GetPhaseInfo(phase mmids.Phase) PhaseState {
-	return n.phaseInfos.GetPhaseInfo(n.GetDBObject(), phase)
+func (n *InternalObjectSupport[I]) GetPhaseState(phase mmids.Phase) PhaseState {
+	return n.phaseInfos.GetPhaseState(n.GetDBObject(), phase)
 }
 
-func (n *InternalObjectSupport[I]) GetPhaseInfoFor(o InternalDBObject, phase mmids.Phase) PhaseState {
-	return n.phaseInfos.GetPhaseInfo(o.(I), phase)
+func (n *InternalObjectSupport[I]) GetPhaseStateFor(o InternalDBObject, phase mmids.Phase) PhaseState {
+	return n.phaseInfos.GetPhaseState(o.(I), phase)
 }
 
 // GetExternalState is a default implementation just forwarding
@@ -107,7 +107,7 @@ func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase.Objectbase) databas
 func (n *InternalObjectSupport[I]) GetStatus(phase mmids.Phase) model.Status {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
-	return n.GetPhaseInfo(phase).GetStatus()
+	return n.GetPhaseState(phase).GetStatus()
 }
 
 func (n *InternalObjectSupport[I]) SetStatus(ob internal.Objectbase, phase mmids.Phase, status internal.Status) (bool, error) {
@@ -115,7 +115,7 @@ func (n *InternalObjectSupport[I]) SetStatus(ob internal.Objectbase, phase mmids
 	defer n.Lock.Unlock()
 
 	mod := func(o DBObject) (bool, bool) {
-		b := n.GetPhaseInfo(phase).SetStatus(status)
+		b := n.GetPhaseState(phase).SetStatus(status)
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
@@ -124,7 +124,7 @@ func (n *InternalObjectSupport[I]) SetStatus(ob internal.Objectbase, phase mmids
 func (n *InternalObjectSupport[I]) GetLock(phase mmids.Phase) mmids.RunId {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
-	return n.GetPhaseInfo(phase).GetLock()
+	return n.GetPhaseState(phase).GetLock()
 }
 
 func (n *InternalObjectSupport[I]) TryLock(ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
@@ -132,7 +132,7 @@ func (n *InternalObjectSupport[I]) TryLock(ob objectbase.Objectbase, phase mmids
 	defer n.Lock.Unlock()
 
 	mod := func(o DBObject) (bool, bool) {
-		b := n.GetPhaseInfo(phase).TryLock(id)
+		b := n.GetPhaseState(phase).TryLock(id)
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
@@ -143,7 +143,7 @@ func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase.Ob
 	defer n.Lock.Unlock()
 
 	mod := func(_o DBObject) (bool, bool) {
-		p := n.GetPhaseInfoFor(_o.(I), phase)
+		p := n.GetPhaseStateFor(_o.(I), phase)
 		b := p.ClearLock(id)
 		if b {
 			v := utils.Optional(observed...)
@@ -176,7 +176,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 	mod := func(_o DBObject) (bool, bool) {
 		log.Info("Commit target state for {{element}}")
 		o := _o.(I)
-		p := n.GetPhaseInfoFor(o, phase)
+		p := n.GetPhaseStateFor(o, phase)
 		b := p.ClearLock(id)
 		if b {
 			if commit != nil {
@@ -237,8 +237,12 @@ func (c *stateSupportBase[I]) SlaveLink(typ string, phase mmids.Phase) mmids.Ele
 	return mmids.NewElementId(typ, c.GetNamespace(), c.GetName(), phase)
 }
 
+func (c *stateSupportBase[I]) SlaveLinkFor(id mmids.TypeId) mmids.ElementId {
+	return mmids.NewElementId(id.GetType(), c.GetNamespace(), c.GetName(), id.GetPhase())
+}
+
 func (c *stateSupportBase[I]) GetPhaseInfo() PhaseState {
-	return c.io.GetPhaseInfo(c.phase)
+	return c.io.GetPhaseState(c.phase)
 }
 
 type CurrentStateSupport[I InternalDBObject, C CurrentState] struct {

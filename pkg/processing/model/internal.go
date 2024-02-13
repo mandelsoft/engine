@@ -71,12 +71,3 @@ func StatusWaiting() ProcessingResult {
 		Status: STATUS_WAITING,
 	}
 }
-
-func StatusCompletedWithCreation(creation []Creation, result OutputState, err ...error) ProcessingResult {
-	return ProcessingResult{
-		Status:      STATUS_COMPLETED,
-		Creation:    creation,
-		ResultState: result,
-		Error:       utils.Optional(err...),
-	}
-}

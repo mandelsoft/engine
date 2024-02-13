@@ -99,7 +99,7 @@ var _ = Describe("Processing", func() {
 
 		})
 
-		It("multiple operators with multiple outputs creating value node (wrong order)", func() {
+		FIt("multiple operators with multiple outputs creating value node (wrong order)", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)

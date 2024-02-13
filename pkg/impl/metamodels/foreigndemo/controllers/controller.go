@@ -74,6 +74,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	}
 
 	l := len(o.Spec.Expressions)
+	log.Info("operation completed for version {{version}}", "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
 		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_COMPLETED), &mod)
@@ -104,6 +105,7 @@ var _ database.EventHandler = (*Handler)(nil)
 func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression, msg string, err error) pool.Status {
 	v := o.Spec.GetVersion()
 
+	log.LogError(err, "operation failed ({{msg}}) for observed version {{version}}", "message", msg, "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
 		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_FAILED), &mod)
@@ -112,7 +114,6 @@ func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression
 		return mod, mod
 	}
 
-	log.LogError(err, msg)
 	_, uerr := database.Modify(c.db, &o, mod)
 	if uerr != nil {
 		pool.StatusCompleted(uerr)
@@ -142,6 +143,9 @@ func Validate(o *db.Expression) error {
 func Calculate(log logging.Logger, o *db.Expression) (db.ExpressionOutput, error) {
 	out := db.ExpressionOutput{}
 
+	if len(o.Spec.Expressions) == 0 {
+		log.Info("no expressions found")
+	}
 	for n, e := range o.Spec.Expressions {
 		var operands []int
 		for _, a := range e.Operands {
