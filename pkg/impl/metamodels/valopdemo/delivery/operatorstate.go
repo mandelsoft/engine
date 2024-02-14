@@ -230,32 +230,29 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		r[e.Target] = out
 	}
 
-	ob := req.Model.ObjectBase()
-
 	// check target value objects.
-	var creations []*model.Creation
+	var slaves []ElementId
 	for k := range r {
-		log := log.WithValues("target", k)
-		log.Info("checking target {{target}}")
-		typ := mmids.NewTypeId(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE)
-		_, i, created, err := support.AssureElement(log, ob, typ, k, req,
-			func(o *db.ValueState) (bool, bool) {
-				mod := false
-				support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
-				return mod, mod
-			},
-		)
-		if created {
-			creations = append(creations, &model.Creation{
-				Internal: i,
-				Phase:    typ.GetPhase(),
-			})
-		}
-		if err != nil {
-			return model.StatusCompleted(nil, err).WithCreations(creations...)
-		}
+		slaves = append(slaves, NewElementId(mymetamodel.TYPE_VALUE_STATE, req.Element.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE))
 	}
-	return model.StatusCompleted(NewCalcOutputState(r)).WithCreations(creations...)
+
+	req.SlaveManagement.AssureSlaves(
+		func(i model.InternalObject) error {
+			o := i.(support.InternalObject).GetBase().(*db.ValueState)
+			if o.Spec.Provider != "" && o.Spec.Provider != req.Element.GetName() {
+				return fmt.Errorf("target value object %q already served by operatpr %q", i.GetName(), req.Element.GetName())
+			}
+			return nil
+		},
+		support.SlaveCreationFunc(func(o *db.ValueState) (bool, bool) {
+			mod := false
+			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			return mod, mod
+		}),
+		slaves...,
+	)
+
+	return model.StatusCompleted(NewCalcOutputState(r))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

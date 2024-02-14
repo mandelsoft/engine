@@ -96,10 +96,9 @@ var _ = Describe("Processing", func() {
 
 			mCS.Check(env, 1, "C")
 			mEA.Check(env, 77, "E")
-
 		})
 
-		FIt("multiple operators with multiple outputs creating value node (wrong order)", func() {
+		It("multiple operators with multiple outputs creating value node (wrong order)", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)

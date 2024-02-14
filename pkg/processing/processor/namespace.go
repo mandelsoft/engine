@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -59,7 +60,10 @@ func (ni *namespaceInfo) _GetElement(id ElementId) _Element {
 func (ni *namespaceInfo) _AddElement(i model.InternalObject, phase Phase) _Element {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
+	return ni._addElement(i, phase)
+}
 
+func (ni *namespaceInfo) _addElement(i model.InternalObject, phase Phase) _Element {
 	id := NewElementIdForPhase(i, phase)
 
 	if e := ni.elements[id]; e != nil {
@@ -170,4 +174,63 @@ func (ni *namespaceInfo) list(typ string) []ElementId {
 		}
 	}
 	return list
+}
+
+func (ni *namespaceInfo) assureSlaves(log logging.Logger, p *Processor, check model.SlaveCheckFunction, update model.SlaveUpdateFunction, runid RunId, eids ...ElementId) error {
+	ni.lock.Lock()
+	defer ni.lock.Unlock()
+
+	// first, check existing objects
+	for _, eid := range eids {
+		if !p.processingModel.MetaModel().HasElementType(eid.TypeId()) {
+			return fmt.Errorf("unknown element type %q for slave", eid.TypeId())
+		}
+		e := ni.elements[eid]
+		if e != nil && check != nil {
+			err := check(e.GetObject())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// second, update/create required objects
+	for _, eid := range eids {
+		e := ni.elements[eid]
+		if e == nil {
+			i, err := update(p.processingModel.ObjectBase(), eid, nil)
+			if err != nil {
+				return err
+			}
+			e = ni.setupElements(log, p, i, eid.GetPhase(), runid)
+		}
+		// always trigger new elements, because they typically have no correct current state dependencies.
+		// Those dependencies are configured in form of a state change.
+		// (The internal slave objects keeps dependencies as additional state enriching the object state
+		// of the external object)
+		p.Enqueue(CMD_ELEM, e)
+	}
+	return nil
+}
+
+func (ni *namespaceInfo) setupElements(log logging.Logger, p *Processor, i model.InternalObject, phase Phase, runid RunId) _Element {
+	var elem _Element
+	log.Info("setup new internal object {{id}} for required phase {{reqphase}}", "id", NewObjectIdFor(i), "reqphase", phase)
+	tolock := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
+	for _, ph := range p.processingModel.MetaModel().Phases(i.GetType()) {
+		n := ni._addElement(i, ph)
+		log.Info("  setup new phase {{newelem}}", "newelem", n.Id())
+		if ph == phase {
+			elem = n
+		}
+		if slices.Contains(tolock, ph) {
+			ok, err := n.TryLock(p.processingModel.ObjectBase(), runid)
+			if !ok { // new object should already be locked correctly provide atomic phase creation
+				panic(fmt.Sprintf("cannot lock incorrectly locked new element: %s", err))
+			}
+			log.Info("  dependent phase {{depphase}} locked", "depphase", ph)
+			p.pending.Add(1)
+		}
+	}
+	return elem
 }

@@ -97,12 +97,28 @@ type CommitInfo struct {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// SlaveCheckFunction is used to check the validity of an existing
+// internal object to be usable as a slave.
+type SlaveCheckFunction func(i InternalObject) error
+
+// SlaveUpdateFunction is used to create or update a new internal slave object
+// to be usable for the actual desired purpose.
+// If created, it MUST prepare it with the correct locked runid
+// and to provide the correct dependencies (at least for its
+// target state, it must be able to work with a non-existent external object).
+type SlaveUpdateFunction func(ob Objectbase, eid ElementId, i InternalObject) (created InternalObject, err error)
+
+type SlaveManagement interface {
+	AssureSlaves(check SlaveCheckFunction, update SlaveUpdateFunction, eids ...ElementId) error
+}
+
 type Request struct {
-	Logging       Logging
-	Model         ProcessingModel
-	Inputs        Inputs
-	Element       Element
-	ElementAccess ElementAccess
+	Logging         Logging
+	Model           ProcessingModel
+	Inputs          Inputs
+	Element         Element
+	ElementAccess   ElementAccess
+	SlaveManagement SlaveManagement
 }
 
 type Creation struct {
@@ -114,18 +130,8 @@ type Status string
 
 type ProcessingResult struct {
 	Status      Status
-	Creation    []*Creation
 	ResultState OutputState
 	Error       error
-}
-
-func (r ProcessingResult) WithCreations(creations ...*Creation) ProcessingResult {
-	for _, c := range creations {
-		if c != nil {
-			r.Creation = append(r.Creation, c)
-		}
-	}
-	return r
 }
 
 type StatusUpdate struct {

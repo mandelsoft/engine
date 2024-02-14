@@ -304,11 +304,12 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		// now we can process the phase
 		log.Info("executing phase {{phase}} of internal object {{intid}}", "phase", e.GetPhase(), "intid", e.Id().ObjectId())
 		status := e.GetObject().Process(model.Request{
-			Logging:       lctx,
-			Model:         p.processingModel,
-			Element:       e,
-			Inputs:        inputs,
-			ElementAccess: ni,
+			Logging:         lctx,
+			Model:           p.processingModel,
+			Element:         e,
+			Inputs:          inputs,
+			ElementAccess:   ni,
+			SlaveManagement: newSlaveManagement(log, p, ni, e),
 		})
 
 		if status.Error != nil {
@@ -328,24 +329,6 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			}
 			return pool.StatusCompleted(status.Error)
 		} else {
-			// if no error is provided, check for requested object creation.
-			// an execution might provide new internal objects.
-			// this objects MUST already be configured with the required links,
-			// especially the one to the current element.
-			// If processed, those object MUST create the matching external object.
-			for _, c := range status.Creation {
-				if p.processingModel.MetaModel().GetInternalType(c.Internal.GetType()) == nil {
-					log.Error("skipping creation of requested object for unknown internal type {{type}}", "type", c.Internal.GetType())
-					continue
-				}
-				n := p.setupNewInternalObject(log, ni, c.Internal, c.Phase, e.GetLock())
-				p.pending.Add(1)
-				// always trigger new elements, because they typically have no correct current state dependencies.
-				// Those dependencies are configured in form of a state change.
-				// (The internal slave objects keeps dependencies as additional state enriching the object state
-				// of the external object)
-				p.Enqueue(CMD_ELEM, n)
-			}
 			switch status.Status {
 			case model.STATUS_FAILED:
 				p.setStatus(log, e, model.STATUS_FAILED)

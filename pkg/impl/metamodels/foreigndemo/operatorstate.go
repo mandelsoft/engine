@@ -152,31 +152,21 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	}
 
 	// check target expression object.
-	var creation *model.Creation
-	ob := req.Model.ObjectBase()
-	tid := NewTypeId(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)
-	eid := t.SlaveLinkFor(tid)
-	log.Info("checking expression state {{target}}", "target", eid)
-	_, i, created, err := support.AssureElement(log, ob, tid, t.GetName(), req,
-		func(o *db.ExpressionState) (bool, bool) {
-			return false, false
-		},
+	err := req.SlaveManagement.AssureSlaves(
+		nil,
+		support.SlaveCreationOnly,
+		model.SlaveId(req.Element.Id(), mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION),
 	)
-	if created {
-		creation = &model.Creation{
-			Internal: i,
-			Phase:    tid.GetPhase(),
-		}
-	}
+
 	if err != nil {
-		return model.StatusCompleted(nil, err).WithCreations(creation)
+		return model.StatusCompleted(nil, err)
 	}
 
 	out := &db.GatherOutput{
 		Operands:   operands,
 		Operations: t.GetOperations(),
 	}
-	return model.StatusCompleted(NewGatherOutputState(out)).WithCreations(creation)
+	return model.StatusCompleted(NewGatherOutputState(out))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -241,32 +231,28 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		log.Info("- {{outbound}}: {{value}}", "outbound", i, "value", v)
 	}
 
-	ob := req.Model.ObjectBase()
-
-	// check target value objects.
-	var creations []*model.Creation
+	var slaves []ElementId
 	for k := range s.GetOutputs() {
-		log := log.WithValues("target", k)
-		log.Info("checking target {{target}}")
-		typ := mmids.NewTypeId(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE)
-		_, i, created, err := support.AssureElement(log, ob, typ, k, req,
-			func(o *db.ValueState) (bool, bool) {
-				mod := false
-				support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
-				return mod, mod
-			},
-		)
-		if created {
-			creations = append(creations, &model.Creation{
-				Internal: i,
-				Phase:    typ.GetPhase(),
-			})
-		}
-		if err != nil {
-			return model.StatusCompleted(nil, err).WithCreations(creations...)
-		}
+		slaves = append(slaves, NewElementId(mymetamodel.TYPE_VALUE_STATE, req.Element.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE))
 	}
-	return model.StatusCompleted(NewCalcOutputState(out)).WithCreations(creations...)
+
+	req.SlaveManagement.AssureSlaves(
+		func(i model.InternalObject) error {
+			o := i.(support.InternalObject).GetBase().(*db.ValueState)
+			if o.Spec.Provider != "" && o.Spec.Provider != req.Element.GetName() {
+				return fmt.Errorf("target value object %q already served by operatpr %q", i.GetName(), req.Element.GetName())
+			}
+			return nil
+		},
+		support.SlaveCreationFunc(func(o *db.ValueState) (bool, bool) {
+			mod := false
+			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			return mod, mod
+		}),
+		slaves...,
+	)
+
+	return model.StatusCompleted(NewCalcOutputState(out))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

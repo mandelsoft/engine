@@ -9,6 +9,7 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
+	"github.com/mandelsoft/engine/pkg/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -73,7 +74,7 @@ var _ = Describe("Processing", func() {
 			Expect(env.Wait(mEx)).To(BeTrue())
 		})
 
-		FIt("operator with two operands (in order)", func() {
+		It("operator with two operands (in order)", func() {
 			env.AddService(controllers.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
 			env.Start()
 
@@ -93,6 +94,36 @@ var _ = Describe("Processing", func() {
 
 			Expect(env.Wait(mCA)).To(BeTrue())
 			mCA.Check(env, 11, "C")
+		})
+
+		FIt("recalculates operator with two operands (in order)", func() {
+			env.AddService(controllers.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
+			env.Start()
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(vB))
+
+			opC := db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperand("iB", "B").
+				AddOperation("eA", db.OP_ADD, "iA", "iB").
+				AddOutput("C-A", "eA")
+
+			mCA := ValueCompleted(env, "C-A", true)
+			MustBeSuccessfull(env.SetObject(opC))
+
+			Expect(env.Wait(mCA)).To(BeTrue())
+			mCA.Check(env, 11, "C")
+
+			fmt.Printf("*** modify value A ***\n")
+			_ = Must(database.Modify(env.Database(), &vA, func(o *db.Value) (bool, bool) {
+				support.UpdateField(&o.Spec.Value, utils.Pointer(4))
+				return true, true
+			}))
+
+			Expect(mCA.WaitUntil(env, 10, "C", 3)).To(BeTrue())
 		})
 	})
 })
@@ -146,6 +177,36 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 	}
 	ctxutil.Cancel(ctx)
 	return b
+}
+
+func (m *ValueMon) WaitUntil(env *TestEnv, value int, provider string, omax ...int) bool {
+	max := utils.Optional(omax...)
+	// max==0 means endless
+	for {
+		max--
+		if max == 0 {
+			return false
+		}
+		if !m.Wait(env.Context()) {
+			return false
+		}
+		if m.Test(env, value, provider) {
+			return true
+		}
+	}
+}
+
+func (m *ValueMon) Test(env *TestEnv, value int, provider string) bool {
+	odb := objectbase.GetDatabase[support.DBObject](env.Processor().Model().ObjectBase())
+	v, err := odb.GetObject(m.oid)
+	ExpectWithOffset(1, err).To(Succeed())
+	if v.(*db.Value).Status.Provider != provider {
+		return false
+	}
+	if v.(*db.Value).Spec.Value != value {
+		return false
+	}
+	return true
 }
 
 func (m *ValueMon) Check(env *TestEnv, value int, provider string) {

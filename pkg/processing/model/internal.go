@@ -11,6 +11,9 @@ type ExternalObject = internal.ExternalObject
 type NamespaceObject = internal.NamespaceObject
 
 type CommitInfo = internal.CommitInfo
+type SlaveCheckFunction = internal.SlaveCheckFunction
+type SlaveUpdateFunction = internal.SlaveUpdateFunction
+type SlaveManagement = internal.SlaveManagement
 type Request = internal.Request
 type LinkState = internal.LinkState
 type CurrentState = internal.CurrentState
