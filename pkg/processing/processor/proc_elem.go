@@ -111,7 +111,11 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 
 		o := _o.(model.ExternalObject)
 		// give the internal object the chance to modify the actual state
+		ov := o.GetState().GetVersion()
 		v := e.GetExternalState(o).GetVersion()
+		if ov != v {
+			log.Debug("state of external object {{extid}} adjusted from {{objectversion}} to {{version}}", "objectversion", ov, "version", v)
+		}
 		if v == cur {
 			log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
 		} else {
@@ -257,12 +261,11 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		// check effective version for required phase processing.
 		target := e.GetObject().GetTargetState(e.GetPhase())
 
-		// shit if object state is shared with rollbacked predecessor!!!!!!
 		indiff := diff(log, "input version", e.GetCurrentState().GetInputVersion(), target.GetInputVersion(inputs))
 		obdiff := diff(log, "object version", e.GetCurrentState().GetObjectVersion(), target.GetObjectVersion())
 		if !indiff && !obdiff {
 			log.Info("effective version unchanged -> skip processing of phase")
-			err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil)
+			err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil, nil)
 			if err == nil {
 				_, err = e.SetStatus(p.processingModel.ObjectBase(), model.STATUS_COMPLETED)
 				if err == nil {
@@ -303,7 +306,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 	if isProcessable(e) {
 		// now we can process the phase
 		log.Info("executing phase {{phase}} of internal object {{intid}}", "phase", e.GetPhase(), "intid", e.Id().ObjectId())
-		status := e.GetObject().Process(model.Request{
+		result := e.GetObject().Process(model.Request{
 			Logging:         lctx,
 			Model:           p.processingModel,
 			Element:         e,
@@ -312,24 +315,24 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			SlaveManagement: newSlaveManagement(log, p, ni, e),
 		})
 
-		if status.Error != nil {
-			if status.Status == model.STATUS_FAILED {
+		if result.Error != nil {
+			if result.Status == model.STATUS_FAILED {
 				// non-recoverable error, wait for new change in external object state
-				log.Error("processing provides non recoverable error", "error", status.Error)
-				return p.fail(lctx, log, ni, e, status.Error)
+				log.Error("processing provides non recoverable error", "error", result.Error)
+				return p.fail(lctx, log, ni, e, result.Error)
 			}
-			log.Error("processing provides error", "error", status.Error)
-			err := p.updateStatus(lctx, log, e, status.Status, status.Error.Error())
+			log.Error("processing provides error", "error", result.Error)
+			err := p.updateStatus(lctx, log, e, result.Status, result.Error.Error())
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
-			err = p.setStatus(log, e, status.Status)
+			err = p.setStatus(log, e, result.Status)
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
-			return pool.StatusCompleted(status.Error)
+			return pool.StatusCompleted(result.Error)
 		} else {
-			switch status.Status {
+			switch result.Status {
 			case model.STATUS_FAILED:
 				p.setStatus(log, e, model.STATUS_FAILED)
 				p.pending.Add(-1)
@@ -340,7 +343,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				p.pending.Add(-1)
 				p.triggerChildren(log, ni, e, true)
 			case model.STATUS_COMPLETED:
-				err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", inputs, status.ResultState, CalcEffectiveVersion(inputs, e.GetProcessingState().GetObjectVersion()))
+				err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", result.EffectiveObjectVersion, inputs, result.ResultState, CalcEffectiveVersion(inputs, e.GetProcessingState().GetObjectVersion()))
 				if err != nil {
 					return pool.StatusCompleted(err)
 				}
@@ -348,7 +351,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				p.pending.Add(-1)
 				p.triggerChildren(log, ni, e, true)
 			default:
-				p.setStatus(log, e, status.Status)
+				p.setStatus(log, e, result.Status)
 			}
 		}
 	} else {
@@ -410,15 +413,16 @@ func (p *Processor) internalObjectDeleted(log logging.Logger, ni *namespaceInfo,
 	}
 }
 
-func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, msg string, inputs model.Inputs, args ...interface{}) error {
+func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, msg string, eff *string, inputs model.Inputs, args ...interface{}) error {
 	var ci *model.CommitInfo
 
 	result := GetResultState(args...)
 	target := e.GetProcessingState()
 	if result != nil {
 		ci = &model.CommitInfo{
-			InputVersion: target.GetInputVersion(inputs),
-			OutputState:  result,
+			InputVersion:  target.GetInputVersion(inputs),
+			ObjectVersion: eff,
+			OutputState:   result,
 		}
 	}
 	if target != nil {

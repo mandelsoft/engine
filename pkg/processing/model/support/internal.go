@@ -168,7 +168,7 @@ func (f CommitFunc[P]) Commit(lctx model.Logging, o P, phase mmids.Phase, spec *
 	f(lctx, o, phase, spec)
 }
 
-func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, observed string, committer Committer[I]) (bool, error) {
+func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, committer Committer[I]) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -180,16 +180,19 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 		b := p.ClearLock(id)
 		if b {
 			if commit != nil {
-				log.Info("  observed version {{observed}}", "observed", observed)
 				c := p.GetCurrent()
-				if observed != "" {
-					c.SetObservedVersion(observed)
-				}
 				log.Info("  input version {{input}}", "input", commit.InputVersion)
 				c.SetInputVersion(commit.InputVersion)
 				v := p.GetTarget().GetObjectVersion()
-				log.Info("  object version {{object}}", "object", v)
+				if commit.ObjectVersion != nil && v != *commit.ObjectVersion {
+					log.Info("  modified object version {{object}} (original {{orig}})", "object", *commit.ObjectVersion, "orig", v)
+					v = *commit.ObjectVersion
+				} else {
+					log.Info("  object version {{object}}", "object", v)
+				}
 				c.SetObjectVersion(v)
+				log.Info("  observed version {{observed}}", "observed", v)
+				c.SetObservedVersion(v)
 				v = commit.OutputState.GetOutputVersion()
 				log.Info("  output version {{output}}", "output", v)
 				c.SetOutputVersion(commit.OutputState.GetOutputVersion())

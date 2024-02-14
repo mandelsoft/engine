@@ -157,7 +157,7 @@ func (n *NodeState) Validate() error {
 }
 
 func (n *NodeState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc[*db.NodeState](n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, support.CommitFunc[*db.NodeState](n.commitTargetState))
 }
 
 func (n *NodeState) commitTargetState(lctx model.Logging, o *db.NodeState, phase Phase, spec *model.CommitInfo) {

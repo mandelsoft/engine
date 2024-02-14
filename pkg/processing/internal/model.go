@@ -91,8 +91,14 @@ type OutputState interface {
 }
 
 type CommitInfo struct {
+	// InputVersion version is the version of the inputs used for this commit.
 	InputVersion string
-	OutputState  OutputState
+	// ObjectVersion is an optional modified object version, which should be
+	// uses instead of the onw from the target state.
+	// It typically results from a modification of the external object
+	// used as slave object.
+	ObjectVersion *string
+	OutputState   OutputState
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,9 +135,15 @@ type Creation struct {
 type Status string
 
 type ProcessingResult struct {
-	Status      Status
-	ResultState OutputState
-	Error       error
+	Status                 Status
+	ResultState            OutputState
+	EffectiveObjectVersion *string
+	Error                  error
+}
+
+func (s ProcessingResult) ModifyObjectVersion(v *string) ProcessingResult {
+	s.EffectiveObjectVersion = v
+	return s
 }
 
 type StatusUpdate struct {

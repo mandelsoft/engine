@@ -80,7 +80,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 
 	ex := db.NewExpressionSpec()
 	for n, v := range gathered.Operands {
-		log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, "oid", v.Origin)
+		log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, v.Origin)
 		ex.AddOperand(n, v.Value)
 	}
 	for n, o := range gathered.Operations {
@@ -147,13 +147,13 @@ func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectba
 	if updated {
 		log.Info(fmt.Sprintf("slave expression object {{extid}} %s", mode+"d"))
 	} else {
-		log.Info("slave expression object spec for {{extid}} up to date")
+		log.Info("slave expression object spec for {{extid}} up to date", "extid", extid)
 	}
 	return updated, nil
 }
 
 func (n *ExpressionState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc[*db.ExpressionState](n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, support.CommitFunc[*db.ExpressionState](n.commitTargetState))
 }
 
 func (n *ExpressionState) commitTargetState(lctx model.Logging, o *db.ExpressionState, phase Phase, spec *model.CommitInfo) {

@@ -82,7 +82,6 @@ func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveVa
 
 func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
-
 	target := n.GetTargetState(req.Element.GetPhase())
 
 	var out db.ValueOutput
@@ -108,11 +107,12 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	}
 
 	if out.Origin != nil {
-		err := n.assureSlave(log, req.Model.ObjectBase(), &out)
+		o, err := n.assureSlave(log, req.Model.ObjectBase(), &out)
 		if err != nil {
 			return model.StatusCompleted(nil, err)
 		}
-		return model.StatusCompleted(NewValueOutputState(out))
+		modifiedObjectVersion := model.ModifiedSlaveObjectVersion(log, req.Element, o)
+		return model.StatusCompleted(NewValueOutputState(out)).ModifyObjectVersion(modifiedObjectVersion)
 	}
 
 	log.Info("provider {{provider}} does not feed value anymore", "provider", target.(*TargetValueState).GetProvider())
@@ -134,7 +134,9 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	return model.StatusDeleted()
 }
 
-func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, out *db.ValueOutput) error {
+func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, out *db.ValueOutput) (model.ExternalObject, error) {
+	var modobj model.ExternalObject
+
 	extid := database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName())
 	log = log.WithValues("extid", extid)
 	if *out.Origin != mmids.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
@@ -156,16 +158,17 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 			}
 			if err != nil {
 				log.LogError(err, "creation of value object {{exitid}} failed")
-				return err
+				return nil, err
 			}
+			modobj = _o.(model.ExternalObject)
 			log.Info("slave value object {{extid}} created")
 		}
 	}
-	return nil
+	return modobj, nil
 }
 
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.GetTargetState(phase).GetObjectVersion(), support.CommitFunc[*db.ValueState](n.commitTargetState))
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, support.CommitFunc[*db.ValueState](n.commitTargetState))
 }
 
 func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, phase Phase, spec *model.CommitInfo) {
@@ -247,4 +250,8 @@ func (c *TargetValueState) GetProvider() string {
 
 func (c *TargetValueState) GetValue() int {
 	return c.Get().Spec.Value
+}
+
+func (c *TargetValueState) AdjustObjectVersion(v string) {
+	c.Get().ObjectVersion = v
 }

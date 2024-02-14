@@ -19,6 +19,8 @@ type Element interface {
 	GetObject() InternalObject
 
 	GetLock() RunId
+
+	GetExternalState(ExternalObject) ExternalState
 }
 
 type ElementAccess interface {

@@ -238,5 +238,5 @@ func (n *InternalPhaseObjectSupport[I, T, E]) Commit(lctx model.Logging, ob obje
 		var b bool
 		n.phases.DBCommit(lctx, o, phase, commit, &b)
 	})
-	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, n.phases.GetTargetState(n.self, phase).GetObjectVersion(), f)
+	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, f)
 }
