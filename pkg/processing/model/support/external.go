@@ -4,11 +4,12 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type ExternalDBObject interface {
-	DBObject
+	db.DBObject
 	database.StatusSource
 }
 

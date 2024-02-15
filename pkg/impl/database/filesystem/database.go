@@ -188,6 +188,12 @@ func (d *Database[O]) doSetObject(log logging.Logger, path string, o O) error {
 		g.SetGeneration(gen + 1)
 	}
 
+	if f, ok := utils.TryCast[database.Finalizable](o); ok {
+		if f.IsDeleting() && len(f.GetFinalizers()) == 0 {
+			return d.doDeleteObject(log, path, database.NewObjectIdFor(o))
+		}
+	}
+
 	data, err := yaml.Marshal(o)
 	if err != nil {
 		log.LogError(err, "cannot marshal content", "path", path)
@@ -206,21 +212,31 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 	path := d.OPath(id)
 	log := logging.DefaultContext().Logger(REALM)
 	log.Debug("delete object", "path", path)
-	err := d.deleteObject(log, path, id)
+	err := d.doDeleteObject(log, path, id)
 	if err == nil {
 		d.registry.TriggerEvent(id)
 	}
 	return err
 }
 
-func (d *Database[O]) deleteObject(log logging.Logger, path string, id database.ObjectId) error {
+func (d *Database[O]) doDeleteObject(log logging.Logger, path string, id database.ObjectId) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
 	if ok, err := vfs.Exists(d.fs, path); !ok && err == nil {
 		return database.ErrNotExist
 	}
-	err := d.fs.Remove(path)
+	o, err := d.get(id)
+	if err != nil {
+		return err
+	}
+	if f, ok := utils.TryCast[database.Finalizable](o); ok {
+		f.RequestDeletion()
+		if len(f.GetFinalizers()) != 0 {
+			return d.doSetObject(log, path, o)
+		}
+	}
+	err = d.fs.Remove(path)
 	if err != nil {
 		log.LogError(err, "cannot delete file", "path", path)
 		return err

@@ -7,6 +7,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
@@ -196,7 +197,7 @@ func (n *InternalPhaseObjectSupport[I, T, E]) AcceptExternalState(lctx model.Log
 	if status != model.ACCEPT_OK || err != nil {
 		return status, err
 	}
-	mod := func(_o DBObject) (bool, bool) {
+	mod := func(_o db.DBObject) (bool, bool) {
 		mod := false
 		for _, s := range states {
 			n.phases.DBSetExternalState(lctx, n, _o.(InternalDBObject), phase, s.(E), &mod)
@@ -215,7 +216,7 @@ func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx model.Logging, ob ob
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(_o DBObject) (bool, bool) {
+	mod := func(_o db.DBObject) (bool, bool) {
 		o := _o.(T)
 		v := utils.Optional(observed...)
 		p := n.GetPhaseStateFor(o, phase)

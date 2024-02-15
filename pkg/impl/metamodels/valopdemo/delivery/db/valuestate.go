@@ -2,6 +2,7 @@ package db
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -12,7 +13,7 @@ import (
 var ValuePhaseStateAccess = support.NewPhaseStateAccess[*ValueState]()
 
 func init() {
-	database.MustRegisterType[ValueState, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[ValueState, db.DBObject](Scheme) // Goland requires second type parameter
 
 	// register access to phase info parts in ValueState
 	ValuePhaseStateAccess.Register(mymetamodel.PHASE_PROPAGATE, func(o *ValueState) support.PhaseState { return &o.PropagateState })

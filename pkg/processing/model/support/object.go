@@ -1,23 +1,17 @@
 package support
 
 import (
-	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 )
 
-type DBObject interface {
-	database.Object
-	database.GenerationAccess
-	database.StatusSource
-}
-
-type _DBObject = DBObject
+type _DBObject = db.DBObject
 
 type Object interface {
 	objectbase.Object
-	wrapped.Object[DBObject]
+	wrapped.Object[db.DBObject]
 }
 
 type Wrapper struct {
@@ -25,12 +19,12 @@ type Wrapper struct {
 }
 
 var _ objectbase.Object = (*Wrapper)(nil)
-var _ wrapper.Object[DBObject] = (*Wrapper)(nil)
+var _ wrapper.Object[db.DBObject] = (*Wrapper)(nil)
 
-func (w *Wrapper) SetBase(o DBObject) {
+func (w *Wrapper) SetBase(o db.DBObject) {
 	w._DBObject = o
 }
 
-func (w *Wrapper) GetBase() DBObject {
+func (w *Wrapper) GetBase() db.DBObject {
 	return w._DBObject
 }

@@ -12,18 +12,19 @@ import (
 	"github.com/mandelsoft/engine/pkg/pool"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
 
 type ExpressionController struct {
 	pool pool.Pool
-	db   database.Database[support.DBObject]
+	db   database.Database[db2.DBObject]
 }
 
 var _ pool.Action = (*ExpressionController)(nil)
 
-func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[support.DBObject]) *ExpressionController {
+func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.DBObject]) *ExpressionController {
 	p := pool.NewPool(ctx, lctx, "controller", size, 0)
 
 	c := &ExpressionController{

@@ -7,19 +7,18 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 func init() {
-	database.MustRegisterType[Operator, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Operator, db.DBObject](Scheme) // Goland requires second type parameter
 }
 
 type Operator struct {
-	database.GenerationObjectMeta
+	db.ObjectMeta
 
 	Spec   OperatorSpec   `json:"spec"`
 	Status OperatorStatus `json:"status"`
@@ -75,7 +74,7 @@ type CalculationOutput map[string]int
 
 func NewOperatorNode(ns, n string) *Operator {
 	return &Operator{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_OPERATOR, ns, n),
+		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_OPERATOR, ns, n),
 		Spec: OperatorSpec{
 			Operands:   map[string]string{},
 			Operations: map[string]Operation{},

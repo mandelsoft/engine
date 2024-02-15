@@ -8,6 +8,7 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
@@ -16,7 +17,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
@@ -37,7 +37,7 @@ type TestEnv struct {
 	ctx          context.Context
 	lctx         logging.Context
 	logbuf       *bytes.Buffer
-	db           database.Database[support.DBObject]
+	db           database.Database[db.DBObject]
 	proc         *processor.Processor
 	startables   []Startable
 	started      bool
@@ -48,7 +48,7 @@ type Waitable interface {
 	Wait(ctx context.Context) bool
 }
 
-type ModelCreator func(name string, dbspec database.Specification[support.DBObject]) model.ModelSpecification
+type ModelCreator func(name string, dbspec database.Specification[db.DBObject]) model.ModelSpecification
 
 func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) (*TestEnv, error) {
 	options := &Options{
@@ -65,7 +65,7 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 		return nil, err
 	}
 
-	spec := creator(name, filesystem.NewSpecification[support.DBObject](path, fs))
+	spec := creator(name, filesystem.NewSpecification[db.DBObject](path, fs))
 	err = spec.Validate()
 	if err != nil {
 		vfs.Cleanup(fs)
@@ -88,7 +88,7 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 		return nil, err
 	}
 	proc := Must(processor.NewProcessor(ctx, lctx, m, options.numWorker))
-	db := objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
+	db := objectbase.GetDatabase[db.DBObject](proc.Model().ObjectBase())
 
 	mgr := future.NewEventManager[ObjectId, model.Status]()
 
@@ -118,7 +118,7 @@ func (t *TestEnv) Processor() *processor.Processor {
 	return t.proc
 }
 
-func (t *TestEnv) Database() database.Database[support.DBObject] {
+func (t *TestEnv) Database() database.Database[db.DBObject] {
 	return t.db
 }
 
@@ -168,11 +168,11 @@ func (t *TestEnv) WaitGroup() *sync.WaitGroup {
 	return t.wg
 }
 
-func (t *TestEnv) GetObject(id database.ObjectId) (support.DBObject, error) {
+func (t *TestEnv) GetObject(id database.ObjectId) (db.DBObject, error) {
 	return t.db.GetObject(id)
 }
 
-func (t *TestEnv) SetObject(o support.DBObject) error {
+func (t *TestEnv) SetObject(o db.DBObject) error {
 	return t.db.SetObject(o)
 }
 
@@ -197,7 +197,7 @@ func (t *TestEnv) WaitWithTimeout(w Waitable) bool {
 	return w.Wait(ctx)
 }
 
-func Modify[O support.DBObject, R any](env *TestEnv, o *O, mod func(o O) (R, bool)) (R, error) {
+func Modify[O db.DBObject, R any](env *TestEnv, o *O, mod func(o O) (R, bool)) (R, error) {
 	return database.Modify(env.db, o, mod)
 }
 
@@ -210,7 +210,7 @@ func (t *TestEnv) Cleanup() {
 }
 
 type handler struct {
-	db  database.Database[support.DBObject]
+	db  database.Database[db.DBObject]
 	mgr future.EventManager[ObjectId, model.Status]
 }
 

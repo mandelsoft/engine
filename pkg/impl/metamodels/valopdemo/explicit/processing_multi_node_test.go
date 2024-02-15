@@ -7,6 +7,7 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -17,7 +18,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit"
@@ -109,8 +109,8 @@ var _ = Describe("Processing", func() {
 			}
 
 			fmt.Printf("*** modify object A ***\n")
-			dbo := (support.DBObject)(n5)
-			_ = Must(database.Modify(env.Database(), &dbo, func(o support.DBObject) (bool, bool) {
+			dbo := (db2.DBObject)(n5)
+			_ = Must(database.Modify(env.Database(), &dbo, func(o db2.DBObject) (bool, bool) {
 				o.(*db.Value).Spec.Value = 6
 				return true, true
 			}))
@@ -254,7 +254,7 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 }
 
 func (m *ValueMon) Check(env *TestEnv, value int) {
-	odb := objectbase.GetDatabase[support.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	ExpectWithOffset(1, v.(*db.Value).Status.Result).NotTo(BeNil())

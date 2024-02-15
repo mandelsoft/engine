@@ -2,8 +2,10 @@ package database
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/mandelsoft/engine/pkg/runtime"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type Scheme[O Object] interface {
@@ -42,8 +44,22 @@ type GenerationAccess interface {
 	SetGeneration(int64)
 }
 
+// Finalizable is an optional interface of
+// objects featuring a deletion state and finalizers.
+type Finalizable interface {
+	GetFinalizers() []string
+	SetFinalizers(f []string)
+	AddFinalizer(f string) bool
+	RemoveFinalizer(f string) bool
+
+	RequestDeletion()
+	IsDeleting() bool
+}
+
 var ErrModified = fmt.Errorf("object modified")
 var ErrNotExist = fmt.Errorf("object not found")
+
+////////////////////////////////////////////////////////////////////////////////
 
 type Generation struct {
 	Generation int64 `json:"generation"`
@@ -63,6 +79,53 @@ func GetGeneration(o Object) int64 {
 	}
 	return -1
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+type FinalizedMeta struct {
+	Finalizers   []string         `json:"finalizers,omitempty"`
+	DeletionTime *utils.Timestamp `json:"deletionTime,omitempty"`
+}
+
+var _ Finalizable = (*FinalizedMeta)(nil)
+
+func (g *FinalizedMeta) IsDeleting() bool {
+	return g.DeletionTime != nil
+}
+
+func (g *FinalizedMeta) RequestDeletion() {
+	if g.IsDeleting() {
+		return
+	}
+	g.DeletionTime = utils.NewTimestampP()
+}
+
+func (g *FinalizedMeta) GetFinalizers() []string {
+	return slices.Clone(g.Finalizers)
+}
+
+func (g *FinalizedMeta) SetFinalizers(f []string) {
+	g.Finalizers = slices.Clone(f)
+}
+
+func (g *FinalizedMeta) AddFinalizer(f string) bool {
+	if !slices.Contains(g.Finalizers, f) {
+		g.Finalizers = append(g.Finalizers, f)
+		return true
+	}
+	return false
+}
+
+func (g *FinalizedMeta) RemoveFinalizer(f string) bool {
+	i := slices.Index(g.Finalizers, f)
+	if i < 0 {
+		return false
+	}
+	g.Finalizers = append(g.Finalizers[:i], g.Finalizers[i+1:]...)
+	return true
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 type StatusSource interface {
 	GetStatusValue() string

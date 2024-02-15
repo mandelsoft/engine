@@ -5,23 +5,23 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
 )
 
 func init() {
-	database.MustRegisterType[Node, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Node, db.DBObject](Scheme) // Goland requires second type parameter
 }
 
 type Value = Node
 type Operator = Node
 
 type Node struct {
-	database.GenerationObjectMeta
+	db.ObjectMeta
 
 	Spec   NodeSpec   `json:"spec"`
 	Status NodeStatus `json:"status"`
@@ -60,7 +60,7 @@ type NodeStatus struct {
 
 func NewOperatorNode(ns, n string, op OperatorName, operands ...string) *Node {
 	return &Node{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_NODE, ns, n),
+		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_NODE, ns, n),
 		Spec: NodeSpec{
 			Operator: utils.Pointer(op),
 			Operands: slices.Clone(operands),
@@ -70,7 +70,7 @@ func NewOperatorNode(ns, n string, op OperatorName, operands ...string) *Node {
 
 func NewValueNode(ns, n string, value int) *Node {
 	return &Node{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_NODE, ns, n),
+		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_NODE, ns, n),
 		Spec: NodeSpec{
 			Value: utils.Pointer(value),
 		},

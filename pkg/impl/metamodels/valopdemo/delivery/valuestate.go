@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
@@ -51,7 +52,7 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 }
 
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
-	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
@@ -154,7 +155,7 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 		}
 		if err == nil {
 			o := _o.(*Value)
-			_, err = wrapped.Modify(ob, o, func(_o support.DBObject) (bool, bool) {
+			_, err = wrapped.Modify(ob, o, func(_o db2.DBObject) (bool, bool) {
 				o := _o.(*db.Value)
 				mod := false
 				support.UpdateField(&o.Spec.Value, &out.Value, &mod)

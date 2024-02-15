@@ -4,6 +4,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
@@ -11,7 +12,7 @@ import (
 var ExpressionPhaseStateAccess = support.NewPhaseStateAccess[*ExpressionState]()
 
 func init() {
-	database.MustRegisterType[ExpressionState, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[ExpressionState, db.DBObject](Scheme) // Goland requires second type parameter
 
 	// register access to phase info parts in ExpressionState
 	ExpressionPhaseStateAccess.Register(mymetamodel.PHASE_EVALUATION, func(o *ExpressionState) support.PhaseState { return &o.EvaluationState })

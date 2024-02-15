@@ -6,16 +6,17 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 func init() {
-	database.MustRegisterType[Expression, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Expression, db.DBObject](Scheme) // Goland requires second type parameter
 }
 
 type Expression struct {
-	database.GenerationObjectMeta
+	db.ObjectMeta
 
 	Spec   ExpressionSpec   `json:"spec"`
 	Status ExpressionStatus `json:"status"`
@@ -59,8 +60,8 @@ type ExpressionOutput map[string]int
 
 func NewExpression(ns, n string) *Expression {
 	return &Expression{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_EXPRESSION, ns, n),
-		Spec:                 *NewExpressionSpec(),
+		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_EXPRESSION, ns, n),
+		Spec:       *NewExpressionSpec(),
 	}
 }
 

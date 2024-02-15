@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -14,7 +15,7 @@ import (
 var OperatorPhaseStateAccess = support.NewPhaseStateAccess[*OperatorState]()
 
 func init() {
-	database.MustRegisterType[OperatorState, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[OperatorState, db.DBObject](Scheme) // Goland requires second type parameter
 
 	// register acc to phase info parts in OperatorState
 	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *OperatorState) support.PhaseState { return &o.Gather })

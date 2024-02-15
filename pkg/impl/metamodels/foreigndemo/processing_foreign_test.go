@@ -7,6 +7,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/controllers"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -96,7 +97,7 @@ var _ = Describe("Processing", func() {
 			mCA.Check(env, 11, "C")
 		})
 
-		FIt("recalculates operator with two operands (in order)", func() {
+		It("recalculates operator with two operands (in order)", func() {
 			env.AddService(controllers.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
 			env.Start()
 
@@ -197,7 +198,7 @@ func (m *ValueMon) WaitUntil(env *TestEnv, value int, provider string, omax ...i
 }
 
 func (m *ValueMon) Test(env *TestEnv, value int, provider string) bool {
-	odb := objectbase.GetDatabase[support.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	if v.(*db.Value).Status.Provider != provider {
@@ -210,7 +211,7 @@ func (m *ValueMon) Test(env *TestEnv, value int, provider string) bool {
 }
 
 func (m *ValueMon) Check(env *TestEnv, value int, provider string) {
-	odb := objectbase.GetDatabase[support.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	ExpectWithOffset(1, v.(*db.Value).Status.Provider).To(Equal(provider))

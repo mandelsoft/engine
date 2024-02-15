@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -23,7 +24,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 	"github.com/mandelsoft/engine/pkg/utils"
 
@@ -42,12 +42,12 @@ var _ = Describe("Processing", func() {
 	var lctx logging.Context
 	var logbuf *bytes.Buffer
 	var proc *processor.Processor
-	var odb database.Database[support.DBObject]
+	var odb database.Database[db2.DBObject]
 
 	BeforeEach(func() {
 		fs = Must(TestFileSystem("testdata", false))
 
-		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[support.DBObject]("testdata", fs))
+		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[db2.DBObject]("testdata", fs))
 		MustBeSuccessfull(spec.Validate())
 
 		logbuf = bytes.NewBuffer(nil)
@@ -62,7 +62,7 @@ var _ = Describe("Processing", func() {
 
 		m := Must(model.NewModel(spec))
 		proc = Must(processor.NewProcessor(ctx, lctx, m, 1))
-		odb = objectbase.GetDatabase[support.DBObject](proc.Model().ObjectBase())
+		odb = objectbase.GetDatabase[db2.DBObject](proc.Model().ObjectBase())
 		wg = &sync.WaitGroup{}
 		_ = logbuf
 	})
@@ -134,8 +134,8 @@ var _ = Describe("Processing", func() {
 			}
 
 			fmt.Printf("*** modify object A ***\n")
-			dbo := (support.DBObject)(n5)
-			_ = Must(database.Modify(odb, &dbo, func(o support.DBObject) (bool, bool) {
+			dbo := (db2.DBObject)(n5)
+			_ = Must(database.Modify(odb, &dbo, func(o db2.DBObject) (bool, bool) {
 				o.(*db.Node).Spec.Value = utils.Pointer(6)
 				return true, true
 			}))

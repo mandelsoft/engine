@@ -3,19 +3,18 @@ package db
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
-	database.MustRegisterType[Value, support.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Value, db.DBObject](Scheme) // Goland requires second type parameter
 }
 
 type Value struct {
-	database.GenerationObjectMeta
+	db.ObjectMeta
 
 	Spec   ValueSpec   `json:"spec"`
 	Status ValueStatus `json:"status"`
@@ -45,7 +44,7 @@ type ValueStatus struct {
 
 func NewValueNode(ns, n string, value int) *Value {
 	return &Value{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_VALUE, ns, n),
+		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_VALUE, ns, n),
 		Spec: ValueSpec{
 			Value: value,
 		},
@@ -54,7 +53,7 @@ func NewValueNode(ns, n string, value int) *Value {
 
 func NewResultNode(ns, n string, operator string) *Value {
 	return &Value{
-		GenerationObjectMeta: database.NewGenerationObjectMeta(mymetamodel.TYPE_VALUE, ns, n),
+		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_VALUE, ns, n),
 		Spec: ValueSpec{
 			Owner: operator,
 		},

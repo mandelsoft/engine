@@ -12,6 +12,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
@@ -66,7 +67,7 @@ func AssureInternalObject[I InternalDBObject, R any](log logging.Logger, ob obje
 		if err != nil {
 			return _nil, nil, false, err
 		}
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[DBObject]), func(_o DBObject) (R, bool) {
+		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
 			o := _o.(I)
 			for _, ph := range tolock {
 				i.(InternalObject).GetPhaseStateFor(o, ph).TryLock(req.Element.GetLock())
@@ -82,7 +83,7 @@ func AssureInternalObject[I InternalDBObject, R any](log logging.Logger, ob obje
 	} else {
 		log.Info("required slave element {{slave}} already exists", "slave", eid)
 		var modified bool
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[DBObject]), func(_o DBObject) (R, bool) {
+		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
 			o := _o.(I)
 			r, m := mod(o)
 			modified = m
@@ -97,7 +98,7 @@ func AssureInternalObject[I InternalDBObject, R any](log logging.Logger, ob obje
 	}
 }
 
-func creationOnly(o DBObject) (bool, bool) {
+func creationOnly(o db.DBObject) (bool, bool) {
 	return false, false
 }
 
@@ -123,7 +124,7 @@ func UpdateSlave[I InternalDBObject, R any](ob objectbase.Objectbase, eid mmids.
 		i = _i.(model.InternalObject)
 	}
 
-	r, err := wrapped.Modify(ob, i.(wrapper.Object[DBObject]), func(_o DBObject) (R, bool) {
+	r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
 		o := _o.(I)
 		return mod(o)
 	})
@@ -146,7 +147,7 @@ func AssureElement[I InternalDBObject, R any](log logging.Logger, ob objectbase.
 		if err != nil {
 			return _nil, nil, false, err
 		}
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[DBObject]), func(_o DBObject) (R, bool) {
+		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
 			o := _o.(I)
 			for _, ph := range tolock {
 				i.(InternalObject).GetPhaseStateFor(o, ph).TryLock(req.Element.GetLock())

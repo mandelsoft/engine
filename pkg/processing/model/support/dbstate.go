@@ -3,10 +3,11 @@ package support
 import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 )
 
 type InternalDBObject interface {
-	DBObject
+	db.DBObject
 }
 
 // PhaseState is the generic interface for

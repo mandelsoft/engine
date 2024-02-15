@@ -7,14 +7,9 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
-
-type DBNamespace interface {
-	DBObject
-	GetRunLock() mmids.RunId
-	SetRunLock(id mmids.RunId)
-}
 
 type Namespace struct {
 	Lock sync.Mutex
@@ -30,21 +25,21 @@ func (n *Namespace) GetNamespaceName() string {
 	return fmt.Sprintf("%s/%s", n.GetNamespace(), n.GetName())
 }
 
-func (n *Namespace) GetDatabase(ob objectbase.Objectbase) database.Database[DBObject] {
-	return objectbase.GetDatabase[DBObject](ob)
+func (n *Namespace) GetDatabase(ob objectbase.Objectbase) database.Database[db.DBObject] {
+	return objectbase.GetDatabase[db.DBObject](ob)
 }
 
 func (n *Namespace) GetLock() mmids.RunId {
-	return utils.Cast[DBNamespace](n.GetBase()).GetRunLock()
+	return utils.Cast[db.DBNamespace](n.GetBase()).GetRunLock()
 }
 
 func (n *Namespace) ClearLock(ob objectbase.Objectbase, id mmids.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	db := n.GetDatabase(ob)
-	mod := func(o DBObject) (bool, bool) {
-		ns := utils.Cast[DBNamespace](o)
+	dbo := n.GetDatabase(ob)
+	mod := func(o db.DBObject) (bool, bool) {
+		ns := utils.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != id {
 			return false, false
@@ -54,7 +49,7 @@ func (n *Namespace) ClearLock(ob objectbase.Objectbase, id mmids.RunId) (bool, e
 	}
 
 	o := n.GetBase()
-	r, err := database.Modify(db, &o, mod)
+	r, err := database.Modify(dbo, &o, mod)
 	n.SetBase(o)
 	return r, err
 }
@@ -63,9 +58,9 @@ func (n *Namespace) TryLock(ob objectbase.Objectbase, id mmids.RunId) (bool, err
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	db := n.GetDatabase(ob)
-	mod := func(o DBObject) (bool, bool) {
-		ns := utils.Cast[DBNamespace](o)
+	dbo := n.GetDatabase(ob)
+	mod := func(o db.DBObject) (bool, bool) {
+		ns := utils.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != "" {
 			return false, false
@@ -75,7 +70,7 @@ func (n *Namespace) TryLock(ob objectbase.Objectbase, id mmids.RunId) (bool, err
 	}
 
 	o := n.GetBase()
-	r, err := database.Modify(db, &o, mod)
+	r, err := database.Modify(dbo, &o, mod)
 	n.SetBase(o)
 	return r, err
 }

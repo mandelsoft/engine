@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 
@@ -47,7 +48,7 @@ func (n *NodeState) assureTarget(o *db.NodeState) *db.TargetState {
 }
 
 func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
-	_, err := wrapped.Modify(ob, n, func(_o support.DBObject) (bool, bool) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.NodeState))
 
 		mod := false

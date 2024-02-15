@@ -10,6 +10,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -39,7 +40,7 @@ func (n PhaseStateAccess[I]) GetPhaseState(o I, phase mmids.Phase) PhaseState {
 }
 
 type InternalDBObjectSupport struct {
-	database.GenerationObjectMeta
+	db.ObjectMeta
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,7 +52,7 @@ type pointer[P any] interface {
 
 type InternalObject interface {
 	model.InternalObject
-	GetBase() DBObject
+	GetBase() db.DBObject
 	GetPhaseState(phase mmids.Phase) PhaseState
 	GetPhaseStateFor(o InternalDBObject, phase mmids.Phase) PhaseState
 }
@@ -100,8 +101,8 @@ func (n *InternalObjectSupport[I]) GetExternalState(o model.ExternalObject, phas
 	return o.GetState()
 }
 
-func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase.Objectbase) database.Database[DBObject] {
-	return objectbase.GetDatabase[DBObject](ob)
+func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase.Objectbase) database.Database[db.DBObject] {
+	return objectbase.GetDatabase[db.DBObject](ob)
 }
 
 func (n *InternalObjectSupport[I]) GetStatus(phase mmids.Phase) model.Status {
@@ -114,7 +115,7 @@ func (n *InternalObjectSupport[I]) SetStatus(ob internal.Objectbase, phase mmids
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(o DBObject) (bool, bool) {
+	mod := func(o db.DBObject) (bool, bool) {
 		b := n.GetPhaseState(phase).SetStatus(status)
 		return b, b
 	}
@@ -131,7 +132,7 @@ func (n *InternalObjectSupport[I]) TryLock(ob objectbase.Objectbase, phase mmids
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(o DBObject) (bool, bool) {
+	mod := func(o db.DBObject) (bool, bool) {
 		b := n.GetPhaseState(phase).TryLock(id)
 		return b, b
 	}
@@ -142,7 +143,7 @@ func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase.Ob
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(_o DBObject) (bool, bool) {
+	mod := func(_o db.DBObject) (bool, bool) {
 		p := n.GetPhaseStateFor(_o.(I), phase)
 		b := p.ClearLock(id)
 		if b {
@@ -173,7 +174,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 	defer n.Lock.Unlock()
 
 	log := lctx.Logger()
-	mod := func(_o DBObject) (bool, bool) {
+	mod := func(_o db.DBObject) (bool, bool) {
 		log.Info("Commit target state for {{element}}")
 		o := _o.(I)
 		p := n.GetPhaseStateFor(o, phase)
