@@ -121,7 +121,7 @@ func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.Ext
 
 	t := m.mm.GetPhaseFor(e.GetType())
 	if t == nil {
-		return nil, fmt.Errorf("external object type %q not configured", e.GetType())
+		return nil, NonTemporaryError(fmt.Errorf("external object type %q not configured", e.GetType()))
 	}
 
 	eid := mmids.NewObjectIdFor(e)

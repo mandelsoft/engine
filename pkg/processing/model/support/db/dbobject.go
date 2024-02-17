@@ -7,6 +7,7 @@ import (
 type DBObject interface {
 	database.Object
 	database.GenerationAccess
+	database.Finalizable
 	database.StatusSource
 }
 

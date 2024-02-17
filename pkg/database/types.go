@@ -49,6 +49,7 @@ type GenerationAccess interface {
 type Finalizable interface {
 	GetFinalizers() []string
 	SetFinalizers(f []string)
+	HasFinalizer(f string) bool
 	AddFinalizer(f string) bool
 	RemoveFinalizer(f string) bool
 
@@ -111,6 +112,13 @@ func (g *FinalizedMeta) SetFinalizers(f []string) {
 func (g *FinalizedMeta) AddFinalizer(f string) bool {
 	if !slices.Contains(g.Finalizers, f) {
 		g.Finalizers = append(g.Finalizers, f)
+		return true
+	}
+	return false
+}
+
+func (g *FinalizedMeta) HasFinalizer(f string) bool {
+	if !slices.Contains(g.Finalizers, f) {
 		return true
 	}
 	return false

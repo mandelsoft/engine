@@ -153,18 +153,20 @@ func (d *Database[O]) SetObject(o O) error {
 		return err
 	}
 
-	err = d.doSetObject(log, path, o)
-	if err == nil {
-		// trigger must be called outside of lock
-		d.registry.TriggerEvent(o)
-	}
+	d.lock.Lock()
+	defer func() {
+		if err == nil {
+			// trigger must be called outside of lock
+			d.registry.TriggerEvent(o)
+		}
+	}()
+	defer d.lock.Unlock()
+
+	err = d._doSetObject(log, path, o)
 	return err
 }
 
-func (d *Database[O]) doSetObject(log logging.Logger, path string, o O) error {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
+func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 	if g, ok := utils.TryCast[database.GenerationAccess](o); ok {
 		gen := g.GetGeneration()
 		old, err := d.get(o)
@@ -190,7 +192,7 @@ func (d *Database[O]) doSetObject(log logging.Logger, path string, o O) error {
 
 	if f, ok := utils.TryCast[database.Finalizable](o); ok {
 		if f.IsDeleting() && len(f.GetFinalizers()) == 0 {
-			return d.doDeleteObject(log, path, database.NewObjectIdFor(o))
+			return d._doDeleteObject(log, path, database.NewObjectIdFor(o))
 		}
 	}
 
@@ -209,20 +211,24 @@ func (d *Database[O]) doSetObject(log logging.Logger, path string, o O) error {
 }
 
 func (d *Database[O]) DeleteObject(id database.ObjectId) error {
+	var err error
+
 	path := d.OPath(id)
 	log := logging.DefaultContext().Logger(REALM)
 	log.Debug("delete object", "path", path)
-	err := d.doDeleteObject(log, path, id)
-	if err == nil {
-		d.registry.TriggerEvent(id)
-	}
+
+	d.lock.Lock()
+	defer func() {
+		if err == nil {
+			d.registry.TriggerEvent(id)
+		}
+	}()
+	defer d.lock.Unlock()
+	err = d._doDeleteObject(log, path, id)
 	return err
 }
 
-func (d *Database[O]) doDeleteObject(log logging.Logger, path string, id database.ObjectId) error {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
+func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, id database.ObjectId) error {
 	if ok, err := vfs.Exists(d.fs, path); !ok && err == nil {
 		return database.ErrNotExist
 	}
@@ -233,7 +239,7 @@ func (d *Database[O]) doDeleteObject(log logging.Logger, path string, id databas
 	if f, ok := utils.TryCast[database.Finalizable](o); ok {
 		f.RequestDeletion()
 		if len(f.GetFinalizers()) != 0 {
-			return d.doSetObject(log, path, o)
+			return d._doSetObject(log, path, o)
 		}
 	}
 	err = d.fs.Remove(path)

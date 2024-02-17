@@ -24,7 +24,10 @@ func (p *Processor) processExternalObject(log logging.Logger, id database.Object
 	log = log.WithName(oid.String())
 	elem, err := p.processingModel.AssureElementObjectFor(log, o)
 	if err != nil {
-		return pool.StatusFailed(err)
+		if IsNonTemporary(err) {
+			return pool.StatusFailed(err)
+		}
+		return pool.StatusCompleted(err)
 	}
 	log = log.WithValues("extid", oid, "element", elem.Id())
 	runid := elem.GetLock()

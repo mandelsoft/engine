@@ -28,3 +28,21 @@ func (w *Wrapper) SetBase(o db.DBObject) {
 func (w *Wrapper) GetBase() db.DBObject {
 	return w._DBObject
 }
+
+func (n *Wrapper) AddFinalizer(ob objectbase.Objectbase, f string) (bool, error) {
+
+	mod := func(o db.DBObject) (bool, bool) {
+		b := o.AddFinalizer(f)
+		return b, b
+	}
+	return wrapped.Modify(ob, n, mod)
+}
+
+func (n *Wrapper) RemoveFinalizer(ob objectbase.Objectbase, f string) (bool, error) {
+
+	mod := func(o db.DBObject) (bool, bool) {
+		b := o.RemoveFinalizer(f)
+		return b, b
+	}
+	return wrapped.Modify(ob, n, mod)
+}

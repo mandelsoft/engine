@@ -9,6 +9,12 @@ type Object interface {
 	database.Object
 
 	database.GenerationAccess
+
+	AddFinalizer(ob Objectbase, f string) (bool, error)
+	RemoveFinalizer(ob Objectbase, f string) (bool, error)
+	HasFinalizer(f string) bool
+
+	IsDeleting() bool
 }
 
 type NamespaceObject interface {
