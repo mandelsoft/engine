@@ -22,6 +22,10 @@ func SlaveId(id mmids.ElementId, t string, phase mmids.Phase) mmids.ElementId {
 	return mmids.NewElementId(t, id.GetNamespace(), id.GetName(), phase)
 }
 
+func SlaveObjectId(id mmids.ElementId, t string) mmids.ObjectId {
+	return mmids.NewObjectId(t, id.GetNamespace(), id.GetName())
+}
+
 func NamedSlaveId(id mmids.ElementId, t string, name string, phase mmids.Phase) mmids.ElementId {
 	return mmids.NewElementId(t, id.GetNamespace(), name, phase)
 }

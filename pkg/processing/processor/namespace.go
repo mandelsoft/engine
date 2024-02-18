@@ -202,6 +202,10 @@ func (ni *namespaceInfo) assureSlaves(log logging.Logger, p *Processor, check mo
 			if err != nil {
 				return err
 			}
+			_, err = i.AddFinalizer(p.processingModel.ObjectBase(), FINALIZER)
+			if err != nil {
+				return err
+			}
 			e = ni.setupElements(log, p, i, eid.GetPhase(), runid)
 		}
 		// always trigger new elements, because they typically have no correct current state dependencies.

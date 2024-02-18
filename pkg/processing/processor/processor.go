@@ -17,6 +17,8 @@ import (
 
 var REALM = logging.DefineRealm("engine/processor", "engine processor")
 
+const FINALIZER = "engine"
+
 const CMD_EXT = "ext"
 const CMD_ELEM = "elem"
 const CMD_NS = "ns"

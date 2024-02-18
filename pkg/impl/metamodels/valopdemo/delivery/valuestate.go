@@ -118,15 +118,16 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	}
 
 	log.Info("provider {{provider}} does not feed value anymore", "provider", target.(*TargetValueState).GetProvider())
-	log.Info("deleting slave value object")
+	oid := database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName())
+	log.Info("deleting slave value object {{oid}}", "oid", oid)
 
-	err := req.Model.ObjectBase().DeleteObject(database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()))
+	err := req.Model.ObjectBase().DeleteObject(oid)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return model.StatusCompleted(nil, err)
 		}
 	}
-	log.Info("deleting value state object")
+	log.Info("deleting value state object {{eid}}", "oid", database.NewObjectIdFor(n))
 	err = req.Model.ObjectBase().DeleteObject(n)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {

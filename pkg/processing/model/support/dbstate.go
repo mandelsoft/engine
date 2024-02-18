@@ -49,10 +49,10 @@ type TargetState interface {
 ////////////////////////////////////////////////////////////////////////////////
 
 type StandardCurrentState struct {
-	ObservedVersion string `json:"observedVersion"`
-	InputVersion    string `json:"inputVersion"`
-	ObjectVersion   string `json:"objectVersion"`
-	OutputVersion   string `json:"outputVersion"`
+	ObservedVersion string `json:"observedVersion,omitempty"`
+	InputVersion    string `json:"inputVersion,omitempty"`
+	ObjectVersion   string `json:"objectVersion,omitempty"`
+	OutputVersion   string `json:"outputVersion,omitempty"`
 }
 
 var _ CurrentState = (*StandardCurrentState)(nil)
@@ -108,7 +108,7 @@ func (d *StandardCurrentState) SetOutputVersion(v string) bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type StandardTargetState struct {
-	ObjectVersion string `json:"objectVersion"`
+	ObjectVersion string `json:"objectVersion,omitempty"`
 }
 
 var _ TargetState = (*StandardTargetState)(nil)
@@ -153,8 +153,8 @@ type currentpointer[P any] interface {
 type DefaultPhaseState[C any, T any, CP currentpointer[C], TP targetpointer[T]] struct {
 	RunId   mmids.RunId  `json:"runid"`
 	Status  model.Status `json:"status"`
-	Current C            `json:"current"`
-	Target  TP           `json:"target"`
+	Current C            `json:"current,omitempty"`
+	Target  TP           `json:"target,omitempty"`
 }
 
 var _ PhaseState = (*DefaultPhaseState[StandardCurrentState, StandardTargetState, *StandardCurrentState, *StandardTargetState])(nil)

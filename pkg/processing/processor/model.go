@@ -64,18 +64,16 @@ func (m *processingModel) GetNamespace(name string) Namespace {
 func (p *processingModel) GetElement(id ElementId) Element {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-
-	ni := p.namespaces[id.GetNamespace()]
-	if ni == nil {
-		return nil
-	}
-	return ni.GetElement(id)
+	return p.getElement(id)
 }
 
 func (p *processingModel) _GetElement(id ElementId) _Element {
 	p.lock.Lock()
 	defer p.lock.Unlock()
+	return p.getElement(id)
+}
 
+func (p *processingModel) getElement(id ElementId) _Element {
 	ni := p.namespaces[id.GetNamespace()]
 	if ni == nil {
 		return nil
@@ -123,9 +121,7 @@ func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.Ext
 	if t == nil {
 		return nil, NonTemporaryError(fmt.Errorf("external object type %q not configured", e.GetType()))
 	}
-
-	eid := mmids.NewObjectIdFor(e)
-	log = log.WithValues("extid", eid)
+	id := mmids.NewElementIdForObject(*t, e)
 
 	ns, err := m.assureNamespace(log, e.GetNamespace(), true)
 	if err != nil {
@@ -133,7 +129,6 @@ func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.Ext
 	}
 
 	var elem Element
-	id := mmids.NewElementId(t.GetType(), e.GetNamespace(), e.GetName(), t.GetPhase())
 	oid := id.ObjectId()
 	i := ns.internal[oid]
 	if i == nil {
@@ -145,6 +140,12 @@ func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.Ext
 		}
 
 		i = _i.(model.InternalObject)
+
+		_, err = i.AddFinalizer(m.ob, FINALIZER)
+		if err != nil {
+			return nil, err
+		}
+
 		ns.internal[mmids.NewObjectIdFor(i)] = i
 		for _, ph := range m.mm.GetInternalType(t.GetType()).Phases() {
 			id := mmids.NewElementId(t.GetType(), e.GetNamespace(), e.GetName(), ph)

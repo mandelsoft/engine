@@ -192,7 +192,7 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 
 	if f, ok := utils.TryCast[database.Finalizable](o); ok {
 		if f.IsDeleting() && len(f.GetFinalizers()) == 0 {
-			return d._doDeleteObject(log, path, database.NewObjectIdFor(o))
+			return d._doDeleteObject(log, path, o)
 		}
 	}
 
@@ -215,7 +215,6 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 
 	path := d.OPath(id)
 	log := logging.DefaultContext().Logger(REALM)
-	log.Debug("delete object", "path", path)
 
 	d.lock.Lock()
 	defer func() {
@@ -224,11 +223,6 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 		}
 	}()
 	defer d.lock.Unlock()
-	err = d._doDeleteObject(log, path, id)
-	return err
-}
-
-func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, id database.ObjectId) error {
 	if ok, err := vfs.Exists(d.fs, path); !ok && err == nil {
 		return database.ErrNotExist
 	}
@@ -236,17 +230,25 @@ func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, id databa
 	if err != nil {
 		return err
 	}
+	err = d._doDeleteObject(log, path, o)
+	return err
+}
+
+func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, o O) error {
 	if f, ok := utils.TryCast[database.Finalizable](o); ok {
 		f.RequestDeletion()
-		if len(f.GetFinalizers()) != 0 {
+		finalizers := f.GetFinalizers()
+		log.Debug("found finalizers for {{path}}: {{finalizers}}", "finalizers", finalizers, "path", path)
+		if len(finalizers) != 0 {
 			return d._doSetObject(log, path, o)
 		}
 	}
-	err = d.fs.Remove(path)
+	err := d.fs.Remove(path)
 	if err != nil {
 		log.LogError(err, "cannot delete file", "path", path)
 		return err
 	}
+	log.Debug("deleted object {{path}}", "path", path)
 	return nil
 }
 

@@ -98,6 +98,7 @@ func (g *FinalizedMeta) RequestDeletion() {
 	if g.IsDeleting() {
 		return
 	}
+	log.Debug("requesting deletion")
 	g.DeletionTime = utils.NewTimestampP()
 }
 
@@ -112,6 +113,7 @@ func (g *FinalizedMeta) SetFinalizers(f []string) {
 func (g *FinalizedMeta) AddFinalizer(f string) bool {
 	if !slices.Contains(g.Finalizers, f) {
 		g.Finalizers = append(g.Finalizers, f)
+		log.Debug("adding finalizer {{finalizer}}: {{effective}}", "finalizer", f, "effective", slices.Clone(g.Finalizers))
 		return true
 	}
 	return false
@@ -130,6 +132,7 @@ func (g *FinalizedMeta) RemoveFinalizer(f string) bool {
 		return false
 	}
 	g.Finalizers = append(g.Finalizers[:i], g.Finalizers[i+1:]...)
+	log.Debug("removing finalizer {{finalizer}}: {{effective}}", "finalizer", f, "effective", slices.Clone(g.Finalizers))
 	return true
 }
 

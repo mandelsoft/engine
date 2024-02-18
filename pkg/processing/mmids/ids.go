@@ -114,6 +114,10 @@ func NewElementIdForType(typ TypeId, ns, name string) ElementId {
 	return NewElementId(typ.GetType(), ns, name, typ.GetPhase())
 }
 
+func NewElementIdForObject(typ TypeId, o database.ObjectId) ElementId {
+	return NewElementId(typ.GetType(), o.GetNamespace(), o.GetName(), typ.GetPhase())
+}
+
 func (e ElementId) GetPhase() Phase {
 	return e.phase
 }

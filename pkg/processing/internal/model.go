@@ -10,6 +10,7 @@ type Object interface {
 
 	database.GenerationAccess
 
+	GetFinalizers() []string
 	AddFinalizer(ob Objectbase, f string) (bool, error)
 	RemoveFinalizer(ob Objectbase, f string) (bool, error)
 	HasFinalizer(f string) bool
