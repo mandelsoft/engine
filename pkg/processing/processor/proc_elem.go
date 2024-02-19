@@ -338,11 +338,11 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				p.pending.Add(-1)
 				p.triggerChildren(log, ni, e, true)
 			case model.STATUS_DELETED:
-				err := p.internalObjectDeleted(log, ni, e)
+				err := p.phaseDeleted(lctx, log, ni, e)
 				if err != nil {
 					return pool.StatusCompleted(err)
 				}
-				p.setStatus(log, e, model.STATUS_DELETED)
+				p.events.TriggerStatusEvent(log, model.STATUS_DELETED, e.Id())
 				p.pending.Add(-1)
 				p.triggerChildren(log, ni, e, true)
 			case model.STATUS_COMPLETED:
@@ -396,11 +396,20 @@ func (p *Processor) setupNewInternalObject(log logging.Logger, ni *namespaceInfo
 	return elem
 }
 
-func (p *Processor) internalObjectDeleted(log logging.Logger, ni *namespaceInfo, elem Element) error {
-	log.Info("internal object {{element}} deleted by processing step")
+func (p *Processor) phaseDeleted(lctx pool.MessageContext, log logging.Logger, ni *namespaceInfo, elem _Element) error {
+	log.Info("phase {{element}} deleted by processing step")
+	err := p.updateStatus(lctx, log, elem, model.STATUS_DELETED, "deleted")
+	if err != nil {
+		return err
+	}
+	// delay events
+	err = p.setStatus(log, elem, model.STATUS_DELETED, false)
+	if err != nil {
+		return err
+	}
 
 	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(elem.Id().TypeId())
-	var found []model.ExternalObject
+	var ext []model.ExternalObject
 	for _, t := range types {
 		oid := model.SlaveObjectId(elem.Id(), t)
 		o, err := p.processingModel.ObjectBase().GetObject(oid)
@@ -410,11 +419,11 @@ func (p *Processor) internalObjectDeleted(log logging.Logger, ni *namespaceInfo,
 			}
 			log.Info(" - triggering external object {{oid}} already gone", "oid", oid)
 		} else {
-			found = append(found, o.(model.ExternalObject))
+			ext = append(ext, o.(model.ExternalObject))
 		}
 	}
-	if len(found) != 0 {
-		for _, o := range found {
+	if len(ext) != 0 {
+		for _, o := range ext {
 			log.Info(" - removing finalizer for triggering external object {{oid}}", "oid", NewObjectIdFor(o))
 			ok, err := o.RemoveFinalizer(p.processingModel.ObjectBase(), FINALIZER)
 			if err != nil {
@@ -426,10 +435,41 @@ func (p *Processor) internalObjectDeleted(log logging.Logger, ni *namespaceInfo,
 			}
 		}
 	}
-	log.Info(" - removing finalizer for internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
-	_, err := elem.GetObject().RemoveFinalizer(p.processingModel.ObjectBase(), FINALIZER)
+
+	var phases_del []Phase
+	var phases_val []Phase
+	for _, phase := range p.processingModel.MetaModel().Phases(elem.GetType()) {
+		eid := NewElementIdForPhase(elem, phase)
+		e := ni.GetElement(eid)
+		if e != nil {
+			if e.GetStatus() == model.STATUS_DELETED {
+				phases_del = append(phases_del, e.GetPhase())
+			} else {
+				phases_val = append(phases_val, e.GetPhase())
+			}
+		}
+	}
+
+	if len(phases_val) > 0 {
+		log.Info("found still undeleted phases {{phases}} for internal element", "phases", phases_val)
+		log.Info("internal object not deleted")
+		return nil
+	}
+	log.Info("all phases in status {{phases}} deleted", "phases", phases_del)
+
+	log.Info("removing finalizer for internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
+	_, err = elem.GetObject().RemoveFinalizer(p.processingModel.ObjectBase(), FINALIZER)
 	if err != nil {
 		log.LogError(err, "cannot remove finalizer for internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
+		return err
+	}
+	log.Info("deleting internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
+	err = p.processingModel.ObjectBase().DeleteObject(elem.GetObject())
+	if err != nil {
+		if !errors.Is(err, database.ErrNotExist) {
+			log.LogError(err, "cannot delete internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
+			return err
+		}
 		return err
 	}
 

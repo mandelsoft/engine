@@ -186,18 +186,16 @@ func (p *Processor) GetElement(id ElementId) _Element {
 	return p.processingModel._GetElement(id)
 }
 
-func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Status) error {
-	if status == model.STATUS_DELETED {
-		p.events.TriggerStatusEvent(log, status, e.Id())
-		return nil
-	}
+func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Status, trigger ...bool) error {
 	ok, err := e.SetStatus(p.processingModel.ObjectBase(), status)
 	if err != nil {
 		return err
 	}
 	if ok {
 		log.Info("status updated to {{status}} for {{element}}", "status", status, "element", e.Id())
-		p.events.TriggerStatusEvent(log, status, e.Id())
+		if len(trigger) == 0 || utils.Optional(trigger...) {
+			p.events.TriggerStatusEvent(log, status, e.Id())
+		}
 	}
 	return nil
 }

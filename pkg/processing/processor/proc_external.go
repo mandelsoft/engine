@@ -62,10 +62,11 @@ func (p *Processor) handleExternalDeletion(log logging.Logger, id database.Objec
 			if e := p.GetElement(NewElementIdForObject(t, id)); e != nil {
 				log.Info("element {{element}} triggered for deleted external object {{exitid}}", "element", e.Id())
 				p.Enqueue(CMD_EXT, e)
-				return nil, nil
+			} else {
+				log.Info("ignoring deleted external object {{exitid}}")
 			}
+			return nil, nil
 		}
-		log.Info("ignoring deleted external object {{exitid}}")
 	}
 	return o, err
 }
