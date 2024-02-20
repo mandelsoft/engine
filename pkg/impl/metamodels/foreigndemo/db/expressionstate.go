@@ -15,33 +15,33 @@ func init() {
 	database.MustRegisterType[ExpressionState, db.DBObject](Scheme) // Goland requires second type parameter
 
 	// register access to phase info parts in ExpressionState
-	ExpressionPhaseStateAccess.Register(mymetamodel.PHASE_EVALUATION, func(o *ExpressionState) support.PhaseState { return &o.EvaluationState })
+	ExpressionPhaseStateAccess.Register(mymetamodel.PHASE_EVALUATION, func(o *ExpressionState) db.PhaseState { return &o.EvaluationState })
 }
 
 type ExpressionState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	db.InternalDBObjectSupport `json:",inline"`
 
 	EvaluationState `json:",inline"`
 }
 
-var _ support.InternalDBObject = (*ExpressionState)(nil)
+var _ db.InternalDBObject = (*ExpressionState)(nil)
 
 func (n *ExpressionState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(ExpressionPhaseStateAccess, n))
 }
 
 type EvaluationState struct {
-	support.DefaultPhaseState[EvaluationCurrentState, EvaluationTargetState, *EvaluationCurrentState, *EvaluationTargetState]
+	db.DefaultPhaseState[EvaluationCurrentState, EvaluationTargetState, *EvaluationCurrentState, *EvaluationTargetState]
 }
 
 type EvaluationCurrentState struct {
-	support.StandardCurrentState
+	db.StandardCurrentState
 
 	Output EvaluationOutput `json:"output"`
 }
 
 type EvaluationTargetState struct {
-	support.StandardTargetState
+	db.StandardTargetState
 	Spec EffectiveExpressionSpec `json:"spec"`
 }
 

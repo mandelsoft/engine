@@ -16,11 +16,11 @@ func init() {
 	database.MustRegisterType[ValueState, db.DBObject](Scheme) // Goland requires second type parameter
 
 	// register access to phase info parts in ValueState
-	ValuePhaseStateAccess.Register(mymetamodel.PHASE_PROPAGATE, func(o *ValueState) support.PhaseState { return &o.PropagateState })
+	ValuePhaseStateAccess.Register(mymetamodel.PHASE_PROPAGATE, func(o *ValueState) db.PhaseState { return &o.PropagateState })
 }
 
 type ValueState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	db.InternalDBObjectSupport `json:",inline"`
 
 	// Spec is the part of the object state held exclusively in the state object and not
 	// on the external object. (there it is found as status)
@@ -29,7 +29,7 @@ type ValueState struct {
 	PropagateState `json:",inline"`
 }
 
-var _ support.InternalDBObject = (*ValueState)(nil)
+var _ db.InternalDBObject = (*ValueState)(nil)
 
 func (n *ValueState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(ValuePhaseStateAccess, n))
@@ -40,10 +40,10 @@ type ValueStateSpec struct {
 }
 
 type PropagateState struct {
-	support.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]
+	db.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]
 }
 type ValueCurrentState struct {
-	support.StandardCurrentState
+	db.StandardCurrentState
 
 	Provider string      `json:"provider,omitempty"`
 	Output   ValueOutput `json:"output"`
@@ -55,7 +55,7 @@ type ValueOutput struct {
 }
 
 type ValueTargetState struct {
-	support.StandardTargetState
+	db.StandardTargetState
 	Spec EffectiveValueSpec `json:"spec"`
 }
 

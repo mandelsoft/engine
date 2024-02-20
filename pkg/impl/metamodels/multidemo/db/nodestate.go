@@ -15,12 +15,12 @@ var NodePhaseStateAccess = support.NewPhaseStateAccess[*NodeState]()
 func init() {
 	database.MustRegisterType[NodeState, db.DBObject](Scheme) // Goland requires second type parameter
 
-	NodePhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *NodeState) support.PhaseState { return &o.Gather })
-	NodePhaseStateAccess.Register(mymetamodel.PHASE_CALCULATION, func(o *NodeState) support.PhaseState { return &o.Calculation })
+	NodePhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *NodeState) db.PhaseState { return &o.Gather })
+	NodePhaseStateAccess.Register(mymetamodel.PHASE_CALCULATION, func(o *NodeState) db.PhaseState { return &o.Calculation })
 }
 
 type NodeState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	db.InternalDBObjectSupport `json:",inline"`
 
 	// phase specific states
 
@@ -28,7 +28,7 @@ type NodeState struct {
 	Calculation CalculationState `json: "calculation"`
 }
 
-var _ support.InternalDBObject = (*NodeState)(nil)
+var _ db.InternalDBObject = (*NodeState)(nil)
 
 func (n *NodeState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(NodePhaseStateAccess, n))
@@ -37,17 +37,17 @@ func (n *NodeState) GetStatusValue() string {
 ////////////////////////////////////////////////////////////////////////////////
 
 type GatherState struct {
-	support.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
+	db.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
 }
 
 type GatherCurrentState struct {
-	support.StandardCurrentState
+	db.StandardCurrentState
 	Operands []string     `json:"operands"`
 	Output   GatherOutput `json:"output"`
 }
 
 type GatherTargetState struct {
-	support.StandardTargetState
+	db.StandardTargetState
 	Spec NodeSpec `json:"spec"`
 }
 
@@ -63,16 +63,16 @@ type Operand struct {
 ////////////////////////////////////////////////////////////////////////////////
 
 type CalculationState struct {
-	support.DefaultPhaseState[CalculationCurrentState, CalculationTargetState, *CalculationCurrentState, *CalculationTargetState]
+	db.DefaultPhaseState[CalculationCurrentState, CalculationTargetState, *CalculationCurrentState, *CalculationTargetState]
 }
 
 type CalculationCurrentState struct {
-	support.StandardCurrentState
+	db.StandardCurrentState
 	Output CalculationOutput `json:"output"`
 }
 
 type CalculationTargetState struct {
-	support.StandardTargetState
+	db.StandardTargetState
 	Operator *OperatorName
 }
 

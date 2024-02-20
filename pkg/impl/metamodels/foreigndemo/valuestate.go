@@ -125,13 +125,6 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 			return model.StatusCompleted(nil, err)
 		}
 	}
-	log.Info("deleting value state object")
-	err = req.Model.ObjectBase().DeleteObject(n)
-	if err != nil {
-		if !errors.Is(err, database.ErrNotExist) {
-			return model.StatusCompleted(nil, err)
-		}
-	}
 	return model.StatusDeleted()
 }
 

@@ -52,7 +52,7 @@ func UpdatePointerField[T any](field **T, value *T, mod ...*bool) bool {
 	return false
 }
 
-func AssureInternalObject[I InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, i InternalObject, eid mmids.ElementId, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
+func AssureInternalObject[I db.InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, i InternalObject, eid mmids.ElementId, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
 	var _nil R
 
 	typ := eid.TypeId()
@@ -107,14 +107,14 @@ func SlaveCreationOnly(ob objectbase.Objectbase, eid mmids.ElementId, i model.In
 	return created, err
 }
 
-func SlaveCreationFunc[I InternalDBObject](mod func(o I) (bool, bool)) model.SlaveUpdateFunction {
+func SlaveCreationFunc[I db.InternalDBObject](mod func(o I) (bool, bool)) model.SlaveUpdateFunction {
 	return func(ob objectbase.Objectbase, eid mmids.ElementId, i model.InternalObject) (created model.InternalObject, err error) {
 		_, created, err = UpdateSlave(ob, eid, i, mod)
 		return created, err
 	}
 }
 
-func UpdateSlave[I InternalDBObject, R any](ob objectbase.Objectbase, eid mmids.ElementId, i model.InternalObject, mod func(i I) (R, bool)) (R, InternalObject, error) {
+func UpdateSlave[I db.InternalDBObject, R any](ob objectbase.Objectbase, eid mmids.ElementId, i model.InternalObject, mod func(i I) (R, bool)) (R, InternalObject, error) {
 	var _nil R
 	if i == nil {
 		_i, err := ob.CreateObject(eid)
@@ -131,7 +131,7 @@ func UpdateSlave[I InternalDBObject, R any](ob objectbase.Objectbase, eid mmids.
 	return r, i.(InternalObject), err
 }
 
-func AssureElement[I InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, typ mmids.TypeId, name string, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
+func AssureElement[I db.InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, typ mmids.TypeId, name string, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
 	var _nil R
 
 	if !req.Model.MetaModel().HasElementType(typ) {
@@ -284,7 +284,7 @@ func mergeStatus(a, b model.Status) model.Status {
 	}
 }
 
-func CombinedPhaseStatus[I InternalDBObject](access PhaseStateAccess[I], o I) model.Status {
+func CombinedPhaseStatus[I db.InternalDBObject](access PhaseStateAccess[I], o I) model.Status {
 	status := model.STATUS_INITIAL
 	for _, a := range access {
 		status = mergeStatus(status, a(o).GetStatus())

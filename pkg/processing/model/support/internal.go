@@ -17,13 +17,13 @@ import (
 // PhaseStateAccessFunc is the replacement for a C++ member pointer.
 // It describes the access to a dedicated [PhaseState] field
 // in a state object according to the type parameter.
-type PhaseStateAccessFunc[I InternalDBObject] func(I) PhaseState
+type PhaseStateAccessFunc[I db.InternalDBObject] func(I) db.PhaseState
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type PhaseStateAccess[I InternalDBObject] map[mmids.Phase]PhaseStateAccessFunc[I]
+type PhaseStateAccess[I db.InternalDBObject] map[mmids.Phase]PhaseStateAccessFunc[I]
 
-func NewPhaseStateAccess[I InternalDBObject]() PhaseStateAccess[I] {
+func NewPhaseStateAccess[I db.InternalDBObject]() PhaseStateAccess[I] {
 	return PhaseStateAccess[I]{}
 }
 
@@ -31,7 +31,7 @@ func (p PhaseStateAccess[I]) Register(phase mmids.Phase, infoFunc PhaseStateAcce
 	p[phase] = infoFunc
 }
 
-func (n PhaseStateAccess[I]) GetPhaseState(o I, phase mmids.Phase) PhaseState {
+func (n PhaseStateAccess[I]) GetPhaseState(o I, phase mmids.Phase) db.PhaseState {
 	f := n[phase]
 	if f == nil {
 		panic(fmt.Sprintf("invalid phase %s for type %s[%T]", phase, o.GetType(), o))
@@ -39,35 +39,31 @@ func (n PhaseStateAccess[I]) GetPhaseState(o I, phase mmids.Phase) PhaseState {
 	return f(o)
 }
 
-type InternalDBObjectSupport struct {
-	db.ObjectMeta
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 type pointer[P any] interface {
-	InternalDBObject
+	db.InternalDBObject
 	*P
 }
 
 type InternalObject interface {
 	model.InternalObject
 	GetBase() db.DBObject
-	GetPhaseState(phase mmids.Phase) PhaseState
-	GetPhaseStateFor(o InternalDBObject, phase mmids.Phase) PhaseState
+	GetPhaseState(phase mmids.Phase) db.PhaseState
+	GetPhaseStateFor(o db.InternalDBObject, phase mmids.Phase) db.PhaseState
 }
 
-type InternalObjectSupport[I InternalDBObject] struct {
+type InternalObjectSupport[I db.InternalDBObject] struct {
 	Lock sync.Mutex
 	Wrapper
 	phaseInfos PhaseStateAccess[I]
 }
 
-type phaser[T InternalDBObject] interface {
+type phaser[T db.InternalDBObject] interface {
 	setPhaseStateAccess(pi PhaseStateAccess[T])
 }
 
-func SetPhaseStateAccess[T InternalDBObject](i InternalObject, phaseInfos PhaseStateAccess[T]) error {
+func SetPhaseStateAccess[T db.InternalDBObject](i InternalObject, phaseInfos PhaseStateAccess[T]) error {
 	o, ok := utils.TryCast[phaser[T]](i)
 	if !ok {
 		return fmt.Errorf("invalid object type %T", i)
@@ -87,11 +83,11 @@ func (n *InternalObjectSupport[I]) GetDBObject() I {
 	return n.GetBase().(I)
 }
 
-func (n *InternalObjectSupport[I]) GetPhaseState(phase mmids.Phase) PhaseState {
+func (n *InternalObjectSupport[I]) GetPhaseState(phase mmids.Phase) db.PhaseState {
 	return n.phaseInfos.GetPhaseState(n.GetDBObject(), phase)
 }
 
-func (n *InternalObjectSupport[I]) GetPhaseStateFor(o InternalDBObject, phase mmids.Phase) PhaseState {
+func (n *InternalObjectSupport[I]) GetPhaseStateFor(o db.InternalDBObject, phase mmids.Phase) db.PhaseState {
 	return n.phaseInfos.GetPhaseState(o.(I), phase)
 }
 
@@ -212,7 +208,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type stateSupportBase[I InternalDBObject] struct {
+type stateSupportBase[I db.InternalDBObject] struct {
 	phase mmids.Phase
 	io    InternalObject
 }
@@ -245,15 +241,15 @@ func (c *stateSupportBase[I]) SlaveLinkFor(id mmids.TypeId) mmids.ElementId {
 	return mmids.NewElementId(id.GetType(), c.GetNamespace(), c.GetName(), id.GetPhase())
 }
 
-func (c *stateSupportBase[I]) GetPhaseInfo() PhaseState {
+func (c *stateSupportBase[I]) GetPhaseInfo() db.PhaseState {
 	return c.io.GetPhaseState(c.phase)
 }
 
-type CurrentStateSupport[I InternalDBObject, C CurrentState] struct {
+type CurrentStateSupport[I db.InternalDBObject, C db.CurrentState] struct {
 	stateSupportBase[I]
 }
 
-func NewCurrentStateSupport[I InternalDBObject, C CurrentState](o InternalObject, phase mmids.Phase) CurrentStateSupport[I, C] {
+func NewCurrentStateSupport[I db.InternalDBObject, C db.CurrentState](o InternalObject, phase mmids.Phase) CurrentStateSupport[I, C] {
 	return CurrentStateSupport[I, C]{
 		stateSupportBase[I]{
 			phase: phase,
@@ -284,11 +280,11 @@ func (c *CurrentStateSupport[I, C]) GetOutputVersion() string {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type TargetStateSupport[I InternalDBObject, T TargetState] struct {
+type TargetStateSupport[I db.InternalDBObject, T db.TargetState] struct {
 	stateSupportBase[I]
 }
 
-func NewTargetStateSupport[I InternalDBObject, T TargetState](o InternalObject, phase mmids.Phase) TargetStateSupport[I, T] {
+func NewTargetStateSupport[I db.InternalDBObject, T db.TargetState](o InternalObject, phase mmids.Phase) TargetStateSupport[I, T] {
 	return TargetStateSupport[I, T]{
 		stateSupportBase[I]{
 			phase: phase,

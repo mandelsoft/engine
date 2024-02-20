@@ -13,25 +13,25 @@ var NodePhaseStateAccess = support.NewPhaseStateAccess[*NodeState]()
 func init() {
 	database.MustRegisterType[NodeState, db.DBObject](Scheme) // Goland requires second type parameter
 
-	NodePhaseStateAccess.Register(mymetamodel.PHASE_UPDATING, func(o *NodeState) support.PhaseState { return &o.State })
+	NodePhaseStateAccess.Register(mymetamodel.PHASE_UPDATING, func(o *NodeState) db.PhaseState { return &o.State })
 }
 
 type NodeState struct {
-	support.InternalDBObjectSupport `json:",inline"`
+	db.InternalDBObjectSupport `json:",inline"`
 
 	State State `json:"state"`
 }
 
-var _ support.InternalDBObject = (*NodeState)(nil)
+var _ db.InternalDBObject = (*NodeState)(nil)
 
 func (n *NodeState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(NodePhaseStateAccess, n))
 }
 
-type State = support.DefaultPhaseState[CurrentState, TargetState, *CurrentState, *TargetState]
+type State = db.DefaultPhaseState[CurrentState, TargetState, *CurrentState, *TargetState]
 
 type CurrentState struct {
-	support.StandardCurrentState
+	db.StandardCurrentState
 	Operands []string `json:"operands"`
 	Output   Output   `json:"output"`
 }
@@ -41,6 +41,6 @@ type Output struct {
 }
 
 type TargetState struct {
-	support.StandardTargetState
+	db.StandardTargetState
 	Spec NodeSpec `json:"spec"`
 }
