@@ -3,16 +3,16 @@ package support
 import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 )
 
 type _DBObject = db.DBObject
 
 type Object interface {
 	objectbase.Object
-	wrapped.Object[db.DBObject]
+	wrapped2.Object[db.DBObject]
 }
 
 type Wrapper struct {
@@ -35,7 +35,7 @@ func (n *Wrapper) AddFinalizer(ob objectbase.Objectbase, f string) (bool, error)
 		b := o.AddFinalizer(f)
 		return b, b
 	}
-	b, err := wrapped.Modify(ob, n, mod)
+	b, err := wrapped2.Modify(ob, n, mod)
 	if b {
 		database.Log.Debug("adding finalizer {{finalizer}} for {{oid}}: {{effective}}", "oid", database.NewObjectIdFor(n), "finalizer", f, "effective", n.GetFinalizers())
 	}
@@ -47,7 +47,7 @@ func (n *Wrapper) RemoveFinalizer(ob objectbase.Objectbase, f string) (bool, err
 		b := o.RemoveFinalizer(f)
 		return b, b
 	}
-	b, err := wrapped.Modify(ob, n, mod)
+	b, err := wrapped2.Modify(ob, n, mod)
 	if b {
 		database.Log.Debug("removing finalizer {{finalizer}} for {{oid}}: {{effective}}", "oid", database.NewObjectIdFor(n), "finalizer", f, "effective", n.GetFinalizers())
 	}

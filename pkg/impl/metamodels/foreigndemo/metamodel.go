@@ -2,22 +2,22 @@ package foreigndemo
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 func init() {
-	wrapped.MustRegisterType[support.Namespace](scheme)
+	wrapped2.MustRegisterType[support.Namespace](scheme)
 }
 
-var scheme = wrapped.NewTypeScheme[support.Object, db2.DBObject](db.Scheme)
+var scheme = wrapped2.NewTypeScheme[support.Object, db2.DBObject](db.Scheme)
 
 func NewModelSpecification(name string, dbspec database.Specification[db2.DBObject]) model.ModelSpecification {
-	obspec := wrapped.NewSpecification[support.Object, db2.DBObject](scheme, db.Scheme, dbspec)
+	obspec := wrapped2.NewSpecification[support.Object, db2.DBObject](scheme, db.Scheme, dbspec)
 	return model.NewModelSpecification(name, mymetamodel.MetaModelSpecification(), obspec)
 }

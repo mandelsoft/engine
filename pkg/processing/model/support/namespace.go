@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	objectbase2 "github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -16,7 +16,7 @@ type Namespace struct {
 	Wrapper
 }
 
-var _ objectbase.Object = (*Namespace)(nil)
+var _ objectbase2.Object = (*Namespace)(nil)
 
 func (n *Namespace) GetNamespaceName() string {
 	if n.GetNamespace() == "" {
@@ -25,15 +25,15 @@ func (n *Namespace) GetNamespaceName() string {
 	return fmt.Sprintf("%s/%s", n.GetNamespace(), n.GetName())
 }
 
-func (n *Namespace) GetDatabase(ob objectbase.Objectbase) database.Database[db.DBObject] {
-	return objectbase.GetDatabase[db.DBObject](ob)
+func (n *Namespace) GetDatabase(ob objectbase2.Objectbase) database.Database[db.DBObject] {
+	return objectbase2.GetDatabase[db.DBObject](ob)
 }
 
 func (n *Namespace) GetLock() mmids.RunId {
 	return utils.Cast[db.DBNamespace](n.GetBase()).GetRunLock()
 }
 
-func (n *Namespace) ClearLock(ob objectbase.Objectbase, id mmids.RunId) (bool, error) {
+func (n *Namespace) ClearLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -54,7 +54,7 @@ func (n *Namespace) ClearLock(ob objectbase.Objectbase, id mmids.RunId) (bool, e
 	return r, err
 }
 
-func (n *Namespace) TryLock(ob objectbase.Objectbase, id mmids.RunId) (bool, error) {
+func (n *Namespace) TryLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 

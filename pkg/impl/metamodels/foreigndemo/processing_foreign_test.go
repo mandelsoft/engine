@@ -6,6 +6,7 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,7 +15,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/controllers"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"

@@ -5,10 +5,10 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 
@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	wrapped.MustRegisterType[ValueState](scheme)
+	wrapped2.MustRegisterType[ValueState](scheme)
 }
 
 type ValueState struct {
@@ -46,7 +46,7 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 }
 
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) (model.AcceptStatus, error) {
-	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false

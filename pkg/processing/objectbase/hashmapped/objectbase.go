@@ -8,7 +8,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/runtime"
 )
 

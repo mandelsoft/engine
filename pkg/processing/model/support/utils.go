@@ -10,11 +10,11 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )

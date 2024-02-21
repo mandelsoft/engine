@@ -3,7 +3,7 @@ package multidemo_test
 import (
 	"bytes"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

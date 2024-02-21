@@ -5,10 +5,10 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	wrapped.MustRegisterType[ValueState](scheme)
+	wrapped2.MustRegisterType[ValueState](scheme)
 }
 
 type ValueState struct {
@@ -51,7 +51,7 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 }
 
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
-	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
@@ -147,7 +147,7 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 			_o, err := ob.CreateObject(extid)
 			o := _o.(*Value)
 			if err == nil {
-				_, err = wrapped.Modify(ob, o, func(_o db2.DBObject) (bool, bool) {
+				_, err = wrapped2.Modify(ob, o, func(_o db2.DBObject) (bool, bool) {
 					o := _o.(*db.Value)
 					mod := false
 					support.UpdateField(&o.Spec.Value, &out.Value, &mod)

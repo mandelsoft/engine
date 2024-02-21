@@ -3,9 +3,9 @@ package delivery
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	wrapped.MustRegisterType[Operator](scheme)
+	wrapped2.MustRegisterType[Operator](scheme)
 }
 
 type Operator struct {
@@ -30,7 +30,7 @@ func (n *Operator) GetState() model.ExternalState {
 
 func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem ElementId, update model.StatusUpdate) error {
 	log := lctx.Logger(REALM).WithValues("name", n.GetName())
-	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		o := _o.(*db.Operator)
 		mod := false
 		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.GetPhase()), &mod)

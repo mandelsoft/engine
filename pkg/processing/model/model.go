@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/processing/metamodel"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 )

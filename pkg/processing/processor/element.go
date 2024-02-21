@@ -2,9 +2,9 @@ package processor
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 )
 

@@ -8,10 +8,10 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	objectbase2 "github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
@@ -21,7 +21,7 @@ type processingModel struct {
 
 	m  model.Model
 	mm metamodel.MetaModel
-	ob objectbase.Objectbase
+	ob objectbase2.Objectbase
 
 	namespaces map[string]*namespaceInfo
 }
@@ -37,7 +37,7 @@ func newProcessingModel(m model.Model) *processingModel {
 	}
 }
 
-func (p *processingModel) ObjectBase() objectbase.Objectbase {
+func (p *processingModel) ObjectBase() objectbase2.Objectbase {
 	return p.ob
 }
 
@@ -45,7 +45,7 @@ func (p *processingModel) MetaModel() metamodel.MetaModel {
 	return p.mm
 }
 
-func (p *processingModel) SchemeTypes() objectbase.SchemeTypes {
+func (p *processingModel) SchemeTypes() objectbase2.SchemeTypes {
 	return p.m.SchemeTypes()
 }
 
@@ -99,7 +99,7 @@ func (m *processingModel) assureNamespace(log logging.Logger, name string, creat
 				return nil, err
 			}
 			log.Info("creating namespace object for {{namespace}}", "namespace", name)
-			b, err = m.ob.SchemeTypes().CreateObject(m.mm.NamespaceType(), objectbase.SetObjectName(nns, nn))
+			b, err = m.ob.SchemeTypes().CreateObject(m.mm.NamespaceType(), objectbase2.SetObjectName(nns, nn))
 			if err != nil {
 				log.Error("cannot create namespace object for {{namespace}}", "namespace", name)
 				return nil, err
@@ -133,7 +133,7 @@ func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.Ext
 	i := ns.internal[oid]
 	if i == nil {
 		log.Info("creating internal object for {{extid}}")
-		_i, err := m.ob.SchemeTypes().CreateObject(t.GetType(), objectbase.SetObjectName(id.GetNamespace(), id.GetName()))
+		_i, err := m.ob.SchemeTypes().CreateObject(t.GetType(), objectbase2.SetObjectName(id.GetNamespace(), id.GetName()))
 		if err != nil {
 			log.Error("creation of internal object for external object {{extid}} failed", "error", err)
 			return nil, err

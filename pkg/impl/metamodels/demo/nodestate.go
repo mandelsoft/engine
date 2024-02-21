@@ -5,11 +5,11 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	wrapped.MustRegisterType[NodeState](scheme)
+	wrapped2.MustRegisterType[NodeState](scheme)
 }
 
 type NodeState struct {
@@ -48,7 +48,7 @@ func (n *NodeState) assureTarget(o *db.NodeState) *db.TargetState {
 }
 
 func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
-	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.NodeState))
 
 		mod := false

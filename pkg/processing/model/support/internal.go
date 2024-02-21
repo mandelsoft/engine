@@ -6,11 +6,11 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/internal"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	objectbase2 "github.com/mandelsoft/engine/pkg/processing/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -97,8 +97,8 @@ func (n *InternalObjectSupport[I]) GetExternalState(o model.ExternalObject, phas
 	return o.GetState()
 }
 
-func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase.Objectbase) database.Database[db.DBObject] {
-	return objectbase.GetDatabase[db.DBObject](ob)
+func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase2.Objectbase) database.Database[db.DBObject] {
+	return objectbase2.GetDatabase[db.DBObject](ob)
 }
 
 func (n *InternalObjectSupport[I]) GetStatus(phase mmids.Phase) model.Status {
@@ -124,7 +124,7 @@ func (n *InternalObjectSupport[I]) GetLock(phase mmids.Phase) mmids.RunId {
 	return n.GetPhaseState(phase).GetLock()
 }
 
-func (n *InternalObjectSupport[I]) TryLock(ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
+func (n *InternalObjectSupport[I]) TryLock(ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -135,7 +135,7 @@ func (n *InternalObjectSupport[I]) TryLock(ob objectbase.Objectbase, phase mmids
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, observed ...string) (bool, error) {
+func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId, observed ...string) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -155,7 +155,7 @@ func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase.Ob
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) MarkPhasesForDeletion(ob objectbase.Objectbase, phases ...mmids.Phase) (bool, error) {
+func (n *InternalObjectSupport[I]) MarkPhasesForDeletion(ob objectbase2.Objectbase, phases ...mmids.Phase) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -187,7 +187,7 @@ func (f CommitFunc[P]) Commit(lctx model.Logging, o P, phase mmids.Phase, spec *
 	f(lctx, o, phase, spec)
 }
 
-func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, committer Committer[I]) (bool, error) {
+func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, committer Committer[I]) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -228,7 +228,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {
+func (n *InternalObjectSupport[I]) PrepareDeletion(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase) error {
 	return nil
 }
 

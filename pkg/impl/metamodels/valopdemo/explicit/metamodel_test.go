@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
