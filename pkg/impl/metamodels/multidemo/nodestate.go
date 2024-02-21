@@ -47,7 +47,7 @@ type PhaseBase struct {
 	support.DefaultPhase[*NodeState, *db.NodeState]
 }
 
-func (g GatherPhase) AcceptExternalState(lctx model.Logging, o *NodeState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (_ PhaseBase) AcceptExternalState(log logging.Logger, o *NodeState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	for _, _s := range state {
 		s := _s.(*ExternalNodeState).GetState()
 
@@ -80,28 +80,28 @@ func (g GatherPhase) AcceptExternalState(lctx model.Logging, o *NodeState, state
 	return model.ACCEPT_OK, nil
 }
 
+type GatherPhase struct{ PhaseBase }
+
 ////////////////////////////////////////////////////////////////////////////////
 // Gather Phase
 ////////////////////////////////////////////////////////////////////////////////
 
-type GatherPhase struct{ PhaseBase }
-
 var _ NodeStatePhase = (*GatherPhase)(nil)
 
-func (g GatherPhase) GetCurrentState(o *NodeState, phase Phase) model.CurrentState {
+func (_ GatherPhase) GetCurrentState(o *NodeState, phase Phase) model.CurrentState {
 	return NewCurrentGatherState(o)
 }
 
-func (g GatherPhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
+func (_ GatherPhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
 	return NewTargetGatherState(o)
 }
 
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state *ExternalNodeState, mod *bool) {
+func (_ GatherPhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state *ExternalNodeState, mod *bool) {
 	t := o.Gather.Target
 	support.UpdateField(&t.Spec, state.GetState(), mod)
 }
 
-func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
+func (_ GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
 		t := o.Gather.Target
 		c := &o.Gather.Current
@@ -113,10 +113,10 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, 
 	}
 }
 
-func (g GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingResult {
+func (p GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
-	links := g.GetTargetState(o, phase).GetLinks()
+	links := p.GetTargetState(o, phase).GetLinks()
 	operands := make([]db.Operand, len(links))
 	for iid, e := range req.Inputs {
 		s := e.(*CalcOutputState).GetState()
@@ -151,29 +151,29 @@ type CalculatePhase struct{ PhaseBase }
 
 var _ NodeStatePhase = (*CalculatePhase)(nil)
 
-func (c CalculatePhase) GetCurrentState(o *NodeState, phase Phase) model.CurrentState {
+func (_ CalculatePhase) GetCurrentState(o *NodeState, phase Phase) model.CurrentState {
 	return NewCurrentCalcState(o)
 }
 
-func (c CalculatePhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
+func (_ CalculatePhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
 	return NewTargetCalcState(o)
 }
 
-func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *NodeState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (p CalculatePhase) AcceptExternalState(log logging.Logger, o *NodeState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	for _, s := range state {
 		if s.(*ExternalNodeState).GetVersion() == o.GetPhaseState(mymetamodel.PHASE_GATHER).GetCurrent().GetObjectVersion() {
-			return c.PhaseBase.AcceptExternalState(lctx, o, state, phase)
+			return p.PhaseBase.AcceptExternalState(log, o, state, phase)
 		}
 	}
 	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
 }
 
-func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state *ExternalNodeState, mod *bool) {
+func (_ CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state *ExternalNodeState, mod *bool) {
 	t := o.Calculation.Target
 	support.UpdatePointerField(&t.Operator, state.GetState().Operator, mod)
 }
 
-func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
+func (_ CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
 		// update state specific
 		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
@@ -182,7 +182,7 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phas
 	}
 }
 
-func (c CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingResult {
+func (_ CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	var operands []db.Operand

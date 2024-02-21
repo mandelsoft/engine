@@ -23,6 +23,9 @@ type Element interface {
 	GetExternalState(ExternalObject) ExternalState
 
 	GetStatus() Status
+
+	MarkForDeletion(m ProcessingModel) (changed bool, all []Phase, leafs []Phase, err error)
+	IsMarkedForDeletion() bool
 }
 
 type ElementAccess interface {

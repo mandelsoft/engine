@@ -58,8 +58,12 @@ type InternalObject interface {
 	GetStatus(Phase) Status
 	SetStatus(ob Objectbase, phase Phase, status Status) (bool, error)
 
+	MarkPhasesForDeletion(ob Objectbase, phases ...Phase) (bool, error)
+	IsMarkedForDeletion(phase Phase) bool
+
 	AcceptExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) (AcceptStatus, error)
 	Process(Request) ProcessingResult
+	PrepareDeletion(lctx Logging, ob Objectbase, phase Phase) error
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -128,6 +132,7 @@ type SlaveManagement interface {
 type Request struct {
 	Logging         Logging
 	Model           ProcessingModel
+	Delete          bool
 	Inputs          Inputs
 	Element         Element
 	ElementAccess   ElementAccess

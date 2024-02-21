@@ -1,6 +1,7 @@
 package support
 
 import (
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
@@ -30,19 +31,25 @@ func (w *Wrapper) GetBase() db.DBObject {
 }
 
 func (n *Wrapper) AddFinalizer(ob objectbase.Objectbase, f string) (bool, error) {
-
 	mod := func(o db.DBObject) (bool, bool) {
 		b := o.AddFinalizer(f)
 		return b, b
 	}
-	return wrapped.Modify(ob, n, mod)
+	b, err := wrapped.Modify(ob, n, mod)
+	if b {
+		database.Log.Debug("adding finalizer {{finalizer}} for {{oid}}: {{effective}}", "oid", database.NewObjectIdFor(n), "finalizer", f, "effective", n.GetFinalizers())
+	}
+	return b, err
 }
 
 func (n *Wrapper) RemoveFinalizer(ob objectbase.Objectbase, f string) (bool, error) {
-
 	mod := func(o db.DBObject) (bool, bool) {
 		b := o.RemoveFinalizer(f)
 		return b, b
 	}
-	return wrapped.Modify(ob, n, mod)
+	b, err := wrapped.Modify(ob, n, mod)
+	if b {
+		database.Log.Debug("removing finalizer {{finalizer}} for {{oid}}: {{effective}}", "oid", database.NewObjectIdFor(n), "finalizer", f, "effective", n.GetFinalizers())
+	}
+	return b, err
 }

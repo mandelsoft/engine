@@ -3,6 +3,7 @@ package db
 import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type InternalDBObject interface {
@@ -30,6 +31,9 @@ type PhaseState interface {
 	ClearTarget() bool
 	GetTarget() TargetState
 	CreateTarget() TargetState
+
+	MarkForDeletion(t utils.Timestamp) bool
+	IsDeletionRequested() bool
 }
 
 type CurrentState interface {
@@ -77,10 +81,11 @@ type currentpointer[P any] interface {
 // Type parameters are required for the struct and the
 // pointer type.
 type DefaultPhaseState[C any, T any, CP currentpointer[C], TP targetpointer[T]] struct {
-	RunId   mmids.RunId  `json:"runid"`
-	Status  model.Status `json:"status"`
-	Current C            `json:"current,omitempty"`
-	Target  TP           `json:"target,omitempty"`
+	RunId             mmids.RunId      `json:"runid"`
+	Status            model.Status     `json:"status"`
+	DeletionRequested *utils.Timestamp `json:"deletionRequested,omitempty"`
+	Current           C                `json:"current,omitempty"`
+	Target            TP               `json:"target,omitempty"`
 }
 
 var _ PhaseState = (*DefaultPhaseState[StandardCurrentState, StandardTargetState, *StandardCurrentState, *StandardTargetState])(nil)
@@ -144,4 +149,16 @@ func (n *DefaultPhaseState[C, T, CP, TP]) ClearTarget() bool {
 	}
 	n.Target = nil
 	return true
+}
+
+func (n *DefaultPhaseState[C, T, CP, TP]) MarkForDeletion(t utils.Timestamp) bool {
+	if n.DeletionRequested != nil {
+		return false
+	}
+	n.DeletionRequested = &t
+	return true
+}
+
+func (n *DefaultPhaseState[C, T, CP, TP]) IsDeletionRequested() bool {
+	return n.DeletionRequested != nil
 }

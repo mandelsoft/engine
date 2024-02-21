@@ -20,6 +20,7 @@ func init() {
 
 	processable.Insert(
 		model.STATUS_PROCESSING,
+		model.STATUS_DELETING,
 		model.STATUS_WAITING,
 	)
 }

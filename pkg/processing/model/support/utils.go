@@ -3,10 +3,12 @@ package support
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/wrapper"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
@@ -62,7 +64,7 @@ func AssureInternalObject[I db.InternalDBObject, R any](log logging.Logger, ob o
 
 	if i == nil {
 		log.Info("checking slave element {{slave}}", "slave", eid)
-		tolock := req.Model.MetaModel().GetDependentTypePhases(typ)
+		tolock, _ := req.Model.MetaModel().GetDependentTypePhases(typ)
 		i, err := ob.CreateObject(eid)
 		if err != nil {
 			return _nil, nil, false, err
@@ -131,6 +133,31 @@ func UpdateSlave[I db.InternalDBObject, R any](ob objectbase.Objectbase, eid mmi
 	return r, i.(InternalObject), err
 }
 
+func RequestSlaveDeletion(log logging.Logger, ob objectbase.Objectbase, id database.ObjectId) error {
+	o, err := ob.GetObject(id)
+	if err != nil {
+		if errors.Is(err, database.ErrNotExist) {
+			log.Debug("external slave object {{extid}} is already deleted", "extid", id)
+			return nil
+		}
+		return err
+	}
+	if o.IsDeleting() {
+		log.Debug("external slave object {{extid}} is already deleting", "extid", id)
+		return nil
+	}
+	err = ob.DeleteObject(id)
+	if err != nil {
+		if !errors.Is(err, database.ErrNotExist) {
+			return err
+		}
+		log.Debug("external slave object {{extid}} is already deleted", "extid", id)
+	} else {
+		log.Info("requested deletion of external slave object {{extid}}", "extid", id)
+	}
+	return nil
+}
+
 func AssureElement[I db.InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, typ mmids.TypeId, name string, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
 	var _nil R
 
@@ -142,7 +169,7 @@ func AssureElement[I db.InternalDBObject, R any](log logging.Logger, ob objectba
 	log.Info("checking slave element {{slave}}", "slave", eid)
 	t := req.ElementAccess.GetElement(eid)
 	if t == nil {
-		tolock := req.Model.MetaModel().GetDependentTypePhases(typ)
+		tolock, _ := req.Model.MetaModel().GetDependentTypePhases(typ)
 		i, err := ob.CreateObject(eid)
 		if err != nil {
 			return _nil, nil, false, err

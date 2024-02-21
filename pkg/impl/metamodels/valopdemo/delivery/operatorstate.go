@@ -48,7 +48,7 @@ type PhaseBase struct {
 	support.DefaultPhase[*OperatorState, *db.OperatorState]
 }
 
-func (_ PhaseBase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (_ PhaseBase) AcceptExternalState(log logging.Logger, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	for _, _s := range state {
 		s := _s.(*ExternalOperatorState).GetState()
 
@@ -89,29 +89,29 @@ type GatherPhase struct{ PhaseBase }
 
 var _ OperatorStatePhase = (*GatherPhase)(nil)
 
-func (g GatherPhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
+func (_ GatherPhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
 	return NewCurrentGatherState(o)
 }
 
-func (g GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
+func (_ GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
 	return NewTargetGatherState(o)
 }
 
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
+func (_ GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
 	t := o.Gather.Target
 
 	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
 	support.UpdateField(&t.Spec, state.GetState(), mod)
 }
 
-func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (p CalculatePhase) AcceptExternalState(log logging.Logger, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	exp := o.GetDBObject().Gather.Current.ObjectVersion
 	for _, s := range state {
 		own := s.(*ExternalOperatorState).GetVersion()
 		if own == exp {
-			return c.PhaseBase.AcceptExternalState(lctx, o, state, phase)
+			return p.PhaseBase.AcceptExternalState(log, o, state, phase)
 		}
-		lctx.Logger(REALM).Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
+		log.Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
 	}
 	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
 }

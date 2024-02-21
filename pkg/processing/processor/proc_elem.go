@@ -15,11 +15,18 @@ import (
 )
 
 func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId) pool.Status {
-	defer p.events.TriggerElementHandled(id)
 
 	nctx := lctx.WithValues("namespace", id.GetNamespace(), "element", id).WithName(id.String())
 	log := nctx.Logger()
 	elem := p.processingModel._GetElement(id)
+
+	if elem != nil && elem.GetStatus() == model.STATUS_DELETED {
+		log.Debug("skip deleted element {{element}}")
+		return pool.StatusCompleted()
+	}
+
+	defer p.events.TriggerElementHandled(id)
+
 	if elem == nil {
 		if cmd != CMD_EXT {
 			return pool.StatusFailed(fmt.Errorf("unknown element %q", id))
@@ -33,11 +40,11 @@ func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId)
 
 	runid := elem.GetLock()
 	if cmd == CMD_EXT {
-		if runid == "" || p.isReTriggerable(elem) {
+		if runid == "" || p.isReTriggerable(elem) || elem.IsMarkedForDeletion() {
 			if runid == "" {
-				log.Debug("initial external change for {{element}}")
+				log.Debug("new external change for {{element}} (deletion requested: {{marked}})", "marked", elem.IsMarkedForDeletion())
 			} else {
-				log.Debug("retriggering external change for {{element}}")
+				log.Debug("retriggering external change for {{element}} (deletion requested: {{marked}})", "marked", elem.IsMarkedForDeletion())
 			}
 			return p.handleExternalChange(nctx, elem)
 		}
@@ -51,11 +58,23 @@ func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId)
 func (p *Processor) handleNew(lctx model.Logging, id ElementId) (_Element, pool.Status) {
 	log := lctx.Logger()
 	log.Info("processing new element {{element}}")
+
 	_i, err := p.processingModel.ObjectBase().GetObject(id)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return nil, pool.StatusCompleted(err)
 		}
+
+		_, ext, err := p.getTriggeringExternalObjects(id)
+		if err != nil {
+			return nil, pool.StatusCompleted(err)
+		}
+
+		if p.isDeleting(ext...) {
+			log.Info("external object is deleting -> don't create new element")
+			return nil, pool.StatusCompleted()
+		}
+
 		_i, err = p.processingModel.ObjectBase().CreateObject(id)
 		if err != nil {
 			return nil, pool.StatusCompleted(err)
@@ -87,14 +106,17 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 
 	if !isExtTriggerable(e) {
 		if !p.isReTriggerable(e, types...) {
-			log.Info("state for element in status {{status}} is already assigned", "status", e.GetStatus())
-			return pool.StatusCompleted()
+			if !e.IsMarkedForDeletion() {
+				log.Info("state for element in status {{status}} is already assigned", "status", e.GetStatus())
+				return pool.StatusCompleted()
+			}
 		}
 		log.Info("state for element in status {{status}} is already assigned but retriggerable", "status", e.GetStatus())
 	}
 
 	log.Info("checking state of external objects for element {{element}}", "exttypes", types)
 	var changed []string
+	deleting := false
 	cur := e.GetCurrentState().GetObservedVersion()
 	for _, t := range types {
 		id := database.NewObjectId(t, e.GetNamespace(), e.GetName())
@@ -110,6 +132,11 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		}
 
 		o := _o.(model.ExternalObject)
+		if o.IsDeleting() {
+			log.Info("external object {{extid}} requests deletion")
+			deleting = true
+		}
+
 		// give the internal object the chance to modify the actual state
 		ov := o.GetState().GetVersion()
 		v := e.GetExternalState(o).GetVersion()
@@ -123,7 +150,24 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 			log.Info("state of {{extid}} changed from {{current}} to {{target}}", "current", cur, "target", v)
 		}
 	}
-	if len(changed) == 0 {
+
+	var leafs []Phase
+	var phases []Phase
+	if deleting {
+		var ok bool
+		var err error
+		log.Info("element {{element}} should be deleted")
+		ok, phases, leafs, err = e.MarkForDeletion(p.processingModel)
+		if err != nil {
+			log.LogError(err, "cannot mark all dependent phases ({phases}}) of {{element}} as deleting", "phases", phases)
+			return pool.StatusCompleted(err)
+		}
+		if ok {
+			log.Info("marked dependent phases ({{phases}}) of {{element}} as deleting", "phases", phases)
+		}
+	}
+
+	if !deleting && len(changed) == 0 {
 		log.Info("no external object state change found for {{element}}")
 		return pool.StatusCompleted()
 	}
@@ -134,21 +178,34 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		return pool.StatusCompleted()
 	}
 
-	log.Info("trying to initiate new run for {{element}}")
-	rid, err := p.lockGraph(lctx, log, e)
-	if err == nil {
-		if rid != nil {
-			log.Info("starting run {{runid}}", "runid", *rid)
-			p.Enqueue(CMD_ELEM, e)
-		} else {
-			err = fmt.Errorf("delay initiation of new run")
+	if len(changed) > 0 {
+		log.Info("trying to initiate new run for {{element}}")
+		rid, err := p.lockGraph(lctx, log, e)
+		if err == nil {
+			if rid != nil {
+				log.Info("starting run {{runid}}", "runid", *rid)
+				p.Enqueue(CMD_ELEM, e)
+			} else {
+				err = fmt.Errorf("delay initiation of new run")
+			}
 		}
+		return pool.StatusCompleted(err)
 	}
-	return pool.StatusCompleted(err)
+
+	log.Info("triggering phases {{phases}} for deletion", "phases", phases)
+	for _, phase := range leafs {
+		id := NewElementIdForPhase(e, phase)
+		log.Debug(" - triggering {{leaf}}", "leaf", id)
+		p.EnqueueKey(CMD_ELEM, id)
+	}
+	return pool.StatusCompleted()
 }
 
 func (p *Processor) isReTriggerable(e _Element, ext ...string) bool {
 	if e.GetLock() != "" {
+		if e.IsMarkedForDeletion() {
+			return true
+		}
 		if len(ext) == 0 {
 			ext = p.processingModel.MetaModel().GetTriggeringTypesForElementType(e.Id().TypeId())
 		}
@@ -171,145 +228,178 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 	var inputs model.Inputs
 
 	log = log.WithValues("status", e.GetStatus())
-	log.Info("processing element {{element}} with status {{status}} (finalizers {{finalizers}})", "finalizers", e.GetObject().GetFinalizers())
+	log.Info("processing element {{element}} with status {{status}} (finalizers {{finalizers}}) (marked for deletion: {{deletion}})", "finalizers", e.GetObject().GetFinalizers(), "deletion", e.IsMarkedForDeletion())
 
 	var links []ElementId
 
-	if isExtTriggerable(e) || p.isReTriggerable(e) {
-		// wait for inputs to become ready
-
-		if e.GetProcessingState() == nil {
-			log.Info("checking current links")
-			links = e.GetCurrentState().GetLinks()
-
-			for _, l := range links {
-				if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-					return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
-				}
-			}
-
-			// first, check current state
-			missing, waiting, inputs = p.checkReady(log, ni, "current", links)
-			if ok := p.notifyCurrentWaitingState(lctx, log, e, missing, waiting, inputs); ok {
-				// return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
-				return pool.StatusCompleted() // TODO: require rate limiting??
-			}
+	deletion := false
+	if e.IsMarkedForDeletion() {
+		err := e.GetObject().PrepareDeletion(lctx, p.processingModel.ObjectBase(), e.GetPhase())
+		if err != nil {
+			return pool.StatusCompleted(err)
 		}
 
-		if e.GetProcessingState() == nil || p.isReTriggerable(e) {
-			if p.isReTriggerable(e) {
-				log.Info("update target state")
-			} else {
-				log.Info("gather target state")
+		children := ni.GetChildren(e.Id())
+		if len(children) == 0 {
+			log.Info("element {{element}} is deleting and no children found -> initiate deletion")
+			links = e.GetCurrentState().GetLinks()
+			deletion = true
+		} else {
+			var list []ElementId
+			for _, c := range children {
+				list = append(list, c.Id())
 			}
-			// second, assign target state by transferring the current external state to the internal object
-			s, err := p.assignTargetState(lctx, log, e)
-			switch s {
-			case model.ACCEPT_OK:
-				if err != nil {
-					log.Error("cannot update external state for internal object", "error", err)
-				}
-			case model.ACCEPT_REJECTED:
-				log.Error("external state for internal object from parent rejected -> block element", "error", err)
-				return p.block(lctx, log, ni, e, err.Error())
+			log.Info("element {{element}} is deleting but still has children ({{children}}) found -> normal processing", "children", list)
+		}
+	}
+	if !deletion && e.GetLock() == "" {
+		log.Info("no active run for {{element}} -> skip processing")
+		return pool.StatusCompleted()
+	}
 
-			case model.ACCEPT_INVALID:
-				log.Error("external state for internal object invalid -> fail element", "error", err)
-				return p.fail(lctx, log, ni, e, err)
+	if !deletion {
+		if isExtTriggerable(e) || p.isReTriggerable(e) {
+			// wait for inputs to become ready
+
+			if e.GetProcessingState() == nil {
+				log.Info("checking current links")
+				links = e.GetCurrentState().GetLinks()
+
+				for _, l := range links {
+					if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
+						return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+					}
+				}
+
+				// first, check current state
+				missing, waiting, inputs = p.checkReady(log, ni, "current", links)
+				if ok := p.notifyCurrentWaitingState(lctx, log, e, missing, waiting, inputs); ok {
+					// return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
+					return pool.StatusCompleted() // TODO: require rate limiting??
+				}
 			}
+
+			if e.GetProcessingState() == nil || p.isReTriggerable(e) {
+				if p.isReTriggerable(e) {
+					log.Info("update target state")
+				} else {
+					log.Info("gather target state")
+				}
+				// second, assign target state by transferring the current external state to the internal object
+				s, err := p.assignTargetState(lctx, log, e)
+				switch s {
+				case model.ACCEPT_OK:
+					if err != nil {
+						log.Error("cannot update external state for internal object", "error", err)
+					}
+				case model.ACCEPT_REJECTED:
+					log.Error("external state for internal object from parent rejected -> block element", "error", err)
+					return p.block(lctx, log, ni, e, err.Error())
+
+				case model.ACCEPT_INVALID:
+					log.Error("external state for internal object invalid -> fail element", "error", err)
+					return p.fail(lctx, log, ni, e, err)
+				}
+				if err != nil {
+					return pool.StatusCompleted(err)
+				}
+
+				// checking target dependencies after fixing the target state
+				log.Info("checking target links and get actual inputs")
+				links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
+				for _, l := range links {
+					if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
+						return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+					}
+				}
+			} else {
+				log.Info("continue interrupted processing")
+				links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
+			}
+
+			missing, waiting, inputs = p.checkReady(log, ni, "target", links)
+			ok, blocked, err := p.notifyTargetWaitingState(lctx, log, e, missing, waiting, inputs)
+			if err != nil {
+				return pool.StatusCompleted(fmt.Errorf("notifying blocked status failed: %w", err))
+			}
+			if blocked {
+				p.pending.Add(-1)
+				p.triggerChildren(log, ni, e, true)
+				log.Info("unresolvable dependencies {{waiting}}", "waiting", utils.Join(waiting))
+				return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", utils.Join(waiting)))
+			}
+			if ok {
+				return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
+
+				log.Info("missing dependencies {{waiting}}", "waiting", utils.Join(waiting))
+				return pool.StatusCompleted(nil) // TODO: rate limiting required?
+			}
+
+			if e.GetProcessingState() == nil {
+				// mark element to be ready by setting the element's target state to the target state of the internal
+				// object for the actual phase
+				e.SetProcessingState(NewTargetState(e))
+			}
+
+			// check effective version for required phase processing.
+			target := e.GetObject().GetTargetState(e.GetPhase())
+
+			indiff := diff(log, "input version", e.GetCurrentState().GetInputVersion(), target.GetInputVersion(inputs))
+			obdiff := diff(log, "object version", e.GetCurrentState().GetObjectVersion(), target.GetObjectVersion())
+			if !indiff && !obdiff {
+				log.Info("effective version unchanged -> skip processing of phase")
+				err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil, nil)
+				if err == nil {
+					_, err = e.SetStatus(p.processingModel.ObjectBase(), model.STATUS_COMPLETED)
+					if err == nil {
+						p.pending.Add(-1)
+						p.triggerChildren(log, ni, e, true)
+					}
+				}
+				return pool.StatusCompleted(err)
+			}
+
+			upstate := func(log logging.Logger, o model.ExternalObject) error {
+				return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
+					Status:  utils.Pointer(model.STATUS_PROCESSING),
+					Message: utils.Pointer(fmt.Sprintf("processing phase %s", e.GetPhase())),
+				})
+			}
+
+			log.Info("update processing status of external objects")
+			err = p.forExtObjects(log, e, upstate)
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
 
-			// checking target dependencies after fixing the target state
-			log.Info("checking target links and get actual inputs")
-			links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
-			for _, l := range links {
-				if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-					return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
-				}
+			err = p.setStatus(log, e, model.STATUS_PROCESSING)
+			if err != nil {
+				return pool.StatusCompleted(err)
 			}
 		} else {
-			log.Info("continue interrupted processing")
 			links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
-		}
-
-		missing, waiting, inputs = p.checkReady(log, ni, "target", links)
-		ok, blocked, err := p.notifyTargetWaitingState(lctx, log, e, missing, waiting, inputs)
-		if err != nil {
-			return pool.StatusCompleted(fmt.Errorf("notifying blocked status failed: %w", err))
-		}
-		if blocked {
-			p.pending.Add(-1)
-			p.triggerChildren(log, ni, e, true)
-			log.Info("unresolvable dependencies {{waiting}}", "waiting", utils.Join(waiting))
-			return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", utils.Join(waiting)))
-		}
-		if ok {
-			return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
-
-			log.Info("missing dependencies {{waiting}}", "waiting", utils.Join(waiting))
-			return pool.StatusCompleted(nil) // TODO: rate limiting required?
-		}
-
-		if e.GetProcessingState() == nil {
-			// mark element to be ready by setting the element's target state to the target state of the internal
-			// object for the actual phase
-			e.SetProcessingState(NewTargetState(e))
-		}
-
-		// check effective version for required phase processing.
-		target := e.GetObject().GetTargetState(e.GetPhase())
-
-		indiff := diff(log, "input version", e.GetCurrentState().GetInputVersion(), target.GetInputVersion(inputs))
-		obdiff := diff(log, "object version", e.GetCurrentState().GetObjectVersion(), target.GetObjectVersion())
-		if !indiff && !obdiff {
-			log.Info("effective version unchanged -> skip processing of phase")
-			err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil, nil)
-			if err == nil {
-				_, err = e.SetStatus(p.processingModel.ObjectBase(), model.STATUS_COMPLETED)
-				if err == nil {
-					p.pending.Add(-1)
-					p.triggerChildren(log, ni, e, true)
-				}
+			missing, waiting, inputs = p.checkReady(log, ni, "target", links)
+			if len(missing) > 0 || len(waiting) > 0 {
+				log.Error("unexpected state of parents, should be available, but found missing {{missing}} and/or waiting {{waiting}}",
+					"missing", utils.Join(missing), "waiting", utils.Join(waiting))
+				return p.fail(lctx, log, ni, e, fmt.Errorf("unexpected state of parents"))
 			}
-			return pool.StatusCompleted(err)
-		}
-
-		upstate := func(log logging.Logger, o model.ExternalObject) error {
-			return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
-				Status:  utils.Pointer(model.STATUS_PROCESSING),
-				Message: utils.Pointer(fmt.Sprintf("processing phase %s", e.GetPhase())),
-			})
-		}
-
-		log.Info("update processing status of external objects")
-		err = p.forExtObjects(log, e, upstate)
-		if err != nil {
-			return pool.StatusCompleted(err)
-		}
-
-		err = p.setStatus(log, e, model.STATUS_PROCESSING)
-		if err != nil {
-			return pool.StatusCompleted(err)
 		}
 	} else {
-		links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
-		missing, waiting, inputs = p.checkReady(log, ni, "target", links)
-		if len(missing) > 0 || len(waiting) > 0 {
-			log.Error("unexpected state of parents, should be available, but found missing {{missing}} and/or waiting {{waiting}}",
-				"missing", utils.Join(missing), "waiting", utils.Join(waiting))
-			return p.fail(lctx, log, ni, e, fmt.Errorf("unexpected state of parents"))
+		err := p.setStatus(log, e, model.STATUS_DELETING)
+		if err != nil {
+			return pool.StatusCompleted(err)
 		}
 	}
 
 	if isProcessable(e) {
 		// now we can process the phase
-		log.Info("executing phase {{phase}} of internal object {{intid}}", "phase", e.GetPhase(), "intid", e.Id().ObjectId())
+		log.Info("executing phase {{phase}} of internal object {{intid}} (deletion {{deletion}})", "phase", e.GetPhase(), "intid", e.Id().ObjectId(), "deletion", deletion)
 		result := e.GetObject().Process(model.Request{
 			Logging:         lctx,
 			Model:           p.processingModel,
 			Element:         e,
+			Delete:          deletion,
 			Inputs:          inputs,
 			ElementAccess:   ni,
 			SlaveManagement: newSlaveManagement(log, p, ni, e),
@@ -344,6 +434,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				}
 				p.events.TriggerStatusEvent(log, model.STATUS_DELETED, e.Id())
 				p.pending.Add(-1)
+				p.triggerLinks(log, "parent", links...)
 				p.triggerChildren(log, ni, e, true)
 			case model.STATUS_COMPLETED:
 				err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", result.EffectiveObjectVersion, inputs, result.ResultState, CalcEffectiveVersion(inputs, e.GetProcessingState().GetObjectVersion()))
@@ -378,7 +469,7 @@ func diff(log logging.Logger, kind string, old, new string) bool {
 func (p *Processor) setupNewInternalObject(log logging.Logger, ni *namespaceInfo, i model.InternalObject, phase Phase, runid RunId) Element {
 	var elem Element
 	log.Info("setup new internal object {{id}} for required phase {{reqphase}}", "id", NewObjectIdFor(i), "reqphase", phase)
-	tolock := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
+	tolock, _ := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
 	for _, ph := range p.processingModel.MetaModel().Phases(i.GetType()) {
 		n := ni._AddElement(i, ph)
 		log.Info("  setup new phase {{newelem}}", "newelem", n.Id())
@@ -455,7 +546,7 @@ func (p *Processor) phaseDeleted(lctx pool.MessageContext, log logging.Logger, n
 		log.Info("internal object not deleted")
 		return nil
 	}
-	log.Info("all phases in status {{phases}} deleted", "phases", phases_del)
+	log.Info("all phases ({{phases}}) in status deleted", "phases", phases_del)
 
 	log.Info("removing finalizer for internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
 	_, err = elem.GetObject().RemoveFinalizer(p.processingModel.ObjectBase(), FINALIZER)

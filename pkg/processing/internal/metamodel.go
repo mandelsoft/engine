@@ -48,7 +48,7 @@ type MetaModel interface {
 	GetElementType(name TypeId) ElementType
 	HasDependency(s, d TypeId) bool
 
-	GetDependentTypePhases(name TypeId) []Phase
+	GetDependentTypePhases(name TypeId) (all []Phase, leafs []Phase)
 	GetPhaseFor(ext string) *TypeId
 	GetTriggeringTypesForElementType(id TypeId) []string
 	GetAssignedExternalTypes(id TypeId) []string

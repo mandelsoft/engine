@@ -155,6 +155,28 @@ func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase.Ob
 	return wrapped.Modify(ob, n, mod)
 }
 
+func (n *InternalObjectSupport[I]) MarkPhasesForDeletion(ob objectbase.Objectbase, phases ...mmids.Phase) (bool, error) {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	mod := func(_o db.DBObject) (bool, bool) {
+		mod := false
+		t := utils.NewTimestamp()
+		for _, phase := range phases {
+			p := n.GetPhaseStateFor(_o.(I), phase)
+			mod = p.MarkForDeletion(t) || mod
+		}
+		return mod, mod
+	}
+	return wrapped.Modify(ob, n, mod)
+}
+func (n *InternalObjectSupport[I]) IsMarkedForDeletion(phase mmids.Phase) bool {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	return n.GetPhaseState(phase).IsDeletionRequested()
+}
+
 type Committer[P any] interface {
 	Commit(lctx model.Logging, o P, phase mmids.Phase, spec *model.CommitInfo)
 }
@@ -204,6 +226,10 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
+}
+
+func (n *InternalObjectSupport[I]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

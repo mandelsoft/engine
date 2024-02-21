@@ -83,6 +83,12 @@ func (n *ValueState) EffectiveTargetSpec(state model.ExternalState) *EffectiveVa
 
 func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
+
+	if req.Delete {
+		log.Info("deleting successful")
+		return model.StatusDeleted()
+	}
+
 	target := n.GetTargetState(req.Element.GetPhase())
 
 	var out db.ValueOutput

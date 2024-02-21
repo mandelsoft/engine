@@ -154,7 +154,7 @@ func (ni *namespaceInfo) getChildren(id ElementId) []Element {
 	for _, e := range ni.elements {
 		state := e.GetCurrentState()
 		if state != nil {
-			if slices.Contains(state.GetLinks(), id) {
+			if e.GetStatus() != model.STATUS_DELETED && slices.Contains(state.GetLinks(), id) {
 				r = append(r, e)
 			}
 		}
@@ -220,7 +220,7 @@ func (ni *namespaceInfo) assureSlaves(log logging.Logger, p *Processor, check mo
 func (ni *namespaceInfo) setupElements(log logging.Logger, p *Processor, i model.InternalObject, phase Phase, runid RunId) _Element {
 	var elem _Element
 	log.Info("setup new internal object {{id}} for required phase {{reqphase}}", "id", NewObjectIdFor(i), "reqphase", phase)
-	tolock := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
+	tolock, _ := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
 	for _, ph := range p.processingModel.MetaModel().Phases(i.GetType()) {
 		n := ni._addElement(i, ph)
 		log.Info("  setup new phase {{newelem}}", "newelem", n.Id())

@@ -16,13 +16,13 @@ func (p *Processor) processExternalObject(log logging.Logger, id database.Object
 	m := p.processingModel
 	log = log.WithName(oid.String()).WithValues("extid", oid)
 
-	t := m.MetaModel().GetPhaseFor(id.GetType())
+	t := m.MetaModel().GetPhaseFor(oid.GetType())
 	if t == nil {
 		return pool.StatusFailed(fmt.Errorf("external object type %q not configured", id.GetType()))
 	}
 
 	// check for deletion
-	_o, err := p.handleExternalDeletion(log, id, *t)
+	_o, err := p.handleExternalDeletion(log, oid, *t)
 	if err != nil || _o == nil {
 		return pool.StatusCompleted(err)
 	}
@@ -63,7 +63,7 @@ func (p *Processor) handleExternalDeletion(log logging.Logger, id database.Objec
 				log.Info("element {{element}} triggered for deleted external object {{exitid}}", "element", e.Id())
 				p.Enqueue(CMD_EXT, e)
 			} else {
-				log.Info("ignoring deleted external object {{exitid}}")
+				log.Info("ignoring change event for deleted external object {{extid}}")
 			}
 			return nil, nil
 		}
@@ -92,7 +92,7 @@ func (p *Processor) prepareExternalObject(log logging.Logger, eid ElementId, o m
 		return nil, err
 	}
 	if ok {
-		log.Info("added finalizer for deleting external object {{extid}}")
+		log.Info("added finalizer for external object {{extid}}")
 	}
 	return o, nil
 }

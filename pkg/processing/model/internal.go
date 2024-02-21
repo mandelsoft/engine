@@ -42,6 +42,7 @@ const (
 	STATUS_BLOCKED    = Status("Blocked")
 	STATUS_PREPARING  = Status("Preparing")
 	STATUS_PROCESSING = Status("Processing")
+	STATUS_DELETING   = Status("Deleting")
 	STATUS_WAITING    = Status("Waiting")
 	STATUS_COMPLETED  = Status("Completed")
 	STATUS_FAILED     = Status("Failed")

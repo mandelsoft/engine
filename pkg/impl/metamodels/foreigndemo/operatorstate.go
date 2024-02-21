@@ -3,6 +3,8 @@ package foreigndemo
 import (
 	"fmt"
 
+	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase/wrapped"
@@ -48,7 +50,7 @@ type PhaseBase struct {
 	support.DefaultPhase[*OperatorState, *db.OperatorState]
 }
 
-func (_ PhaseBase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (_ PhaseBase) AcceptExternalState(log logging.Logger, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	for _, _s := range state {
 		s := _s.(*ExternalOperatorState).GetState()
 
@@ -102,26 +104,14 @@ func (g GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetS
 	return NewTargetGatherState(o)
 }
 
-func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
-	exp := o.GetDBObject().Gather.Current.ObjectVersion
-	for _, s := range state {
-		own := s.(*ExternalOperatorState).GetVersion()
-		if own == exp {
-			return c.PhaseBase.AcceptExternalState(lctx, o, state, phase)
-		}
-		lctx.Logger(REALM).Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
-	}
-	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
-}
-
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
+func (_ GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
 	t := o.Gather.Target
 
 	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
 	support.UpdateField(&t.Spec, state.GetState(), mod)
 }
 
-func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
+func (_ GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
 		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
@@ -132,9 +122,13 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Pha
 	}
 }
 
-func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
+func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
+	if req.Delete {
+		log.Info("deletion successful")
+		return model.StatusDeleted()
+	}
 	t := NewTargetGatherState(o)
 	operands := map[string]db.OperandInfo{}
 	for iid, e := range req.Inputs {
@@ -169,6 +163,11 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	return model.StatusCompleted(NewGatherOutputState(out))
 }
 
+func (_ GatherPhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase mmids.Phase) error {
+	oid := model.SlaveObjectId(o, mymetamodel.TYPE_EXPRESSION)
+	return support.RequestSlaveDeletion(log, ob, oid)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Calculation Phase
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,6 +182,18 @@ func (c CalculatePhase) GetCurrentState(o *OperatorState, phase Phase) model.Cur
 
 func (c CalculatePhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
 	return NewTargetCalcState(o)
+}
+
+func (c CalculatePhase) AcceptExternalState(log logging.Logger, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+	exp := o.GetDBObject().Gather.Current.ObjectVersion
+	for _, s := range state {
+		own := s.(*ExternalOperatorState).GetVersion()
+		if own == exp {
+			return c.PhaseBase.AcceptExternalState(log, o, state, phase)
+		}
+		log.Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
+	}
+	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
 }
 
 func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
@@ -206,6 +217,10 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase 
 func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
+	if req.Delete {
+		log.Info("deletion successful")
+		return model.StatusDeleted()
+	}
 	s := NewTargetCalcState(o)
 
 	out := db.CalculationOutput{}
@@ -253,6 +268,19 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 	)
 
 	return model.StatusCompleted(NewCalcOutputState(out))
+}
+
+func (_ CalculatePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase mmids.Phase) error {
+	s := NewCurrentCalcState(o)
+
+	for k := range s.GetOutput().(*CalcOutputState).GetState() {
+		oid := database.NewObjectId(mymetamodel.TYPE_VALUE, o.GetNamespace(), k)
+		err := support.RequestSlaveDeletion(log, ob, oid)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

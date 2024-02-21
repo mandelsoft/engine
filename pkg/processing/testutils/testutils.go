@@ -168,12 +168,20 @@ func (t *TestEnv) WaitGroup() *sync.WaitGroup {
 	return t.wg
 }
 
+func (t *TestEnv) List(typ string, ns string) ([]database.ObjectId, error) {
+	return t.db.ListObjectIds(typ, ns)
+}
+
 func (t *TestEnv) GetObject(id database.ObjectId) (db.DBObject, error) {
 	return t.db.GetObject(id)
 }
 
 func (t *TestEnv) SetObject(o db.DBObject) error {
 	return t.db.SetObject(o)
+}
+
+func (t *TestEnv) DéleteObject(id database.ObjectId) error {
+	return t.db.DeleteObject(id)
 }
 
 func (t *TestEnv) CompletedFuture(id ElementId, retrigger ...bool) processor.Future {

@@ -103,6 +103,14 @@ func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _E
 	return p.forExtObjects(log, elem, mod)
 }
 
+func (p *Processor) triggerLinks(log logging.Logger, msg string, links ...ElementId) {
+	log.Info(fmt.Sprintf("trigger %s elements", msg))
+	for _, l := range links {
+		log.Info(fmt.Sprintf(" - trigger %s element {{parent}}", msg), "parent", l)
+		p.EnqueueKey(CMD_ELEM, l)
+	}
+}
+
 func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem _Element, release bool) {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
@@ -116,11 +124,11 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem 
 			log.Debug("- elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Info("  trigger waiting element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Info("  trigger pending element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}
-		} else if e.GetCurrentState() != nil {
+		} else if e.GetStatus() != model.STATUS_DELETED && e.GetCurrentState() != nil {
 			links := e.GetCurrentState().GetLinks()
 			log.Debug("- elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
@@ -158,4 +166,33 @@ func (p *Processor) updateRunId(lctx model.Logging, log logging.Logger, verb str
 		}
 	}
 	return nil
+}
+
+func (p *Processor) getTriggeringExternalObjects(id ElementId) (bool, []model.ExternalObject, error) {
+	var result []model.ExternalObject
+	found := false
+
+	for _, ext := range p.processingModel.MetaModel().GetTriggeringTypesForElementType(id.TypeId()) {
+		found = true
+		oid := model.NewObjectIdForType(ext, id)
+		o, err := p.processingModel.ObjectBase().GetObject(oid)
+		if err != nil {
+			if !errors.Is(err, database.ErrNotExist) {
+				return false, nil, err
+			}
+		}
+		if o != nil {
+			result = append(result, o.(model.ExternalObject))
+		}
+	}
+	return found, result, nil
+}
+
+func (p *Processor) isDeleting(objs ...model.ExternalObject) bool {
+	for _, o := range objs {
+		if o.IsDeleting() {
+			return true
+		}
+	}
+	return false
 }

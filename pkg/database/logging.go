@@ -6,4 +6,4 @@ import (
 
 var REALM = logging.DefineRealm("database", "Generic Data Store Support")
 
-var log = logging.DynamicLogger(logging.DefaultContext(), REALM)
+var Log = logging.DynamicLogger(logging.DefaultContext(), REALM)

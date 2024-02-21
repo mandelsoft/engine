@@ -118,3 +118,13 @@ func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunI
 func (e *element) Commit(lctx model.Logging, ob objectbase.Objectbase, id RunId, commit *model.CommitInfo) (bool, error) {
 	return e.GetObject().Commit(lctx, ob, e.id.GetPhase(), id, commit)
 }
+
+func (e *element) IsMarkedForDeletion() bool {
+	return e.GetObject().IsMarkedForDeletion(e.GetPhase())
+}
+
+func (e *element) MarkForDeletion(m ProcessingModel) (bool, []Phase, []Phase, error) {
+	phases, leafs := m.MetaModel().GetDependentTypePhases(e.Id().TypeId())
+	ok, err := e.GetObject().MarkPhasesForDeletion(m.ObjectBase(), phases...)
+	return ok, phases, leafs, err
+}

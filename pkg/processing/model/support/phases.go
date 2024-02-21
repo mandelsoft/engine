@@ -20,11 +20,13 @@ type Phase[I InternalObject, T db.InternalDBObject, E model.ExternalState] inter
 	DBSetExternalState(log logging.Logger, o T, phase mmids.Phase, state E, mod *bool)
 	DBRollback(log logging.Logger, o T, phase mmids.Phase, mod *bool)
 
-	AcceptExternalState(lctx model.Logging, o I, states model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error)
+	AcceptExternalState(log logging.Logger, o I, states model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error)
 	GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o I, phase mmids.Phase) model.CurrentState
 	GetTargetState(o I, phase mmids.Phase) model.TargetState
+
 	Process(o I, phase mmids.Phase, req model.Request) model.ProcessingResult
+	PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o I, phase mmids.Phase) error
 }
 
 type Phases[I InternalObject, T db.InternalDBObject, E model.ExternalState] interface {
@@ -38,21 +40,29 @@ type Phases[I InternalObject, T db.InternalDBObject, E model.ExternalState] inte
 	GetExternalState(o InternalObject, ext model.ExternalObject, phase mmids.Phase) model.ExternalState
 	GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase mmids.Phase) model.TargetState
+
+	PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, o InternalObject, phase mmids.Phase) error
 	Process(o InternalObject, req model.Request) model.ProcessingResult
 }
 
 type DefaultPhase[I InternalObject, T db.InternalDBObject] struct{}
 
-func (p DefaultPhase[I, T]) AcceptExternalState(lctx model.Logging, o I, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (_ DefaultPhase[I, T]) AcceptExternalState(log logging.Logger, o I, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	return model.ACCEPT_OK, nil
 }
 
-func (p DefaultPhase[I, T]) GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
+func (_ DefaultPhase[I, T]) GetExternalState(o I, ext model.ExternalObject, phase mmids.Phase) model.ExternalState {
 	return ext.GetState()
 }
 
-func (p DefaultPhase[I, T]) DBRollback(log logging.Logger, o T, phase mmids.Phase, mod *bool) {
+func (_ DefaultPhase[I, T]) DBRollback(log logging.Logger, o T, phase mmids.Phase, mod *bool) {
 }
+
+func (_ DefaultPhase[I, T]) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o I, phase mmids.Phase) error {
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 type phases[I InternalObject, T db.InternalDBObject, E model.ExternalState] struct {
 	realm  logging.Realm
@@ -73,7 +83,8 @@ func (p *phases[I, T, E]) Register(name mmids.Phase, ph Phase[I, T, E]) {
 func (p *phases[I, T, E]) AcceptExternalState(lctx model.Logging, o InternalObject, phase mmids.Phase, states model.ExternalStates) (model.AcceptStatus, error) {
 	ph := p.phases[phase]
 	if ph != nil {
-		return ph.AcceptExternalState(lctx, o.(I), states, phase)
+		log := lctx.Logger(p.realm).WithValues("name", o.GetName(), "phase", phase)
+		return ph.AcceptExternalState(log, o.(I), states, phase)
 	}
 	return model.ACCEPT_INVALID, fmt.Errorf("unknown phase %q", phase)
 }
@@ -138,6 +149,15 @@ func (p *phases[I, T, E]) Process(o InternalObject, req model.Request) model.Pro
 		Status: model.STATUS_FAILED,
 		Error:  fmt.Errorf("unknown phase %q", phase),
 	}
+}
+
+func (p *phases[I, T, E]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, o InternalObject, phase mmids.Phase) error {
+	ph := p.phases[phase]
+	if ph != nil {
+		log := lctx.Logger(p.realm).WithValues("name", o.GetName(), "phase", phase)
+		return ph.PrepareDeletion(log, ob, o.(I), phase)
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -206,6 +226,10 @@ func (n *InternalPhaseObjectSupport[I, T, E]) AcceptExternalState(lctx model.Log
 	}
 	_, err = wrapped.Modify(ob, n, mod)
 	return model.ACCEPT_OK, err
+}
+
+func (n *InternalPhaseObjectSupport[I, T, E]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {
+	return n.phases.PrepareDeletion(lctx, ob, n.self, phase)
 }
 
 func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) model.ProcessingResult {

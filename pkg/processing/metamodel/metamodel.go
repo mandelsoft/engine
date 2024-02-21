@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/mandelsoft/engine/pkg/utils"
 )
@@ -158,24 +159,28 @@ func (m *metaModel) GetExternalType(name string) ExternalObjectType {
 	return _externalObjectType(m.external[name])
 }
 
-func (m *metaModel) GetDependentTypePhases(name TypeId) []Phase {
+func (m *metaModel) GetDependentTypePhases(name TypeId) ([]Phase, []Phase) {
 	d := m.internal[name.GetType()]
 	if d == nil {
-		return nil
+		return nil, nil
 	}
 
 	r := []Phase{name.GetPhase()}
+	leafs := sets.Set[Phase]{}
+	leafs.Insert(name.GetPhase())
 
 	for i := 0; i < len(r); i++ {
 		t := NewTypeId(name.GetType(), r[i])
 		for _, ph := range d.intType.Phases() {
 			if !slices.Contains(r, ph) && d.intType.Element(ph).HasDependency(t) {
 				r = append(r, ph)
+				leafs.Insert(ph)
+				leafs.Delete(t.GetPhase())
 			}
 		}
 	}
 
-	return r
+	return r, utils.OrderedMapKeys(leafs)
 }
 
 func (m *metaModel) IsInternalType(name string) bool {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/logging"
@@ -14,20 +15,16 @@ func NewElementIdForType(t string, s mmids.NameSource, phase mmids.Phase) mmids.
 	return mmids.NewElementId(t, s.GetNamespace(), s.GetName(), phase)
 }
 
-func PhaseId(id mmids.ElementId, phase mmids.Phase) mmids.ElementId {
+func PhaseId(id database.ObjectId, phase mmids.Phase) mmids.ElementId {
 	return NewElementIdForType(id.GetType(), id, phase)
 }
 
-func SlaveId(id mmids.ElementId, t string, phase mmids.Phase) mmids.ElementId {
+func SlaveId(id database.ObjectId, t string, phase mmids.Phase) mmids.ElementId {
 	return mmids.NewElementId(t, id.GetNamespace(), id.GetName(), phase)
 }
 
-func SlaveObjectId(id mmids.ElementId, t string) mmids.ObjectId {
+func SlaveObjectId(id database.ObjectId, t string) mmids.ObjectId {
 	return mmids.NewObjectId(t, id.GetNamespace(), id.GetName())
-}
-
-func NamedSlaveId(id mmids.ElementId, t string, name string, phase mmids.Phase) mmids.ElementId {
-	return mmids.NewElementId(t, id.GetNamespace(), name, phase)
 }
 
 func ModifiedSlaveObjectVersion(log logging.Logger, e internal.Element, o ExternalObject) *string {

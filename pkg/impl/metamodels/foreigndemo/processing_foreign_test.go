@@ -5,22 +5,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/controllers"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/engine/pkg/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/controllers"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
+	"github.com/mandelsoft/engine/pkg/utils"
 
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/db"
@@ -125,6 +125,55 @@ var _ = Describe("Processing", func() {
 			}))
 
 			Expect(mCA.WaitUntil(env, 10, "C", 3)).To(BeTrue())
+		})
+	})
+
+	Context("deletion", func() {
+		var fCA processor.Future
+		var vA *db.Value
+		var vB *db.Value
+		var opC *db.Operator
+
+		BeforeEach(func() {
+			env.AddService(controllers.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
+			env.Start()
+
+			vA = db.NewValueNode(NS, "A", 5)
+			MustBeSuccessfull(env.SetObject(vA))
+			vB = db.NewValueNode(NS, "B", 6)
+			MustBeSuccessfull(env.SetObject(vB))
+
+			opC = db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperand("iB", "B").
+				AddOperation("eA", db.OP_ADD, "iA", "iB").
+				AddOutput("C-A", "eA")
+
+			fCA = env.FutureFor(model.STATUS_COMPLETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "C-A", mymetamodel.FINAL_VALUE_PHASE), true)
+			MustBeSuccessfull(env.SetObject(opC))
+		})
+
+		It("deletes all", func() {
+			Expect(env.WaitWithTimeout(fCA)).To(BeTrue())
+			fmt.Printf("*********************************** deleting ************************************\n")
+
+			fvA := env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
+			fvB := env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "B", mymetamodel.FINAL_VALUE_PHASE))
+
+			MustBeSuccessfull(env.DéleteObject(vA))
+			MustBeSuccessfull(env.DéleteObject(vB))
+			MustBeSuccessfull(env.DéleteObject(opC))
+
+			Expect(env.WaitWithTimeout(fvA)).To(BeTrue())
+			Expect(env.WaitWithTimeout(fvB)).To(BeTrue())
+
+			Expect(env.List(mymetamodel.TYPE_EXPRESSION_STATE, NS)).To(BeNil())
+			Expect(env.List(mymetamodel.TYPE_VALUE_STATE, NS)).To(BeNil())
+			Expect(env.List(mymetamodel.TYPE_OPERATOR_STATE, NS)).To(BeNil())
+
+			Expect(env.List(mymetamodel.TYPE_EXPRESSION, NS)).To(BeNil())
+			Expect(env.List(mymetamodel.TYPE_VALUE, NS)).To(BeNil())
+			Expect(env.List(mymetamodel.TYPE_OPERATOR, NS)).To(BeNil())
 		})
 	})
 })

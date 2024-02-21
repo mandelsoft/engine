@@ -47,7 +47,7 @@ type PhaseBase struct {
 	support.DefaultPhase[*OperatorState, *db.OperatorState]
 }
 
-func (_ PhaseBase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (_ PhaseBase) AcceptExternalState(log logging.Logger, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	for _, _s := range state {
 		s := _s.(*ExternalOperatorState).GetState()
 
@@ -79,21 +79,21 @@ type GatherPhase struct{ PhaseBase }
 
 var _ OperatorStatePhase = (*GatherPhase)(nil)
 
-func (g GatherPhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
+func (_ GatherPhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
 	return NewCurrentGatherState(o)
 }
 
-func (g GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
+func (_ GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
 	return NewTargetGatherState(o)
 }
 
-func (g GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
+func (_ GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
 	t := o.Gather.Target
 	log.Info("set target state for phase {{phase}} of OperatorState {{name}}")
 	support.UpdateField(&t.Spec, state.GetState(), mod)
 }
 
-func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
+func (_ GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
 		c := &o.Gather.Current
 		log.Info("  operands {{operands}}", "operands", o.Gather.Target.Spec.Operands)
@@ -103,7 +103,7 @@ func (g GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Pha
 	}
 }
 
-func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
+func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	links := NewTargetGatherState(o).GetLinks()
@@ -141,33 +141,33 @@ type CalculatePhase struct{ PhaseBase }
 
 var _ OperatorStatePhase = (*CalculatePhase)(nil)
 
-func (c CalculatePhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
+func (_ CalculatePhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
 	return NewCurrentCalcState(o)
 }
 
-func (c CalculatePhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
+func (_ CalculatePhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
 	return NewTargetCalcState(o)
 }
 
-func (c CalculatePhase) AcceptExternalState(lctx model.Logging, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
+func (p CalculatePhase) AcceptExternalState(log logging.Logger, o *OperatorState, state model.ExternalStates, phase mmids.Phase) (model.AcceptStatus, error) {
 	exp := o.GetDBObject().Gather.Current.ObjectVersion
 	for _, s := range state {
 		own := s.(*ExternalOperatorState).GetVersion()
 		if own == exp {
-			return c.PhaseBase.AcceptExternalState(lctx, o, state, phase)
+			return p.PhaseBase.AcceptExternalState(log, o, state, phase)
 		}
-		lctx.Logger(REALM).Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
+		log.Info("own object version {{ownvers}} does not match gather current object version {{gathervers}}", "ownvers", own, "gathervers", exp)
 	}
 	return model.ACCEPT_REJECTED, fmt.Errorf("gather phase not up to date")
 }
 
-func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
+func (_ CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state *ExternalOperatorState, mod *bool) {
 	t := o.Calculation.Target
 	s := state.GetState()
 	support.UpdateField(&t.Operator, &s.Operator, mod)
 }
 
-func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
+func (_ CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
 		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
 		cc := &o.Calculation.Current
@@ -176,7 +176,7 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase 
 	o.Calculation.Target = nil
 }
 
-func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
+func (_ CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	var operands []db.Operand

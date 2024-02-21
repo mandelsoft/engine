@@ -71,6 +71,11 @@ func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.
 func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
+	if req.Delete {
+		log.Info("deleting successful")
+		return model.StatusDeleted()
+	}
+
 	target := NewTargetEvaluationState(n).Get()
 
 	var gathered *db.GatherOutput
