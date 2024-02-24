@@ -232,6 +232,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 	var links []ElementId
 
+	curlinks := e.GetCurrentState().GetLinks()
 	deletion := false
 	if e.IsMarkedForDeletion() {
 		err := e.GetObject().PrepareDeletion(lctx, p.processingModel.ObjectBase(), e.GetPhase())
@@ -242,7 +243,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		children := ni.GetChildren(e.Id())
 		if len(children) == 0 {
 			log.Info("element {{element}} is deleting and no children found -> initiate deletion")
-			links = e.GetCurrentState().GetLinks()
+			links = curlinks
 			deletion = true
 		} else {
 			var list []ElementId
@@ -444,6 +445,18 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				p.setStatus(log, e, model.STATUS_COMPLETED)
 				p.pending.Add(-1)
 				p.triggerChildren(log, ni, e, true)
+
+				vanished := false
+				for _, l := range curlinks {
+					if !slices.Contains(links, l) {
+						if !vanished {
+							log.Info("triggering vanished links")
+							vanished = true
+						}
+						log.Info(" - trigger vanished link {{link}}", "link", l)
+					}
+					p.EnqueueKey(CMD_ELEM, l)
+				}
 			default:
 				p.setStatus(log, e, result.Status)
 			}

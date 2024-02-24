@@ -94,6 +94,11 @@ func (o TypeId) String() string {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type ElementIdInfo interface {
+	database.ObjectId
+	GetPhase() Phase
+}
+
 type ElementId struct {
 	_objectId
 	phase Phase

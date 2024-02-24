@@ -48,11 +48,14 @@ func ConvertSlice[D, S any](in []S) []D {
 	return r
 }
 
-func MapKeys[K comparable, V any](m map[K]V) []K {
+func MapKeys[K comparable, V any](m map[K]V, cmp ...func(a, b K) int) []K {
 	r := []K{}
 
 	for k := range m {
 		r = append(r, k)
+	}
+	if len(cmp) > 0 {
+		slices.SortFunc(r, cmp[0])
 	}
 	return r
 }
@@ -71,12 +74,23 @@ func CompareStringable[T stringable](a, b T) int {
 	return strings.Compare(a.String(), b.String())
 }
 
-func Join[S stringable](list []S) string {
+func Join[S stringable](list []S, seps ...string) string {
+	separator := OptionalDefaulted(", ", seps...)
 	sep := ""
 	r := ""
 	for _, e := range list {
 		r += sep + e.String()
-		sep = ", "
+		sep = separator
+	}
+	return r
+}
+
+func JoinFunc[S any](list []S, separator string, f func(S) string) string {
+	sep := ""
+	r := ""
+	for _, e := range list {
+		r += sep + f(e)
+		sep = separator
 	}
 	return r
 }

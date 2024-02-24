@@ -1,4 +1,4 @@
-package valopdemo
+package foreigndemo
 
 import (
 	"slices"

@@ -1,140 +1,236 @@
 package version
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
+
+	"github.com/mandelsoft/engine/pkg/utils"
 )
+
+type Id interface {
+	GetName() string
+	GetType() string
+}
+
+type id struct {
+	name string
+	typ  string
+}
+
+func NewId(typ string, name string) Id {
+	return id{
+		typ:  typ,
+		name: name,
+	}
+}
+func NewIdFor(o Id) Id {
+	return id{
+		typ:  o.GetType(),
+		name: o.GetName(),
+	}
+}
+
+func (i id) GetName() string {
+	return i.name
+}
+
+func (i id) GetType() string {
+	return i.typ
+}
+
+func (i id) String() string {
+	return GetEffName(i)
+}
+
+func CompareId(a, b Id) int {
+	i := strings.Compare(a.GetName(), b.GetName())
+	if i != 0 {
+		return i
+	}
+	return strings.Compare(a.GetType(), b.GetType())
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type Node interface {
+	GetId() Id
+	GetLinks() []Id
+
+	GetVersion() string
+}
 
 type ConfigurableNode interface {
 	Node
-	AddDep(n Node)
-}
-
-type Node interface {
-	GetType() string
-	GetName() string
-	GetVersion() string
-	GetLinks() []Node
+	AddDep(id Id)
 }
 
 type node struct {
-	typ     string
-	name    string
+	id      Id
 	version string
-	links   []Node
+	links   []Id
 }
 
 var _ ConfigurableNode = (*node)(nil)
 
-func NewNode(typ, name, version string) *node {
-	return &node{typ, name, version, nil}
+func NewNode(typ, name, version string, deps ...Id) ConfigurableNode {
+	deps = slices.Clone(deps)
+
+	slices.SortFunc(deps, CompareId)
+	return &node{NewId(typ, name), version, deps}
+}
+
+func (n *node) GetId() Id {
+	return n.id
 }
 
 func (n *node) GetName() string {
-	return n.name
-}
-
-func (n *node) GetLinks() []Node {
-	return slices.Clone(n.links)
+	return n.id.GetName()
 }
 
 func (n *node) GetType() string {
-	return n.typ
+	return n.id.GetType()
 }
 
 func (n *node) GetVersion() string {
 	return n.version
 }
 
-func (n *node) AddDep(d Node) {
+func (n *node) GetLinks() []Id {
+	return slices.Clone(n.links)
+}
+
+func (n *node) AddDep(d Id) {
 	var i int
 
 	for i = 0; i < len(n.links); i++ {
-		if strings.Compare(GetEffName(n.links[i]), GetEffName(d)) > 0 {
+		if CompareId(n.links[i], d) > 0 {
 			break
 		}
 	}
 
-	n.links = append(append(n.links[:i], d), n.links[i:]...)
+	n.links = append(append(n.links[:i], NewIdFor(d)), n.links[i:]...)
 }
 
-func GetEffName(n Node) string {
-	return fmt.Sprintf("%s/%s", n.GetType(), n.GetName())
+func GetEffName(id Id) string {
+	return fmt.Sprintf("%s/%s", id.GetType(), id.GetName())
 }
 
 func GetVersionedName(n Node) string {
 	v := n.GetVersion()
 	if v == "" {
-		return GetEffName(n)
+		return GetEffName(n.GetId())
 	}
-	return fmt.Sprintf("%s[%s]", GetEffName(n), v)
+	return fmt.Sprintf("%s[%s]", GetEffName(n.GetId()), v)
 }
 
-func getId(n Node, nodes map[string]Node) string {
-	eff := GetEffName(n)
-	if _, ok := nodes[eff]; ok {
-		return eff
+////////////////////////////////////////////////////////////////////////////////
+
+type GraphView interface {
+	GetNode(id Id) Node
+	Nodes() []Id
+}
+
+type Graph interface {
+	GraphView
+
+	AddNode(n Node)
+}
+
+type graph struct {
+	nodes map[Id]Node
+}
+
+func NewGraph() Graph {
+	return &graph{nodes: map[Id]Node{}}
+}
+
+func (g *graph) AddNode(n Node) {
+	g.nodes[n.GetId()] = n
+}
+
+func (g *graph) GetNode(id Id) Node {
+	return g.nodes[id]
+}
+
+func (g *graph) Nodes() []Id {
+	return utils.MapKeys(g.nodes, CompareId)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type EvaluatedGraph interface {
+	GraphView
+	FormalVersion(id Id) string
+}
+
+type _GraphView = GraphView
+
+type evaluatedGraph struct {
+	_GraphView
+	compose  Composer
+	versions map[Id]string
+}
+
+func EvaluateGraph(g GraphView, cmps ...Composer) (EvaluatedGraph, error) {
+	e := &evaluatedGraph{
+		_GraphView: g,
+		compose:    utils.OptionalDefaulted[Composer](Composed, cmps...),
+		versions:   map[Id]string{},
 	}
-	nodes[eff] = n
+
+	for _, n := range g.Nodes() {
+		_, err := e.getVersion(n)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return e, nil
+}
+
+func (e *evaluatedGraph) FormalVersion(id Id) string {
+	return e.versions[id]
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (e *evaluatedGraph) getVersion(id Id, stack ...Id) (string, error) {
+	if c := cycle(id, stack...); c != nil {
+		return "", fmt.Errorf("dependency cycle %s", utils.JoinFunc(c, "->", GetEffName))
+	}
+	n := e.GetNode(id)
+	if n == nil {
+		if len(stack) == 0 {
+			return "", fmt.Errorf("unknown node %q", id)
+		}
+		return "", fmt.Errorf("unknown node %q used in %q", id, stack[len(stack)-1])
+	}
+	if v, ok := e.versions[id]; ok {
+		return v, nil
+	}
 	links := n.GetLinks()
 	if len(links) == 0 {
-		return eff
+		e.versions[id] = e.compose.Compose(n)
+		return e.versions[id], nil
 	}
 
 	var graphs []string
-	sort.Slice(links, func(i, j int) bool { return strings.Compare(GetEffName(links[i]), GetEffName(links[j])) < 0 })
+	slices.SortFunc(links, CompareId)
 	for _, d := range links {
-		g := getId(d, nodes)
+		g, err := e.getVersion(d, append(slices.Clone(stack), id)...)
+		if err != nil {
+			return "", err
+		}
 		graphs = append(graphs, g)
 	}
-	return fmt.Sprintf("%s(%s)", GetEffName(n), strings.Join(graphs, ","))
+	e.versions[id] = e.compose.Compose(n, graphs...)
+	return e.versions[id], nil
 }
 
-func GetId(n Node) string {
-	var list []string
-
-	nodes := map[string]Node{}
-	g := getId(n, nodes)
-	for _, c := range nodes {
-		list = append(list, GetVersionedName(c))
+func cycle(id Id, stack ...Id) []Id {
+	i := slices.Index(stack, id)
+	if i < 0 {
+		return nil
 	}
-	sort.Strings(list)
-	return g + ":" + strings.Join(list, ",")
-}
-
-func GetVersionHash(n Node) string {
-	h := sha256.Sum256([]byte(GetId(n)))
-	return hex.EncodeToString(h[:])
-}
-
-type Version interface {
-	GetId() string
-	GetHash() string
-}
-
-type VersionFunc func() string
-
-func (v VersionFunc) GetId() string {
-	return v()
-}
-
-func (v VersionFunc) GetHash() string {
-	h := sha256.Sum256([]byte(v()))
-	return hex.EncodeToString(h[:])
-}
-
-func NewVersion(v string) (Version, error) {
-	n, err := Parse(v)
-	if err != nil {
-		return nil, err
-	}
-	return VersionFunc(func() string { return GetId(n) }), nil
-}
-
-func NewNodeVersion(n Node) Version {
-	return VersionFunc(func() string { return GetId(n) })
+	return append(slices.Clone(stack[i:]), id)
 }
