@@ -39,6 +39,7 @@ const (
 const (
 	STATUS_INITIAL    = Status("")
 	STATUS_PENDING    = Status("Pending")
+	STATUS_INVALID    = Status("Invalid")
 	STATUS_BLOCKED    = Status("Blocked")
 	STATUS_PREPARING  = Status("Preparing")
 	STATUS_PROCESSING = Status("Processing")

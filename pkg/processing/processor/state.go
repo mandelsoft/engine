@@ -45,6 +45,14 @@ func (s *tstate) GetObjectVersion() string {
 	return ""
 }
 
+func (s *tstate) GetFormalObjectVersion() string {
+	state := s.GetState()
+	if state != nil {
+		return state.GetFormalObjectVersion()
+	}
+	return ""
+}
+
 func (s *tstate) GetInputVersion(i model.Inputs) string {
 	state := s.GetState()
 	if state != nil {

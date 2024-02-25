@@ -115,7 +115,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 		return model.StatusFailed(fmt.Errorf("expression processing failed with status %q[%s]", target.Spec.Status, target.Spec.Message))
 	}
 
-	return model.StatusCompleted(NewEvaluationOutputState(target.Spec.Output))
+	return model.StatusCompleted(NewEvaluationOutputState(req.FormalVersion, target.Spec.Output))
 }
 
 func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectbase, ex *db.ExpressionSpec) (bool, error) {
@@ -195,7 +195,7 @@ func (c *CurrentEvaluationState) GetLinks() []ElementId {
 }
 
 func (c *CurrentEvaluationState) GetOutput() model.OutputState {
-	return NewEvaluationOutputState(c.Get().Output)
+	return NewEvaluationOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

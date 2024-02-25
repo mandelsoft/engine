@@ -17,6 +17,7 @@ type _ = runtime.InitializedObject // use runtime package for go doc
 
 type Phase[I InternalObject, T db.InternalDBObject, E model.ExternalState] interface {
 	DBCommit(log logging.Logger, o T, phase mmids.Phase, spec *model.CommitInfo, mod *bool)
+	DBSetExternalFormalObjectVersion(log logging.Logger, t db.TargetState, phase mmids.Phase, state model.ExternalState, mod *bool)
 	DBSetExternalState(log logging.Logger, o T, phase mmids.Phase, state E, mod *bool)
 	DBRollback(log logging.Logger, o T, phase mmids.Phase, mod *bool)
 
@@ -60,6 +61,17 @@ func (_ DefaultPhase[I, T]) DBRollback(log logging.Logger, o T, phase mmids.Phas
 
 func (_ DefaultPhase[I, T]) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o I, phase mmids.Phase) error {
 	return nil
+}
+
+func (_ DefaultPhase[I, T]) DBSetExternalFormalObjectVersion(log logging.Logger, t db.TargetState, phase mmids.Phase, state model.ExternalState, mod *bool) {
+	v := ""
+	if state != nil {
+		v = state.GetVersion()
+	}
+	if t.SetFormalObjectVersion(v) {
+		log.Info("  setting formal object version for phase {{phase}} to {{formal}}", "formal", v)
+		*mod = true
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +137,9 @@ func (p *phases[I, T, E]) DBSetExternalState(lctx model.Logging, i InternalObjec
 	ph := p.phases[phase]
 	if ph != nil {
 		log := lctx.Logger(p.realm).WithValues("name", _o.GetName(), "phase", phase)
-		i.GetPhaseStateFor(_o, phase).CreateTarget().SetObjectVersion(s.GetVersion()) // TODO: handle multiple states
+		t := i.GetPhaseStateFor(_o, phase).CreateTarget()
+		t.SetObjectVersion(s.GetVersion())                         // TODO: handle multiple states
+		ph.DBSetExternalFormalObjectVersion(log, t, phase, s, mod) // separated to provide a default implementation
 		ph.DBSetExternalState(log, _o.(T), phase, s.(E), mod)
 	}
 }
@@ -236,18 +250,22 @@ func (n *InternalPhaseObjectSupport[I, T, E]) Process(request model.Request) mod
 	return n.phases.Process(n.self, request)
 }
 
-func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, observed ...string) (bool, error) {
+func (n *InternalPhaseObjectSupport[I, T, E]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, observed, formal *string) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
 	mod := func(_o db.DBObject) (bool, bool) {
 		o := _o.(T)
-		v := utils.Optional(observed...)
 		p := n.GetPhaseStateFor(o, phase)
 		b := p.ClearLock(id)
 		if b {
-			if v != "" {
-				p.GetCurrent().SetObservedVersion(v)
+			if observed != nil {
+				lctx.Logger().Info("setting observed version {{observed}}", "observed", *observed)
+				p.GetCurrent().SetObservedVersion(*observed)
+			}
+			if formal != nil {
+				lctx.Logger().Info("setting formal version {{formal}}", "formal", *formal)
+				p.GetCurrent().SetFormalVersion(*formal)
 			}
 			p.ClearTarget()
 			n.phases.DBRollback(lctx, o, phase, &b)

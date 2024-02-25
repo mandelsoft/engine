@@ -8,7 +8,7 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	wrapped2.MustRegisterType[ExpressionState](scheme)
+	wrapped.MustRegisterType[ExpressionState](scheme)
 }
 
 type ExpressionState struct {
@@ -47,7 +47,7 @@ func (n *ExpressionState) assureTarget(o *db.ExpressionState) *db.EvaluationTarg
 }
 
 func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
-	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ExpressionState))
 
 		mod := false
@@ -115,7 +115,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 		return model.StatusFailed(fmt.Errorf("expression processing failed with status %q[%s]", target.Spec.Status, target.Spec.Message))
 	}
 
-	return model.StatusCompleted(NewEvaluationOutputState(target.Spec.Output))
+	return model.StatusCompleted(NewEvaluationOutputState(req.FormalVersion, target.Spec.Output))
 }
 
 func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectbase, ex *db.ExpressionSpec) (bool, error) {
@@ -139,7 +139,7 @@ func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectba
 
 	if err == nil {
 		o := _o.(*Expression)
-		updated, err = wrapped2.Modify(ob, o, func(_o db2.DBObject) (bool, bool) {
+		updated, err = wrapped.Modify(ob, o, func(_o db2.DBObject) (bool, bool) {
 			o := _o.(*db.Expression)
 			mod := false
 			support.UpdateField(&o.Spec, ex, &mod)
@@ -195,7 +195,7 @@ func (c *CurrentEvaluationState) GetLinks() []ElementId {
 }
 
 func (c *CurrentEvaluationState) GetOutput() model.OutputState {
-	return NewEvaluationOutputState(c.Get().Output)
+	return NewEvaluationOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

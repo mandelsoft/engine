@@ -18,12 +18,13 @@ type id struct {
 	typ  string
 }
 
-func NewId(typ string, name string) Id {
+func NewId(typ any, name string) Id {
 	return id{
-		typ:  typ,
+		typ:  fmt.Sprintf("%s", typ),
 		name: name,
 	}
 }
+
 func NewIdFor(o Id) Id {
 	return id{
 		typ:  o.GetType(),
@@ -73,7 +74,7 @@ type node struct {
 
 var _ ConfigurableNode = (*node)(nil)
 
-func NewNode(typ, name, version string, deps ...Id) ConfigurableNode {
+func NewNode(typ any, name, version string, deps ...Id) ConfigurableNode {
 	deps = slices.Clone(deps)
 
 	slices.SortFunc(deps, CompareId)

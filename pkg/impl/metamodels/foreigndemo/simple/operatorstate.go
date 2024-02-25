@@ -175,7 +175,7 @@ func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		Operands:   operands,
 		Operations: t.GetOperations(),
 	}
-	return model.StatusCompleted(NewGatherOutputState(out))
+	return model.StatusCompleted(NewGatherOutputState(req.FormalVersion, out))
 }
 
 func (_ GatherPhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase mmids.Phase) error {
@@ -282,7 +282,7 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		slaves...,
 	)
 
-	return model.StatusCompleted(NewCalcOutputState(out))
+	return model.StatusCompleted(NewCalcOutputState(req.FormalVersion, out))
 }
 
 func (_ CalculatePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase mmids.Phase) error {
@@ -328,7 +328,7 @@ func (c *CurrentGatherState) GetLinks() []ElementId {
 }
 
 func (c *CurrentGatherState) GetOutput() model.OutputState {
-	return NewGatherOutputState(&c.Get().Output)
+	return NewGatherOutputState(c.GetFormalVersion(), &c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -380,7 +380,7 @@ func (c *CurrentCalcState) GetLinks() []ElementId {
 }
 
 func (c *CurrentCalcState) GetOutput() model.OutputState {
-	return NewCalcOutputState(c.Get().Output)
+	return NewCalcOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

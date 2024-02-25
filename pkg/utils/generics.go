@@ -60,21 +60,33 @@ func MapKeys[K comparable, V any](m map[K]V, cmp ...func(a, b K) int) []K {
 	return r
 }
 
+func MapElements[K comparable, V any](m map[K]V, cmp ...func(a, b K) int) []V {
+	return TransformSlice(MapKeys(m, cmp...), func(k K) V {
+		return m[k]
+	})
+}
+
 func OrderedMapKeys[K cmp.Ordered, V any](m map[K]V) []K {
 	r := MapKeys(m)
 	slices.Sort(r)
 	return r
 }
 
-type stringable interface {
+func OrderedMapElements[K cmp.Ordered, V any](m map[K]V) []V {
+	return TransformSlice(OrderedMapKeys(m), func(k K) V {
+		return m[k]
+	})
+}
+
+type Stringable interface {
 	String() string
 }
 
-func CompareStringable[T stringable](a, b T) int {
+func CompareStringable[T Stringable](a, b T) int {
 	return strings.Compare(a.String(), b.String())
 }
 
-func Join[S stringable](list []S, seps ...string) string {
+func Join[S Stringable](list []S, seps ...string) string {
 	separator := OptionalDefaulted(", ", seps...)
 	sep := ""
 	r := ""
@@ -91,6 +103,23 @@ func JoinFunc[S any](list []S, separator string, f func(S) string) string {
 	for _, e := range list {
 		r += sep + f(e)
 		sep = separator
+	}
+	return r
+}
+
+func TransformSlice[E any, A ~[]E, T any](in A, m func(E) T) []T {
+	r := make([]T, len(in))
+	for i, v := range in {
+		r[i] = m(v)
+	}
+	return r
+}
+
+func TransformMap[K comparable, V any, M ~map[K]V, TK comparable, TV any](in M, m func(K, V) (TK, TV)) map[TK]TV {
+	r := map[TK]TV{}
+	for k, v := range in {
+		tk, tv := m(k, v)
+		r[tk] = tv
 	}
 	return r
 }

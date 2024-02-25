@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/version"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
@@ -268,7 +269,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 				for _, l := range links {
 					if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-						return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+						return p.fail(lctx, log, ni, e, true, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
 					}
 				}
 
@@ -299,7 +300,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 				case model.ACCEPT_INVALID:
 					log.Error("external state for internal object invalid -> fail element", "error", err)
-					return p.fail(lctx, log, ni, e, err)
+					return p.fail(lctx, log, ni, e, true, err)
 				}
 				if err != nil {
 					return pool.StatusCompleted(err)
@@ -310,7 +311,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
 				for _, l := range links {
 					if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-						return p.fail(lctx, log, ni, e, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
+						return p.fail(lctx, log, ni, e, true, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
 					}
 				}
 			} else {
@@ -383,7 +384,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			if len(missing) > 0 || len(waiting) > 0 {
 				log.Error("unexpected state of parents, should be available, but found missing {{missing}} and/or waiting {{waiting}}",
 					"missing", utils.Join(missing), "waiting", utils.Join(waiting))
-				return p.fail(lctx, log, ni, e, fmt.Errorf("unexpected state of parents"))
+				return p.fail(lctx, log, ni, e, false, fmt.Errorf("unexpected state of parents"))
 			}
 		}
 	} else {
@@ -391,6 +392,13 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		if err != nil {
 			return pool.StatusCompleted(err)
 		}
+	}
+
+	var fv string
+	if !deletion {
+		n := version.NewNode(e.Id().TypeId(), e.GetName(), e.GetTargetState().GetFormalObjectVersion())
+		fv = p.composer.Compose(n, formalInputVersions(inputs)...)
+		log.Debug("working on formal target version {{formal}}", "formal", fv)
 	}
 
 	if isProcessable(e) {
@@ -401,16 +409,17 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			Model:           p.processingModel,
 			Element:         e,
 			Delete:          deletion,
+			FormalVersion:   fv,
 			Inputs:          inputs,
 			ElementAccess:   ni,
 			SlaveManagement: newSlaveManagement(log, p, ni, e),
 		})
 
 		if result.Error != nil {
-			if result.Status == model.STATUS_FAILED {
+			if result.Status == model.STATUS_FAILED || result.Status == model.STATUS_INVALID {
 				// non-recoverable error, wait for new change in external object state
 				log.Error("processing provides non recoverable error", "error", result.Error)
-				return p.fail(lctx, log, ni, e, result.Error)
+				return p.fail(lctx, log, ni, e, result.Status == model.STATUS_INVALID, result.Error, fv)
 			}
 			log.Error("processing provides error", "error", result.Error)
 			err := p.updateStatus(lctx, log, e, result.Status, result.Error.Error())
@@ -693,8 +702,8 @@ func (p *Processor) blocked(lctx model.Logging, log logging.Logger, e _Element, 
 	return err
 }
 
-func (p *Processor) fail(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, fail error) pool.Status {
-	err := p.failed(lctx, log, e, fail.Error())
+func (p *Processor) fail(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, invalid bool, fail error, formal ...string) pool.Status {
+	err := p.failed(lctx, log, e, invalid, fail.Error(), formal...)
 	if err != nil {
 		return pool.StatusCompleted(err)
 	}
@@ -704,13 +713,17 @@ func (p *Processor) fail(lctx model.Logging, log logging.Logger, ni *namespaceIn
 
 }
 
-func (p *Processor) failed(lctx model.Logging, log logging.Logger, e _Element, msg string) error {
-	err := p.updateStatus(lctx, log, e, model.STATUS_FAILED, msg, e.GetLock())
+func (p *Processor) failed(lctx model.Logging, log logging.Logger, e _Element, invalid bool, msg string, formal ...string) error {
+	status := model.STATUS_FAILED
+	if invalid {
+		status = model.STATUS_INVALID
+	}
+	err := p.updateStatus(lctx, log, e, status, msg, e.GetLock())
 	if err == nil {
-		_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock(), true)
+		_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock(), true, formal...)
 	}
 	if err == nil {
-		err = p.setStatus(log, e, model.STATUS_FAILED)
+		err = p.setStatus(log, e, status)
 	}
 	return err
 }

@@ -36,12 +36,19 @@ type PhaseState interface {
 	IsDeletionRequested() bool
 }
 
-type CurrentState interface {
-	GetObservedVersion() string
-	SetObservedVersion(v string) bool
-
+type CommonState interface {
 	GetObjectVersion() string
 	SetObjectVersion(string) bool
+}
+
+type CurrentState interface {
+	CommonState
+
+	GetFormalVersion() string
+	SetFormalVersion(v string) bool
+
+	GetObservedVersion() string
+	SetObservedVersion(v string) bool
 
 	GetInputVersion() string
 	SetInputVersion(string) bool
@@ -51,8 +58,10 @@ type CurrentState interface {
 }
 
 type TargetState interface {
-	GetObjectVersion() string
-	SetObjectVersion(string) bool
+	CommonState
+
+	GetFormalObjectVersion() string
+	SetFormalObjectVersion(v string) bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////

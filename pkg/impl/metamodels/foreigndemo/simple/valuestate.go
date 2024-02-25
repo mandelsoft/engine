@@ -61,6 +61,11 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		}
 		for _, _s := range state { // we have just one external object here, but just for demonstration
 			s := _s.(*EffectiveValueState).GetState()
+			fv := "" // if used as slave it does not have an own formal object version, only a formal (graph) version.
+			if s.Provider == "" {
+				fv = support.NewState(s.ValueSpec).GetVersion()
+			}
+			mod = t.SetFormalObjectVersion(fv) || mod
 			support.UpdateField(&t.Spec, s, &mod)
 			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
 		}
@@ -119,7 +124,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 			return model.StatusCompleted(nil, err)
 		}
 		modifiedObjectVersion := model.ModifiedSlaveObjectVersion(log, req.Element, o)
-		return model.StatusCompleted(NewValueOutputState(out)).ModifyObjectVersion(modifiedObjectVersion)
+		return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out)).ModifyObjectVersion(modifiedObjectVersion)
 	}
 
 	log.Info("provider {{provider}} does not feed value anymore", "provider", target.(*TargetValueState).GetProvider())
@@ -215,7 +220,7 @@ func (c *CurrentValueState) GetProvider() string {
 }
 
 func (c *CurrentValueState) GetOutput() model.OutputState {
-	return NewValueOutputState(c.Get().Output)
+	return NewValueOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

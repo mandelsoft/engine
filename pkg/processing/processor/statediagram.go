@@ -12,6 +12,7 @@ func init() {
 	extTriggerable.Insert(
 		model.STATUS_INITIAL,
 		model.STATUS_PENDING,
+		model.STATUS_INVALID,
 		model.STATUS_PREPARING,
 		model.STATUS_BLOCKED,
 		model.STATUS_COMPLETED,

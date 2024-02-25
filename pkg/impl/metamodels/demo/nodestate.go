@@ -119,7 +119,7 @@ func (n *NodeState) Process(req model.Request) model.ProcessingResult {
 		out = *s.GetValue()
 	}
 
-	return model.StatusCompleted(NewOutputState(out))
+	return model.StatusCompleted(NewOutputState(req.FormalVersion, out))
 }
 
 func (n *NodeState) Validate() error {
@@ -205,7 +205,7 @@ func (c *CurrentState) GetLinks() []ElementId {
 }
 
 func (c *CurrentState) GetOutput() model.OutputState {
-	return support.NewOutputState[int](c.Get().Output.Value)
+	return support.NewOutputState[int](c.GetFormalVersion(), c.Get().Output.Value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

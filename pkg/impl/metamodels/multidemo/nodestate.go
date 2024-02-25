@@ -140,7 +140,7 @@ func (p GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model
 			},
 		}
 	}
-	return model.StatusCompleted(NewGatherOutputState(operands))
+	return model.StatusCompleted(NewGatherOutputState(req.FormalVersion, operands))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -220,7 +220,7 @@ func (_ CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) mo
 		log.Info("use input value {{input}}}", "input", out)
 	}
 
-	return model.StatusCompleted(NewCalcOutputState(out))
+	return model.StatusCompleted(NewCalcOutputState(req.FormalVersion, out))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -257,7 +257,7 @@ func (c *CurrentGatherState) GetLinks() []ElementId {
 }
 
 func (c *CurrentGatherState) GetOutput() model.OutputState {
-	return NewGatherOutputState(c.Get().Output.Values)
+	return NewGatherOutputState(c.GetFormalVersion(), c.Get().Output.Values)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -275,7 +275,7 @@ func (c *CurrentCalcState) GetLinks() []ElementId {
 }
 
 func (c *CurrentCalcState) GetOutput() model.OutputState {
-	return NewCalcOutputState(c.Get().Output.Value)
+	return NewCalcOutputState(c.GetFormalVersion(), c.Get().Output.Value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

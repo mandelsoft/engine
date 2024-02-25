@@ -76,6 +76,6 @@ type CalculationCurrentState struct {
 }
 
 type CalculationTargetState struct {
-	db.StandardCurrentState
+	db.StandardTargetState
 	Operations []Operation `json:"operations,omitempty"`
 }

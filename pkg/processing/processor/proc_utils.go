@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/version"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
@@ -195,4 +196,12 @@ func (p *Processor) isDeleting(objs ...model.ExternalObject) bool {
 		}
 	}
 	return false
+}
+
+func formalInputVersions(inputs model.Inputs) []string {
+	return utils.MapElements(utils.TransformMap(inputs, mapInputsToVersions), version.CompareId)
+}
+
+func mapInputsToVersions(id ElementId, state model.OutputState) (version.Id, string) {
+	return version.NewIdFor(id), state.GetFormalVersion()
 }

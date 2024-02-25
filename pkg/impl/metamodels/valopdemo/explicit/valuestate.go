@@ -88,7 +88,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		out.Origin = req.Element.Id().ObjectId()
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
-	return model.StatusCompleted(NewValueOutputState(out))
+	return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out))
 }
 
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
@@ -135,7 +135,7 @@ func (c *CurrentValueState) GetLinks() []ElementId {
 }
 
 func (c *CurrentValueState) GetOutput() model.OutputState {
-	return NewValueOutputState(c.Get().Output)
+	return NewValueOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

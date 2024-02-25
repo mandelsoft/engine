@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/version"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
@@ -25,6 +26,7 @@ const CMD_NS = "ns"
 
 type Processor struct {
 	processingModel *processingModel
+	composer        version.Composer
 
 	ctx     context.Context
 	logging logging.Context
@@ -35,12 +37,13 @@ type Processor struct {
 	pending PendingCounter
 }
 
-func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, worker int) (*Processor, error) {
+func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, worker int, cmps ...version.Composer) (*Processor, error) {
 	pool := pool.NewPool(ctx, lctx, m.MetaModel().Name(), worker, 0, false)
 	p := &Processor{
 		ctx:             ctx,
 		logging:         lctx.WithContext(REALM),
 		processingModel: newProcessingModel(m),
+		composer:        utils.OptionalDefaulted[version.Composer](version.Composed, cmps...),
 		pool:            pool,
 	}
 	p.events = newEventManager(p.processingModel)

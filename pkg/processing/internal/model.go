@@ -1,22 +1,8 @@
 package internal
 
 import (
-	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 )
-
-type Object interface {
-	database.Object
-
-	database.GenerationAccess
-
-	GetFinalizers() []string
-	AddFinalizer(ob Objectbase, f string) (bool, error)
-	RemoveFinalizer(ob Objectbase, f string) (bool, error)
-	HasFinalizer(f string) bool
-
-	IsDeleting() bool
-}
 
 type NamespaceObject interface {
 	Object
@@ -52,7 +38,7 @@ type InternalObject interface {
 
 	GetLock(Phase) RunId
 	TryLock(Objectbase, Phase, RunId) (bool, error)
-	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId, observed ...string) (bool, error)
+	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId, observed, formal *string) (bool, error)
 	Commit(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 
 	GetStatus(Phase) Status
@@ -93,11 +79,13 @@ type Inputs = map[ElementId]OutputState
 type TargetState interface {
 	LinkState
 	GetObjectVersion() string
+	GetFormalObjectVersion() string
 
 	GetInputVersion(Inputs) string
 }
 
 type OutputState interface {
+	GetFormalVersion() string
 	GetOutputVersion() string
 }
 
@@ -134,6 +122,7 @@ type Request struct {
 	Model           ProcessingModel
 	Delete          bool
 	Inputs          Inputs
+	FormalVersion   string
 	Element         Element
 	ElementAccess   ElementAccess
 	SlaveManagement SlaveManagement

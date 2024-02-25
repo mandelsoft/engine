@@ -2,12 +2,26 @@ package db
 
 type StandardCurrentState struct {
 	ObservedVersion string `json:"observedVersion,omitempty"`
-	InputVersion    string `json:"inputVersion,omitempty"`
-	ObjectVersion   string `json:"objectVersion,omitempty"`
-	OutputVersion   string `json:"outputVersion,omitempty"`
+	FormalVersion   string `json:"formalVersion,omitempty"`
+
+	InputVersion  string `json:"inputVersion,omitempty"`
+	ObjectVersion string `json:"objectVersion,omitempty"`
+	OutputVersion string `json:"outputVersion,omitempty"`
 }
 
 var _ CurrentState = (*StandardCurrentState)(nil)
+
+func (d *StandardCurrentState) GetFormalVersion() string {
+	return d.FormalVersion
+}
+
+func (d *StandardCurrentState) SetFormalVersion(v string) bool {
+	if d.FormalVersion == v {
+		return false
+	}
+	d.FormalVersion = v
+	return true
+}
 
 func (d *StandardCurrentState) GetObservedVersion() string {
 	return d.ObservedVersion
@@ -60,10 +74,23 @@ func (d *StandardCurrentState) SetOutputVersion(v string) bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type StandardTargetState struct {
-	ObjectVersion string `json:"objectVersion,omitempty"`
+	ObjectVersion       string `json:"objectVersion,omitempty"`
+	FormalObjectVersion string `json:"formalObjectVersion,omitempty"`
 }
 
 var _ TargetState = (*StandardTargetState)(nil)
+
+func (d *StandardTargetState) GetFormalObjectVersion() string {
+	return d.FormalObjectVersion
+}
+
+func (d *StandardTargetState) SetFormalObjectVersion(v string) bool {
+	if d.FormalObjectVersion == v {
+		return false
+	}
+	d.FormalObjectVersion = v
+	return true
+}
 
 func (d *StandardTargetState) GetObjectVersion() string {
 	return d.ObjectVersion

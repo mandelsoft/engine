@@ -114,7 +114,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 			return model.StatusCompleted(nil, err)
 		}
 		modifiedObjectVersion := model.ModifiedSlaveObjectVersion(log, req.Element, o)
-		return model.StatusCompleted(NewValueOutputState(out)).ModifyObjectVersion(modifiedObjectVersion)
+		return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out)).ModifyObjectVersion(modifiedObjectVersion)
 	}
 
 	log.Info("provider {{provider}} does not feed value anymore", "provider", target.(*TargetValueState).GetProvider())
@@ -215,7 +215,7 @@ func (c *CurrentValueState) GetProvider() string {
 }
 
 func (c *CurrentValueState) GetOutput() model.OutputState {
-	return NewValueOutputState(c.Get().Output)
+	return NewValueOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

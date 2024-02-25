@@ -135,7 +135,7 @@ func (n *InternalObjectSupport[I]) TryLock(ob objectbase2.Objectbase, phase mmid
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId, observed ...string) (bool, error) {
+func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId, observed, formal *string) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -143,10 +143,13 @@ func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase2.O
 		p := n.GetPhaseStateFor(_o.(I), phase)
 		b := p.ClearLock(id)
 		if b {
-			v := utils.Optional(observed...)
-			if v != "" {
-				lctx.Logger().Info("setting observed version {{observed}}", "observed", v)
-				p.GetCurrent().SetObservedVersion(v)
+			if observed != nil {
+				lctx.Logger().Info("setting observed version {{observed}}", "observed", *observed)
+				p.GetCurrent().SetObservedVersion(*observed)
+			}
+			if formal != nil {
+				lctx.Logger().Info("setting formal version {{formal}}", "formal", *formal)
+				p.GetCurrent().SetFormalVersion(*formal)
 			}
 			p.ClearTarget()
 		}
@@ -214,7 +217,10 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 				c.SetObservedVersion(v)
 				v = commit.OutputState.GetOutputVersion()
 				log.Info("  output version {{output}}", "output", v)
-				c.SetOutputVersion(commit.OutputState.GetOutputVersion())
+				c.SetOutputVersion(v)
+				v = commit.OutputState.GetFormalVersion()
+				log.Info("  formal version {{formal}}", "formal", v)
+				c.SetFormalVersion(v)
 			}
 			if committer != nil {
 				committer.Commit(lctx, o, phase, commit)
@@ -292,6 +298,10 @@ func (c *CurrentStateSupport[I, C]) GetObservedVersion() string {
 	return c.Get().GetObservedVersion()
 }
 
+func (c *CurrentStateSupport[I, C]) GetFormalVersion() string {
+	return c.Get().GetFormalVersion()
+}
+
 func (c *CurrentStateSupport[I, C]) GetInputVersion() string {
 	return c.Get().GetInputVersion()
 }
@@ -321,6 +331,10 @@ func NewTargetStateSupport[I db.InternalDBObject, T db.TargetState](o InternalOb
 
 func (c *TargetStateSupport[I, T]) Get() T {
 	return c.GetPhaseInfo().GetTarget().(T)
+}
+
+func (c *TargetStateSupport[I, T]) GetFormalObjectVersion() string {
+	return c.Get().GetFormalObjectVersion()
 }
 
 func (c *TargetStateSupport[I, T]) GetInputVersion(inputs model.Inputs) string {

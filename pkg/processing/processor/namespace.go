@@ -94,7 +94,7 @@ func (ni *namespaceInfo) clearElementLock(lctx model.Logging, log logging.Logger
 		return err
 	}
 	// second, clear lock on internal object for given phase.
-	ok, err := elem.Rollback(lctx, p.processingModel.ObjectBase(), rid)
+	ok, err := elem.Rollback(lctx, p.processingModel.ObjectBase(), rid, false)
 	if err != nil {
 		log.Error("releasing lock {{runid}} for element {{element}} failed", "element", elem.Id(), "error", err)
 		return err

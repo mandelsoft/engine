@@ -82,7 +82,7 @@ type CalculationCurrentState struct {
 }
 
 type CalculationTargetState struct {
-	db.StandardCurrentState
+	db.StandardTargetState
 	Operands map[string]string `json:"operands,omitempty"`
 	Outputs  map[string]string `json:"outputs,omitempty"`
 }

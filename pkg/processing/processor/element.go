@@ -21,7 +21,7 @@ type _Element interface {
 	SetProcessingState(ProcessingState)
 
 	TryLock(ob objectbase.Objectbase, id RunId) (bool, error)
-	Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved ...bool) (bool, error)
+	Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved bool, formal ...string) (bool, error)
 	Commit(lctx model.Logging, ob objectbase.Objectbase, id RunId, commit *model.CommitInfo) (bool, error)
 }
 
@@ -106,13 +106,16 @@ func (e *element) TryLock(ob objectbase.Objectbase, id RunId) (bool, error) {
 	return e.GetObject().TryLock(ob, e.id.GetPhase(), id)
 }
 
-func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved ...bool) (bool, error) {
-	if e.target != nil && utils.Optional(keepobserved...) {
+func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved bool, formal ...string) (bool, error) {
+	if e.target != nil && keepobserved {
 		lctx.Logger().Info("rollback target state and update observed version")
-		return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, e.target.GetObjectVersion())
+		if len(formal) > 0 {
+			return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, utils.Pointer(e.target.GetObjectVersion()), utils.Pointer(utils.Optional(formal...)))
+		}
+		return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, utils.Pointer(e.target.GetObjectVersion()), nil)
 	}
 	lctx.Logger().Info("rollback target state")
-	return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id)
+	return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, nil, nil)
 }
 
 func (e *element) Commit(lctx model.Logging, ob objectbase.Objectbase, id RunId, commit *model.CommitInfo) (bool, error) {

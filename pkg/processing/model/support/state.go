@@ -57,14 +57,19 @@ func NewExternalState[O any](o O) *ExternalState[O] {
 ////////////////////////////////////////////////////////////////////////////////
 
 type OutputState[O any] struct {
+	formal string
 	State[O]
 }
 
 var _ model.OutputState = (*OutputState[any])(nil)
 var _ json.Marshaler = (*OutputState[any])(nil)
 
-func NewOutputState[O any](o O) *OutputState[O] {
-	return &OutputState[O]{State[O]{o}}
+func NewOutputState[O any](formal string, o O) *OutputState[O] {
+	return &OutputState[O]{formal, State[O]{o}}
+}
+
+func (s *OutputState[O]) GetFormalVersion() string {
+	return s.formal
 }
 
 func (s *OutputState[O]) GetOutputVersion() string {
