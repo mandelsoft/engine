@@ -107,6 +107,24 @@ func JoinFunc[S any](list []S, separator string, f func(S) string) string {
 	return r
 }
 
+func AppendUnique[E comparable, A ~[]E](in A, add ...E) A {
+	for _, v := range add {
+		if !slices.Contains(in, v) {
+			in = append(in, v)
+		}
+	}
+	return in
+}
+
+func AppendUniqueFunc[E comparable, A ~[]E](in A, cmp func(E, E) int, add ...E) A {
+	for _, v := range add {
+		if !slices.ContainsFunc(in, func(e E) bool { return cmp(v, e) == 0 }) {
+			in = append(in, v)
+		}
+	}
+	return in
+}
+
 func TransformSlice[E any, A ~[]E, T any](in A, m func(E) T) []T {
 	r := make([]T, len(in))
 	for i, v := range in {

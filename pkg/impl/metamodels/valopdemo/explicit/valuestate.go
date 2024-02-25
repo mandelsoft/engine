@@ -1,12 +1,11 @@
 package explicit
 
 import (
-	"reflect"
-
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
 	"github.com/mandelsoft/engine/pkg/processing/model"
@@ -45,22 +44,18 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 	return o.CreateTarget().(*db.ValueTargetState)
 }
 
-func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalStates) (model.AcceptStatus, error) {
+func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
-		for _, _s := range state { // we have just one external object here, but just for demonstration
-			s := _s.(*ExternalValueState).GetState()
-			m := !reflect.DeepEqual(t.Spec, *s) || t.GetObjectVersion() != _s.GetVersion()
-			if m {
-				t.Spec = *s
-				t.SetObjectVersion(_s.GetVersion())
-			}
-			mod = mod || m
+		if state == nil {
+			mod = true
+		} else {
+			s := state.(*ExternalValueState).GetState()
+			support.UpdateField(&t.Spec, s, &mod)
+			support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		}
-
-		_o.(*db.ValueState).Target = t
 		return mod, mod
 	})
 	return model.ACCEPT_OK, err

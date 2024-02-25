@@ -196,7 +196,7 @@ func (e *evaluatedGraph) FormalVersion(id Id) string {
 ////////////////////////////////////////////////////////////////////////////////
 
 func (e *evaluatedGraph) getVersion(id Id, stack ...Id) (string, error) {
-	if c := cycle(id, stack...); c != nil {
+	if c := utils.Cycle(id, stack...); c != nil {
 		return "", fmt.Errorf("dependency cycle %s", utils.JoinFunc(c, "->", GetEffName))
 	}
 	n := e.GetNode(id)
@@ -226,12 +226,4 @@ func (e *evaluatedGraph) getVersion(id Id, stack ...Id) (string, error) {
 	}
 	e.versions[id] = e.compose.Compose(n, graphs...)
 	return e.versions[id], nil
-}
-
-func cycle(id Id, stack ...Id) []Id {
-	i := slices.Index(stack, id)
-	if i < 0 {
-		return nil
-	}
-	return append(slices.Clone(stack[i:]), id)
 }

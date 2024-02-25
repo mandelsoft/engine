@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
+	"slices"
 
 	"github.com/gowebpki/jcs"
 	"github.com/modern-go/reflect2"
@@ -53,4 +54,12 @@ func HashData(d interface{}) string {
 	}
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
+}
+
+func Cycle[T comparable](id T, stack ...T) []T {
+	i := slices.Index(stack, id)
+	if i < 0 {
+		return nil
+	}
+	return append(slices.Clone(stack[i:]), id)
 }

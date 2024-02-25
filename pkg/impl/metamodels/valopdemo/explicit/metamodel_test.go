@@ -66,22 +66,19 @@ Element types:
 - OperatorState:Calculating
   dependencies:
   - OperatorState:Gathering
-  triggered by:
-  external states:
+  updated states:
   - Operator
 - OperatorState:Gathering
+  triggered by: Operator
   dependencies:
   - ValueState:Propagating
-  triggered by:
-  - Operator
-  external states:
+  updated states:
   - Operator
 - ValueState:Propagating
+  triggered by: Value
   dependencies:
   - OperatorState:Calculating
-  triggered by:
-  - Value
-  external states:
+  updated states:
   - Value
 `))
 	})

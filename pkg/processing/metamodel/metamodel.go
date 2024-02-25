@@ -44,7 +44,7 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 		}
 
 		for _, p := range i.Phases {
-			e := newElementType(i.Name, p.Name, p.ExternalStates)
+			e := newElementType(i.Name, p.Name)
 			m.elements[e.id] = e
 			def.phases[p.Name] = e
 		}
@@ -74,39 +74,44 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 			return nil, fmt.Errorf("trigger \"%s:%s\" of external type %q: %w",
 				d.Type, d.Phase, e.Name, err)
 		}
-		t.addTrigger(e.Name)
+		if t.TriggeredBy() != nil {
+			return nil, fmt.Errorf("trigger \"%s:%s\" of external type %q: already triggered by %q",
+				d.Type, d.Phase, e.Name, *t.TriggeredBy())
+		}
+		t.setTrigger(e.Name)
 		m.external[e.Name] = newExternalObjectType(e.Name, t, e.ForeignControlled)
 	}
 
 	for _, i := range m.internal {
 		for _, p := range i.phases {
-			for _, t := range p.TriggeredBy() {
-				if !slices.Contains(i.extTypes, t) {
-					i.extTypes = append(i.extTypes, t)
+			if t := p.TriggeredBy(); t != nil {
+				if !slices.Contains(i.extTypes, *t) {
+					i.extTypes = append(i.extTypes, *t)
+				}
+			} else {
+				found := false
+				for _, d := range p.dependencies {
+					if d.Id().GetType() == i.intType.Name() {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return nil, fmt.Errorf("root phase %q internal type %q not triggered by any external type",
+						p.id.GetPhase(), p.id.GetType())
 				}
 			}
+			if c := cycle(p); c != nil {
+				return nil, fmt.Errorf("phase cycle for internal type %q: %s",
+					p.id.GetType(), utils.Join(c, "->"))
+			}
+			determineExtStates(p)
 		}
 
 		sort.Strings(i.extTypes)
 		if len(i.extTypes) == 0 {
 			return nil, fmt.Errorf("no trigger for any phase of internal type %q",
 				i.intType.Name())
-		}
-
-		for _, p := range i.phases {
-			for _, t := range p.AssignedExternalStates() {
-				if m.external[t] == nil {
-					return nil, fmt.Errorf("external type %q for state assigned to phase %q of internal type %q not defined",
-						t, p.id.GetPhase(), p.id.GetType())
-				}
-				if !slices.Contains(i.extTypes, t) {
-					return nil, fmt.Errorf("no phase of internal type %q triggered by external type %q for state assigned to phase %q",
-						i.intType.Name(), t, p.id.GetPhase())
-				}
-			}
-			if len(p.AssignedExternalStates()) > 1 {
-				return nil, fmt.Errorf("multiple object state updates for internal element %q not supported", p.Id())
-			}
 		}
 	}
 	return m, nil
@@ -239,20 +244,20 @@ func (m *metaModel) checkDep(d DependencyTypeSpecification) (*elementType, error
 	return t, nil
 }
 
-func (m *metaModel) GetTriggeringTypesForElementType(id TypeId) []string {
+func (m *metaModel) GetExternalTypesFor(id TypeId) []string {
+	e := m.elements[id]
+	if e == nil {
+		return nil
+	}
+	return e.ExternalStates()
+}
+
+func (m *metaModel) GetTriggerTypeForElementType(id TypeId) *string {
 	e := m.elements[id]
 	if e == nil {
 		return nil
 	}
 	return e.TriggeredBy()
-}
-
-func (m *metaModel) GetAssignedExternalTypes(id TypeId) []string {
-	e := m.elements[id]
-	if e == nil {
-		return nil
-	}
-	return e.AssignedExternalStates()
 }
 
 func (m *metaModel) GetTriggeringTypesForInternalType(name string) []string {
@@ -289,17 +294,57 @@ func (m *metaModel) Dump(w io.Writer) {
 	for _, n := range m.ElementTypes() {
 		i := m.elements[n]
 		fmt.Fprintf(w, "- %s\n", n)
+		if t := i.TriggeredBy(); t != nil {
+			fmt.Fprintf(w, "  triggered by: %s\n", *t)
+		}
 		fmt.Fprintf(w, "  dependencies:\n")
 		for _, d := range i.Dependencies() {
 			fmt.Fprintf(w, "  - %s\n", d.Id())
 		}
-		fmt.Fprintf(w, "  triggered by:\n")
-		for _, d := range i.TriggeredBy() {
-			fmt.Fprintf(w, "  - %s\n", d)
-		}
-		fmt.Fprintf(w, "  external states:\n")
-		for _, d := range i.AssignedExternalStates() {
+		fmt.Fprintf(w, "  updated states:\n")
+		for _, d := range i.ExternalStates() {
 			fmt.Fprintf(w, "  - %s\n", d)
 		}
 	}
+}
+
+func cycle(p *elementType, stack ...Phase) []Phase {
+	if c := utils.Cycle(p.id.GetPhase(), stack...); c != nil {
+		if c[0] != p.id.GetPhase() {
+			return c
+		}
+		return nil
+	}
+	for _, d := range p.dependencies {
+		if d.id.GetType() != p.id.GetType() {
+			continue
+		}
+		if d == p {
+			continue
+		}
+		c := cycle(d, append(stack, p.id.GetPhase())...)
+		if c != nil {
+			return c
+		}
+	}
+	return nil
+}
+
+func determineExtStates(p *elementType, stack ...Phase) []string {
+	if p.states == nil {
+		if p.trigger != nil {
+			p.states = []string{*p.trigger}
+		}
+		for _, d := range p.dependencies {
+			if d.id.GetType() != p.id.GetType() {
+				continue
+			}
+			if d == p {
+				continue
+			}
+			p.states = utils.AppendUnique(p.states, determineExtStates(d, append(stack, p.id.GetPhase())...)...)
+		}
+		sort.Strings(p.states)
+	}
+	return p.states
 }

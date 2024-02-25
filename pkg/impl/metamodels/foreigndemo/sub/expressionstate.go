@@ -46,23 +46,21 @@ func (n *ExpressionState) assureTarget(o *db.ExpressionState) *db.EvaluationTarg
 	return o.CreateTarget().(*db.EvaluationTargetState)
 }
 
-func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
+func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ExpressionState))
 
 		mod := false
-		if len(state) == 0 {
+		if state == nil {
 			// external object not existent
-			state = model.ExternalStates{"": NewExternalExpressionState(nil)}
+			state = NewExternalExpressionState(nil)
 		}
-		for _, _s := range state { // we have just one external object here, but just for demonstration
-			s := _s.(*ExternalExpressionState).GetState()
-			if s == nil {
-				s = &db.EffectiveExpressionSpec{}
-			}
-			support.UpdateField(&t.Spec, s, &mod)
-			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
+		s := state.(*ExternalExpressionState).GetState()
+		if s == nil {
+			s = &db.EffectiveExpressionSpec{}
 		}
+		support.UpdateField(&t.Spec, s, &mod)
+		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err

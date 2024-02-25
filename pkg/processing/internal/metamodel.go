@@ -23,8 +23,7 @@ type ElementType interface {
 	Id() TypeId
 
 	Dependencies() []ElementType
-	TriggeredBy() []string
-	AssignedExternalStates() []string
+	TriggeredBy() *string
 	HasDependency(name TypeId) bool
 }
 
@@ -50,8 +49,8 @@ type MetaModel interface {
 
 	GetDependentTypePhases(name TypeId) (all []Phase, leafs []Phase)
 	GetPhaseFor(ext string) *TypeId
-	GetTriggeringTypesForElementType(id TypeId) []string
-	GetAssignedExternalTypes(id TypeId) []string
+	GetTriggerTypeForElementType(id TypeId) *string
+	GetExternalTypesFor(id TypeId) []string
 	GetTriggeringTypesForInternalType(name string) []string
 
 	Dump(w io.Writer)

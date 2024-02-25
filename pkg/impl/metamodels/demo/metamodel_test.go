@@ -45,6 +45,7 @@ var _ = Describe("meta model", func() {
 		m := Must(spec.GetMetaModel())
 		m.Dump(buf)
 
+		fmt.Printf("\n%s\n", buf.String())
 		Expect("\n" + buf.String()).To(Equal(`
 Namespace type: Namespace
 External types:
@@ -59,11 +60,10 @@ Internal types:
   - Node
 Element types:
 - NodeState:Updating
+  triggered by: Node
   dependencies:
   - NodeState:Updating
-  triggered by:
-  - Node
-  external states:
+  updated states:
   - Node
 `))
 	})

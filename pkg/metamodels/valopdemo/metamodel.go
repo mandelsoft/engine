@@ -33,8 +33,7 @@ var internalTypes = []metamodel.InternalTypeSpecification{
 	),
 	metamodel.IntSpec(TYPE_OPERATOR_STATE,
 		metamodel.PhaseSpec(PHASE_GATHER, metamodel.Dep(TYPE_VALUE_STATE, PHASE_PROPAGATE)),
-		metamodel.PhaseSpec(PHASE_CALCULATION, metamodel.Dep(TYPE_OPERATOR_STATE, PHASE_GATHER)).
-			Assign(TYPE_OPERATOR),
+		metamodel.PhaseSpec(PHASE_CALCULATION, metamodel.Dep(TYPE_OPERATOR_STATE, PHASE_GATHER)),
 	),
 }
 

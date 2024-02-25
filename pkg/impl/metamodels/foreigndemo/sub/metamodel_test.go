@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"fmt"
 
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 var _ = Describe("meta model", func() {
@@ -72,32 +73,28 @@ Internal types:
   - Value
 Element types:
 - ExpressionState:Evaluating
+  triggered by: Expression
   dependencies:
   - OperatorState:Gathering
-  triggered by:
-  - Expression
-  external states:
+  updated states:
   - Expression
 - OperatorState:Calculating
   dependencies:
   - ExpressionState:Evaluating
   - OperatorState:Gathering
-  triggered by:
-  external states:
+  updated states:
   - Operator
 - OperatorState:Gathering
+  triggered by: Operator
   dependencies:
   - ValueState:Propagating
-  triggered by:
-  - Operator
-  external states:
+  updated states:
   - Operator
 - ValueState:Propagating
+  triggered by: Value
   dependencies:
   - OperatorState:Calculating
-  triggered by:
-  - Value
-  external states:
+  updated states:
   - Value
 `))
 	})

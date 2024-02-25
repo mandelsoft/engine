@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -19,12 +17,14 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
 	"github.com/mandelsoft/engine/pkg/utils"
 
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/controllers"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 const NS = "testspace"

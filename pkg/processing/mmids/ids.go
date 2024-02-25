@@ -8,7 +8,16 @@ import (
 )
 
 type RunId string
+
+func (r RunId) String() string {
+	return string(r)
+}
+
 type Phase string
+
+func (p Phase) String() string {
+	return string(p)
+}
 
 func NewRunId() RunId {
 	return RunId(uuid.NewString())

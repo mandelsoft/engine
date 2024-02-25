@@ -2,7 +2,6 @@ package metamodel
 
 import (
 	"slices"
-	"sort"
 	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -17,19 +16,16 @@ const DEFAULT_PHASE = Phase("PhaseUpdating")
 type elementType struct {
 	id           TypeId
 	dependencies []*elementType
-	triggers     []string
+	trigger      *string
 	states       []string
 }
 
 var _ ElementType = (*elementType)(nil)
 var _elementType = utils.CastPointer[ElementType, elementType]
 
-func newElementType(objtype string, phase Phase, states []string) *elementType {
-	states = slices.Clone(states)
-	sort.Strings(states)
+func newElementType(objtype string, phase Phase) *elementType {
 	return &elementType{
-		id:     NewTypeId(objtype, phase),
-		states: states,
+		id: NewTypeId(objtype, phase),
 	}
 }
 
@@ -44,15 +40,8 @@ func (e *elementType) addDependency(d *elementType) {
 	}
 }
 
-func (e *elementType) addTrigger(typ string) {
-	if !slices.Contains(e.triggers, typ) {
-		e.triggers = append(e.triggers, typ)
-		sort.Strings(e.triggers)
-	}
-	if !slices.Contains(e.states, typ) {
-		e.states = append(e.states, typ)
-		sort.Strings(e.states)
-	}
+func (e *elementType) setTrigger(typ string) {
+	e.trigger = &typ
 }
 
 func (e *elementType) Dependencies() []ElementType {
@@ -68,11 +57,11 @@ func (e *elementType) HasDependency(name TypeId) bool {
 	return false
 }
 
-func (e *elementType) TriggeredBy() []string {
-	return slices.Clone(e.triggers)
+func (e *elementType) TriggeredBy() *string {
+	return e.trigger
 }
 
-func (e *elementType) AssignedExternalStates() []string {
+func (e *elementType) ExternalStates() []string {
 	return slices.Clone(e.states)
 }
 

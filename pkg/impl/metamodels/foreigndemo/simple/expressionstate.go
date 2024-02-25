@@ -46,23 +46,21 @@ func (n *ExpressionState) assureTarget(o *db.ExpressionState) *db.EvaluationTarg
 	return o.CreateTarget().(*db.EvaluationTargetState)
 }
 
-func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
+func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ExpressionState))
 
 		mod := false
-		if len(state) == 0 {
+		if state == nil {
 			// external object not existent
-			state = model.ExternalStates{"": NewExternalExpressionState(nil)}
+			state = NewExternalExpressionState(nil)
 		}
-		for _, _s := range state { // we have just one external object here, but just for demonstration
-			s := _s.(*ExternalExpressionState).GetState()
-			if s == nil {
-				s = &db.EffectiveExpressionSpec{}
-			}
-			support.UpdateField(&t.Spec, s, &mod)
-			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
+		s := state.(*ExternalExpressionState).GetState()
+		if s == nil {
+			s = &db.EffectiveExpressionSpec{}
 		}
+		support.UpdateField(&t.Spec, s, &mod)
+		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err
@@ -109,6 +107,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 		log.Info("required version {{required}} not reached -> wait for next change", "required", required)
 		return model.StatusWaiting()
 	}
+	log.Info("required version {{required}} reached -> propagate expression results")
 
 	if target.Spec.Status != model.STATUS_COMPLETED {
 		log.Warn("expression processing failed with status {{status}}[{{message}}]", "status", target.Spec.Status, "message", target.Spec.Message)

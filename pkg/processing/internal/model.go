@@ -47,7 +47,7 @@ type InternalObject interface {
 	MarkPhasesForDeletion(ob Objectbase, phases ...Phase) (bool, error)
 	IsMarkedForDeletion(phase Phase) bool
 
-	AcceptExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalStates) (AcceptStatus, error)
+	AcceptExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalState) (AcceptStatus, error)
 	Process(Request) ProcessingResult
 	PrepareDeletion(lctx Logging, ob Objectbase, phase Phase) error
 }
@@ -57,8 +57,6 @@ type InternalObject interface {
 type ExternalState interface {
 	GetVersion() string
 }
-
-type ExternalStates map[string]ExternalState
 
 type LinkState interface {
 	GetLinks() []ElementId

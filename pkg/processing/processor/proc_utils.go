@@ -46,8 +46,20 @@ func GetResultState(args ...interface{}) model.OutputState {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (p *Processor) forExtObjects(log logging.Logger, e _Element, f func(log logging.Logger, object model.ExternalObject) error) error {
-	exttypes := p.processingModel.MetaModel().GetAssignedExternalTypes(e.Id().TypeId())
+func TriggeringObject(p *Processor, id TypeId) []string {
+	trigger := p.processingModel.MetaModel().GetTriggerTypeForElementType(id)
+	if trigger == nil {
+		return nil
+	}
+	return []string{*trigger}
+}
+
+func UpdateObjects(p *Processor, id TypeId) []string {
+	return p.processingModel.MetaModel().GetExternalTypesFor(id)
+}
+
+func (p *Processor) forExtObjects(log logging.Logger, e _Element, f func(log logging.Logger, object model.ExternalObject) error, set func(p *Processor, id TypeId) []string) error {
+	exttypes := set(p, e.Id().TypeId())
 	for _, t := range exttypes {
 		id := NewObjectId(t, e.GetNamespace(), e.GetName())
 		log = log.WithValues("extid", id)
@@ -101,7 +113,7 @@ func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _E
 	mod := func(log logging.Logger, o model.ExternalObject) error {
 		return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), update)
 	}
-	return p.forExtObjects(log, elem, mod)
+	return p.forExtObjects(log, elem, mod, UpdateObjects)
 }
 
 func (p *Processor) triggerLinks(log logging.Logger, msg string, links ...ElementId) {
@@ -146,7 +158,7 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem 
 }
 
 func (p *Processor) updateRunId(lctx model.Logging, log logging.Logger, verb string, elem Element, rid RunId) error {
-	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(elem.Id().TypeId())
+	types := p.processingModel.MetaModel().GetExternalTypesFor(elem.Id().TypeId())
 	for _, t := range types {
 		extid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
 		o, err := p.processingModel.ObjectBase().GetObject(extid)
@@ -169,13 +181,13 @@ func (p *Processor) updateRunId(lctx model.Logging, log logging.Logger, verb str
 	return nil
 }
 
-func (p *Processor) getTriggeringExternalObjects(id ElementId) (bool, []model.ExternalObject, error) {
-	var result []model.ExternalObject
+func (p *Processor) getTriggeringExternalObject(id ElementId) (bool, model.ExternalObject, error) {
 	found := false
 
-	for _, ext := range p.processingModel.MetaModel().GetTriggeringTypesForElementType(id.TypeId()) {
+	trigger := p.processingModel.MetaModel().GetTriggerTypeForElementType(id.TypeId())
+	if trigger != nil {
 		found = true
-		oid := model.NewObjectIdForType(ext, id)
+		oid := model.NewObjectIdForType(*trigger, id)
 		o, err := p.processingModel.ObjectBase().GetObject(oid)
 		if err != nil {
 			if !errors.Is(err, database.ErrNotExist) {
@@ -183,15 +195,15 @@ func (p *Processor) getTriggeringExternalObjects(id ElementId) (bool, []model.Ex
 			}
 		}
 		if o != nil {
-			result = append(result, o.(model.ExternalObject))
+			return true, o.(model.ExternalObject), nil
 		}
 	}
-	return found, result, nil
+	return found, nil, nil
 }
 
 func (p *Processor) isDeleting(objs ...model.ExternalObject) bool {
 	for _, o := range objs {
-		if o.IsDeleting() {
+		if o != nil && o.IsDeleting() {
 			return true
 		}
 	}

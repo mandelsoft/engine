@@ -51,22 +51,23 @@ type GatherTargetState struct {
 }
 
 type GatherOutput struct {
-	Operands   OperandInfos `json:"operands"`
-	Operations Operations   `json:"operations"`
+	Operands   Operands          `json:"operands,omitempty"`
+	Operations Operations        `json:"operations,omitempty"`
+	Outputs    map[string]string `json:"outputs,omitempty"`
 }
 
-type OperandInfos map[string]OperandInfo
+type Operands map[string]Operand
 
-func (o OperandInfos) String() string {
-	return fmt.Sprintf("%#v", map[string]OperandInfo(o))
+func (o Operands) String() string {
+	return fmt.Sprintf("%#v", map[string]Operand(o))
 }
 
-type OperandInfo struct {
+type Operand struct {
 	Origin ObjectId `json:"origin,omitempty"`
 	Value  int      `json:"value"`
 }
 
-func (o OperandInfo) String() string {
+func (o Operand) String() string {
 	return fmt.Sprintf("%d[%s]", o.Value, o.Origin)
 }
 
@@ -83,6 +84,4 @@ type CalculationCurrentState struct {
 
 type CalculationTargetState struct {
 	db.StandardTargetState
-	Operands map[string]string `json:"operands,omitempty"`
-	Outputs  map[string]string `json:"outputs,omitempty"`
 }

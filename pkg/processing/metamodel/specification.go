@@ -11,14 +11,8 @@ type TypeSpecification struct {
 }
 
 type PhaseSpecification struct {
-	Name           Phase
-	ExternalStates []string
-	Dependencies   []DependencyTypeSpecification
-}
-
-func (s PhaseSpecification) Assign(types ...string) PhaseSpecification {
-	s.ExternalStates = slices.Clone(types)
-	return s
+	Name         Phase
+	Dependencies []DependencyTypeSpecification
 }
 
 type InternalTypeSpecification struct {

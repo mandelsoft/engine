@@ -47,16 +47,14 @@ func (n *NodeState) assureTarget(o *db.NodeState) *db.TargetState {
 	return o.State.CreateTarget().(*db.TargetState)
 }
 
-func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
+func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.NodeState))
 
 		mod := false
-		for _, _s := range state { // we have just one external object here, but just for demonstration
-			s := _s.(*ExternalNodeState).GetState()
-			support.UpdateField(&t.Spec, s, &mod)
-			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
-		}
+		s := state.(*ExternalNodeState).GetState()
+		support.UpdateField(&t.Spec, s, &mod)
+		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err

@@ -65,7 +65,7 @@ var _ = Describe("Controller Test", func() {
 			Expect(o.(*db.Expression).Status.Message).To(Equal("operand \"C\" for expression \"E\" not found"))
 		})
 
-		FIt("fails for complex expression", func() {
+		It("fails for complex expression", func() {
 			env.Start(cntr)
 
 			vEXPR := db.NewExpression(NS, "EXPR").

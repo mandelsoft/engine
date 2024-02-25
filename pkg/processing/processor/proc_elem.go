@@ -66,12 +66,12 @@ func (p *Processor) handleNew(lctx model.Logging, id ElementId) (_Element, pool.
 			return nil, pool.StatusCompleted(err)
 		}
 
-		_, ext, err := p.getTriggeringExternalObjects(id)
+		_, ext, err := p.getTriggeringExternalObject(id)
 		if err != nil {
 			return nil, pool.StatusCompleted(err)
 		}
 
-		if p.isDeleting(ext...) {
+		if p.isDeleting(ext) {
 			log.Info("external object is deleting -> don't create new element")
 			return nil, pool.StatusCompleted()
 		}
@@ -99,14 +99,14 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 	log := lctx.Logger()
 	log.Info("processing external element trigger for {{element}} with status {{status}}", "status", e.GetStatus())
 
-	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(e.Id().TypeId())
-	if len(types) == 0 {
+	trigger := p.processingModel.MetaModel().GetTriggerTypeForElementType(e.Id().TypeId())
+	if trigger == nil {
 		log.Info("no triggering types for {{element}}")
 		return pool.StatusCompleted()
 	}
 
 	if !isExtTriggerable(e) {
-		if !p.isReTriggerable(e, types...) {
+		if !p.isReTriggerable(e, *trigger) {
 			if !e.IsMarkedForDeletion() {
 				log.Info("state for element in status {{status}} is already assigned", "status", e.GetStatus())
 				return pool.StatusCompleted()
@@ -115,41 +115,39 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		log.Info("state for element in status {{status}} is already assigned but retriggerable", "status", e.GetStatus())
 	}
 
-	log.Info("checking state of external objects for element {{element}}", "exttypes", types)
-	var changed []string
+	log.Info("checking state of external objects for element {{element}}", "exttypes", trigger)
+	var changed *string
 	deleting := false
 	cur := e.GetCurrentState().GetObservedVersion()
-	for _, t := range types {
-		id := database.NewObjectId(t, e.GetNamespace(), e.GetName())
-		log := log.WithValues("extid", id)
-		_o, err := p.processingModel.ObjectBase().GetObject(id)
-		if err != nil {
-			if !errors.Is(err, database.ErrNotExist) {
-				log.LogError(err, "cannot get external object {{extid}}")
-				return pool.StatusCompleted(fmt.Errorf("cannot get external object %s: %w", id, err))
-			}
-			log.Info("external object {{extid}} not found -> ignore state")
-			continue
-		}
 
-		o := _o.(model.ExternalObject)
-		if o.IsDeleting() {
-			log.Info("external object {{extid}} requests deletion")
-			deleting = true
+	id := database.NewObjectId(*trigger, e.GetNamespace(), e.GetName())
+	log = log.WithValues("extid", id)
+	_o, err := p.processingModel.ObjectBase().GetObject(id)
+	if err != nil {
+		if !errors.Is(err, database.ErrNotExist) {
+			log.LogError(err, "cannot get external object {{extid}}")
+			return pool.StatusCompleted(fmt.Errorf("cannot get external object %s: %w", id, err))
 		}
+		log.Info("external object {{extid}} not found -> ignore state")
+	}
 
-		// give the internal object the chance to modify the actual state
-		ov := o.GetState().GetVersion()
-		v := e.GetExternalState(o).GetVersion()
-		if ov != v {
-			log.Debug("state of external object {{extid}} adjusted from {{objectversion}} to {{version}}", "objectversion", ov, "version", v)
-		}
-		if v == cur {
-			log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
-		} else {
-			changed = append(changed, t)
-			log.Info("state of {{extid}} changed from {{current}} to {{target}}", "current", cur, "target", v)
-		}
+	o := _o.(model.ExternalObject)
+	if o.IsDeleting() {
+		log.Info("external object {{extid}} requests deletion")
+		deleting = true
+	}
+
+	// give the internal object the chance to modify the actual external state
+	ov := o.GetState().GetVersion()
+	v := e.GetExternalState(o).GetVersion()
+	if ov != v {
+		log.Debug("state of external object {{extid}} adjusted from {{objectversion}} to {{version}}", "objectversion", ov, "version", v)
+	}
+	if v == cur {
+		log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
+	} else {
+		changed = trigger
+		log.Info("state of {{extid}} changed from {{current}} to {{target}}", "current", cur, "target", v)
 	}
 
 	var leafs []Phase
@@ -168,18 +166,18 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		}
 	}
 
-	if !deleting && len(changed) == 0 {
+	if changed == nil && !deleting {
 		log.Info("no external object state change found for {{element}}")
 		return pool.StatusCompleted()
 	}
 
-	if p.isReTriggerable(e, changed...) {
-		log.Info("retrigger state change of external object for {{element}}", "exttypes", changed)
+	if changed != nil && p.isReTriggerable(e, *changed) {
+		log.Info("retrigger state change of external object {{extid}} for {{element}}")
 		p.Enqueue(CMD_ELEM, e)
 		return pool.StatusCompleted()
 	}
 
-	if len(changed) > 0 {
+	if changed != nil {
 		log.Info("trying to initiate new run for {{element}}")
 		rid, err := p.lockGraph(lctx, log, e)
 		if err == nil {
@@ -207,11 +205,14 @@ func (p *Processor) isReTriggerable(e _Element, ext ...string) bool {
 		if e.IsMarkedForDeletion() {
 			return true
 		}
+		var ttyp *string
 		if len(ext) == 0 {
-			ext = p.processingModel.MetaModel().GetTriggeringTypesForElementType(e.Id().TypeId())
+			ttyp = p.processingModel.MetaModel().GetTriggerTypeForElementType(e.Id().TypeId())
+		} else {
+			ttyp = &ext[0]
 		}
-		for _, t := range ext {
-			if p.processingModel.MetaModel().IsForeignControlled(t) {
+		if ttyp != nil {
+			if p.processingModel.MetaModel().IsForeignControlled(*ttyp) {
 				if isProcessable(e) {
 					return true
 				}
@@ -294,9 +295,6 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 					if err != nil {
 						log.Error("cannot update external state for internal object", "error", err)
 					}
-				case model.ACCEPT_REJECTED:
-					log.Error("external state for internal object from parent rejected -> block element", "error", err)
-					return p.block(lctx, log, ni, e, err.Error())
 
 				case model.ACCEPT_INVALID:
 					log.Error("external state for internal object invalid -> fail element", "error", err)
@@ -369,7 +367,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			}
 
 			log.Info("update processing status of external objects")
-			err = p.forExtObjects(log, e, upstate)
+			err = p.forExtObjects(log, e, upstate, UpdateObjects)
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
@@ -521,10 +519,10 @@ func (p *Processor) phaseDeleted(lctx pool.MessageContext, log logging.Logger, n
 		return err
 	}
 
-	types := p.processingModel.MetaModel().GetTriggeringTypesForElementType(elem.Id().TypeId())
+	trigger := p.processingModel.MetaModel().GetTriggerTypeForElementType(elem.Id().TypeId())
 	var ext []model.ExternalObject
-	for _, t := range types {
-		oid := model.SlaveObjectId(elem.Id(), t)
+	if trigger != nil {
+		oid := model.SlaveObjectId(elem.Id(), *trigger)
 		o, err := p.processingModel.ObjectBase().GetObject(oid)
 		if err != nil {
 			if !errors.Is(err, database.ErrNotExist) {
@@ -734,7 +732,7 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 		log.Info("target state for internal object of {{element}} already set for actual phase -> update state")
 	}
 
-	extstate := model.ExternalStates{}
+	var extstate model.ExternalState
 
 	mod := func(log logging.Logger, o model.ExternalObject) error {
 		if isProcessable(e) && !p.isReTriggerable(e, o.GetType()) {
@@ -757,27 +755,30 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 			log.Error("cannot update status for external object {{extid}}", "error", err)
 			return err
 		}
-		extstate[o.GetType()] = state
+		extstate = state
 		return nil
 	}
 
 	log.Info("gathering state for external object types")
-	err := p.forExtObjects(log, e, mod)
+	err := p.forExtObjects(log, e, mod, TriggeringObject)
 	if err != nil {
 		return model.ACCEPT_OK, err
 	}
 
-	if len(extstate) == 0 {
+	if extstate == nil {
 		log.Info("no external object states found for {{element}}  -> propagate empty state")
 	} else {
-		log.Info("assigning external state for processing {{element}}", "exttypes", utils.MapKeys(extstate))
+		log.Info("assigning external state for processing {{element}}", "extstate", extstate)
 	}
 	s, err := e.GetObject().AcceptExternalState(lctx, p.processingModel.ObjectBase(), e.GetPhase(), extstate)
 	if s != model.ACCEPT_OK || err != nil {
 		return s, err
 	}
-	for t, st := range extstate {
-		log.Info("- assigned state for phase {{phase}} from type {{type}} to {{version}}", "phase", e.GetPhase(), "type", t, "version", st.GetVersion())
+	if extstate != nil {
+		log.Info("assigned state for phase {{phase}} from type {{type}} to {{version}}",
+			"phase", e.GetPhase(),
+			"type", p.processingModel.MetaModel().GetTriggerTypeForElementType(e.Id().TypeId()),
+			"version", extstate.GetVersion())
 	}
 	return s, nil
 }

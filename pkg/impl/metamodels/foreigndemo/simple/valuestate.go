@@ -50,25 +50,23 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 	return o.CreateTarget().(*db.ValueTargetState)
 }
 
-func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalStates) (model.AcceptStatus, error) {
+func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
-		if len(state) == 0 {
+		if state == nil {
 			// external object not existent
-			state = model.ExternalStates{"": n.EffectiveTargetSpec(nil)}
+			state = n.EffectiveTargetSpec(nil)
 		}
-		for _, _s := range state { // we have just one external object here, but just for demonstration
-			s := _s.(*EffectiveValueState).GetState()
-			fv := "" // if used as slave it does not have an own formal object version, only a formal (graph) version.
-			if s.Provider == "" {
-				fv = support.NewState(s.ValueSpec).GetVersion()
-			}
-			mod = t.SetFormalObjectVersion(fv) || mod
-			support.UpdateField(&t.Spec, s, &mod)
-			support.UpdateField(&t.ObjectVersion, utils.Pointer(_s.GetVersion()), &mod)
+		s := state.(*EffectiveValueState).GetState()
+		fv := "" // if used as slave it does not have an own formal object version, only a formal (graph) version.
+		if s.Provider == "" {
+			fv = support.NewState(s.ValueSpec).GetVersion()
 		}
+		mod = t.SetFormalObjectVersion(fv) || mod
+		support.UpdateField(&t.Spec, s, &mod)
+		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err

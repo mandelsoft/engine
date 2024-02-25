@@ -20,7 +20,6 @@ type CurrentState = internal.CurrentState
 type TargetState = internal.TargetState
 type AcceptStatus = internal.AcceptStatus
 type ExternalState = internal.ExternalState
-type ExternalStates = internal.ExternalStates
 type OutputState = internal.OutputState
 type ProcessingResult = internal.ProcessingResult
 type Creation = internal.Creation
@@ -32,7 +31,6 @@ type Logging = internal.Logging
 
 const (
 	ACCEPT_OK = iota
-	ACCEPT_REJECTED
 	ACCEPT_INVALID
 )
 

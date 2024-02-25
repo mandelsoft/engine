@@ -52,7 +52,8 @@ type GatherTargetState struct {
 }
 
 type GatherOutput struct {
-	Values []Operand `json:"operands"`
+	Operator OperatorName `json:"operator,omitempty"`
+	Operands []Operand    `json:"operands"`
 }
 
 type CalculationState struct {
@@ -66,8 +67,6 @@ type CalculationCurrentState struct {
 
 type CalculationTargetState struct {
 	db.StandardTargetState
-	Operator OperatorName
-	Output   CalculationOutput `json:"output"`
 }
 
 type CalculationOutput struct {

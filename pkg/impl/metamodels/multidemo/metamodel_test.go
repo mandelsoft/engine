@@ -56,15 +56,13 @@ Element types:
 - NodeState:Calculating
   dependencies:
   - NodeState:Gathering
-  triggered by:
-  external states:
+  updated states:
   - Node
 - NodeState:Gathering
+  triggered by: Node
   dependencies:
   - NodeState:Calculating
-  triggered by:
-  - Node
-  external states:
+  updated states:
   - Node
 `))
 	})
