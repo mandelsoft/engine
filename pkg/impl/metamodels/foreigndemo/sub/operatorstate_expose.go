@@ -17,43 +17,43 @@ import (
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
-type CalculatePhase struct{ PhaseBase }
+type ExposePhase struct{ PhaseBase }
 
-var _ OperatorStatePhase = (*CalculatePhase)(nil)
+var _ OperatorStatePhase = (*ExposePhase)(nil)
 
-func (c CalculatePhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
+func (c ExposePhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
 	return NewCurrentCalcState(o)
 }
 
-func (c CalculatePhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
-	return NewTargetCalcState(o)
+func (c ExposePhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
+	return NewTargetExposeState(o)
 }
 
-func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state model.ExternalState, mod *bool) {
+func (c ExposePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state model.ExternalState, mod *bool) {
 	log.Info("set target state for phase {{phase}} of Operator {{name}}")
-	support.UpdateField(&o.Calculation.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
+	support.UpdateField(&o.Expose.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
 }
 
-func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
-	if o.Calculation.Target != nil && spec != nil {
-		c := &o.Calculation.Current
-		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
-		support.UpdateField(&c.Output, utils.Pointer(spec.OutputState.(*CalcOutputState).GetState()), mod)
+func (c ExposePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
+	if o.Expose.Target != nil && spec != nil {
+		c := &o.Expose.Current
+		log.Info("  output {{output}}", "output", spec.OutputState.(*ExposeOutputState).GetState())
+		support.UpdateField(&c.Output, utils.Pointer(spec.OutputState.(*ExposeOutputState).GetState()), mod)
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
-func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
+func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	if req.Delete {
 		log.Info("deletion successful")
 		return model.StatusDeleted()
 	}
-	s := NewTargetCalcState(o)
+	s := NewTargetExposeState(o)
 
-	out := db.CalculationOutput{}
+	out := db.ExposeOutput{}
 	values := map[string]int{}
 
 	log.Info("preparing effective value set")
@@ -62,7 +62,7 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		values[n] = o.Value
 	}
 	log.Info("- value set from inputs: {{values}}", "values", values)
-	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)].(*EvaluationOutputState).GetState()
+	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING)].(*EvaluationOutputState).GetState()
 	log.Info("- value set from expressions: {{values}}", "values", ex)
 	for n, v := range ex {
 		values[n] = v
@@ -97,13 +97,13 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		slaves...,
 	)
 
-	return model.StatusCompleted(NewCalcOutputState(req.FormalVersion, out))
+	return model.StatusCompleted(NewExposeState(req.FormalVersion, out))
 }
 
-func (_ CalculatePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase Phase) error {
+func (_ ExposePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase Phase) error {
 	s := NewCurrentCalcState(o)
 
-	for k := range s.GetOutput().(*CalcOutputState).GetState() {
+	for k := range s.GetOutput().(*ExposeOutputState).GetState() {
 		oid := database.NewObjectId(mymetamodel.TYPE_VALUE, o.GetNamespace(), k)
 		err := support.RequestSlaveDeletion(log, ob, oid)
 		if err != nil {
@@ -115,40 +115,40 @@ func (_ CalculatePhase) PrepareDeletion(log logging.Logger, ob objectbase.Object
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type CalcOutputState = support.OutputState[db.CalculationOutput]
+type ExposeOutputState = support.OutputState[db.ExposeOutput]
 
-var NewCalcOutputState = support.NewOutputState[db.CalculationOutput]
+var NewExposeState = support.NewOutputState[db.ExposeOutput]
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type CurrentCalcState struct {
-	support.CurrentStateSupport[*db.OperatorState, *db.CalculationCurrentState]
+type CurrentExposeState struct {
+	support.CurrentStateSupport[*db.OperatorState, *db.ExposeCurrentState]
 }
 
 func NewCurrentCalcState(n *OperatorState) model.CurrentState {
-	return &CurrentCalcState{support.NewCurrentStateSupport[*db.OperatorState, *db.CalculationCurrentState](n, mymetamodel.PHASE_CALCULATION)}
+	return &CurrentExposeState{support.NewCurrentStateSupport[*db.OperatorState, *db.ExposeCurrentState](n, mymetamodel.PHASE_EXPOSE)}
 }
 
-func (c *CurrentCalcState) GetLinks() []ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)}
+func (c *CurrentExposeState) GetLinks() []ElementId {
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING)}
 }
 
-func (c *CurrentCalcState) GetOutput() model.OutputState {
-	return NewCalcOutputState(c.GetFormalVersion(), c.Get().Output)
+func (c *CurrentExposeState) GetOutput() model.OutputState {
+	return NewExposeState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type TargetCalcState struct {
-	support.TargetStateSupport[*db.OperatorState, *db.CalculationTargetState]
+type TargetExposeState struct {
+	support.TargetStateSupport[*db.OperatorState, *db.ExposeTargetState]
 }
 
-var _ model.TargetState = (*TargetCalcState)(nil)
+var _ model.TargetState = (*TargetExposeState)(nil)
 
-func NewTargetCalcState(n *OperatorState) *TargetCalcState {
-	return &TargetCalcState{support.NewTargetStateSupport[*db.OperatorState, *db.CalculationTargetState](n, mymetamodel.PHASE_CALCULATION)}
+func NewTargetExposeState(n *OperatorState) *TargetExposeState {
+	return &TargetExposeState{support.NewTargetStateSupport[*db.OperatorState, *db.ExposeTargetState](n, mymetamodel.PHASE_EXPOSE)}
 }
 
-func (c *TargetCalcState) GetLinks() []ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION)}
+func (c *TargetExposeState) GetLinks() []ElementId {
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING)}
 }

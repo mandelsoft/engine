@@ -18,14 +18,14 @@ func init() {
 
 	// register acc to phase info parts in OperatorState
 	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *OperatorState) db.PhaseState { return &o.Gather })
-	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_CALCULATION, func(o *OperatorState) db.PhaseState { return &o.Calculation })
+	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_EXPOSE, func(o *OperatorState) db.PhaseState { return &o.Expose })
 }
 
 type OperatorState struct {
 	db.InternalDBObjectSupport `json:",inline"`
 
-	Gather      GatherState      `json: "gather"`
-	Calculation CalculationState `json: "calculation"`
+	Gather GatherState `json: "gather"`
+	Expose ExposeState `json: "expose"`
 }
 
 var _ db.InternalDBObject = (*OperatorState)(nil)
@@ -73,15 +73,15 @@ func (o Operand) String() string {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type CalculationState struct {
-	db.DefaultPhaseState[CalculationCurrentState, CalculationTargetState, *CalculationCurrentState, *CalculationTargetState]
+type ExposeState struct {
+	db.DefaultPhaseState[ExposeCurrentState, ExposeTargetState, *ExposeCurrentState, *ExposeTargetState]
 }
 
-type CalculationCurrentState struct {
+type ExposeCurrentState struct {
 	db.StandardCurrentState
-	Output CalculationOutput `json:"output"`
+	Output ExposeOutput `json:"output"`
 }
 
-type CalculationTargetState struct {
+type ExposeTargetState struct {
 	db.StandardTargetState
 }

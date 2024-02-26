@@ -122,7 +122,7 @@ func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	err := req.SlaveManagement.AssureSlaves(
 		nil,
 		support.SlaveCreationOnly,
-		model.SlaveId(req.Element.Id(), mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_EVALUATION),
+		model.SlaveId(req.Element.Id(), mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING),
 	)
 
 	if err != nil {

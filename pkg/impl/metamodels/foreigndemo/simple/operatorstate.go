@@ -31,7 +31,7 @@ var nodeStatePhases = support.NewPhases[*OperatorState, *db.OperatorState](REALM
 
 func init() {
 	nodeStatePhases.Register(mymetamodel.PHASE_GATHER, GatherPhase{})
-	nodeStatePhases.Register(mymetamodel.PHASE_CALCULATION, CalculatePhase{})
+	nodeStatePhases.Register(mymetamodel.PHASE_EXPOSE, ExposePhase{})
 }
 
 type OperatorStatePhase = support.Phase[*OperatorState, *db.OperatorState]

@@ -37,7 +37,7 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.GetPhase()), &mod)
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
-		if elem.GetPhase() == mymetamodel.PHASE_CALCULATION {
+		if elem.GetPhase() == mymetamodel.PHASE_EXPOSE {
 			support.UpdateField(&o.Status.EffectiveVersion, update.EffectiveVersion, &mod)
 			if update.ObservedVersion != nil {
 				log.Debug("Update observed version for Node {{name}} to {{state}}", "state", *update.ObservedVersion)
@@ -47,7 +47,7 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
 			}
 			if update.ResultState != nil {
-				support.UpdateField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcOutputState).GetState()), &mod)
+				support.UpdateField(&o.Status.Result, utils.Pointer(update.ResultState.(*ExposeOutputState).GetState()), &mod)
 			}
 		} else {
 			support.UpdateField(&o.Status.Status, update.Status, &mod)

@@ -8,7 +8,6 @@ import (
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -42,7 +41,7 @@ func (n *ValueState) GetTargetState(phase Phase) model.TargetState {
 	return NewTargetValueState(n)
 }
 
-func (n *ValueState) GetExternalState(o model.ExternalObject, phase mmids.Phase) model.ExternalState {
+func (n *ValueState) GetExternalState(o model.ExternalObject, phase Phase) model.ExternalState {
 	// incorporate actual binding into state
 	return n.EffectiveTargetSpec(o.GetState())
 }
@@ -51,7 +50,7 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 	return o.CreateTarget().(*db.ValueTargetState)
 }
 
-func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
+func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
@@ -94,7 +93,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	if len(req.Inputs) > 0 {
 		links := target.GetLinks()
 		for iid, e := range req.Inputs {
-			s := e.(*CalcOutputState).GetState()
+			s := e.(*ExposeOutputState).GetState()
 			for _, oid := range links {
 				if iid == oid {
 					if v, ok := s[n.GetName()]; ok {
@@ -138,7 +137,7 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 
 	extid := database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName())
 	log = log.WithValues("extid", extid)
-	if *out.Origin != mmids.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
+	if *out.Origin != NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
 		log.Info("checking slave value object {{extid}}")
 		_, err := ob.GetObject(extid)
 		if errors.Is(err, database.ErrNotExist) {
@@ -204,7 +203,7 @@ func (c *CurrentValueState) GetLinks() []ElementId {
 	var r []ElementId
 
 	if c.Get().Provider != "" {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), c.Get().Provider, mymetamodel.PHASE_CALCULATION))
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), c.Get().Provider, mymetamodel.PHASE_EXPOSE))
 	}
 	return r
 }
@@ -229,7 +228,7 @@ func NewTargetValueState(n *ValueState) model.TargetState {
 	return &TargetValueState{support.NewTargetStateSupport[*db.ValueState, *db.ValueTargetState](n, mymetamodel.PHASE_PROPAGATE)}
 }
 
-func (c *TargetValueState) GetLinks() []mmids.ElementId {
+func (c *TargetValueState) GetLinks() []ElementId {
 	var r []ElementId
 
 	t := c.Get()
@@ -238,7 +237,7 @@ func (c *TargetValueState) GetLinks() []mmids.ElementId {
 	}
 
 	if t.Spec.Provider != "" {
-		r = append(r, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Provider, mymetamodel.PHASE_CALCULATION))
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Provider, mymetamodel.PHASE_EXPOSE))
 	}
 	return r
 }

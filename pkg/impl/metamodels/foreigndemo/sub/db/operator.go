@@ -68,10 +68,10 @@ type OperatorStatus struct {
 	ObservedVersion  string       `json:"observedVersion,omitempty"`
 	EffectiveVersion string       `json:"effectiveVersion,omitempty"`
 
-	Result CalculationOutput `json:"result,omitempty"`
+	Result ExposeOutput `json:"result,omitempty"`
 }
 
-type CalculationOutput map[string]int
+type ExposeOutput map[string]int
 
 func NewOperatorNode(ns, n string) *Operator {
 	return &Operator{

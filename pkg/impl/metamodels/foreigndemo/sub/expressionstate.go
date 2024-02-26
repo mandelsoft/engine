@@ -185,7 +185,7 @@ type CurrentEvaluationState struct {
 var _ model.CurrentState = (*CurrentEvaluationState)(nil)
 
 func NewCurrentExpressionState(n *ExpressionState) model.CurrentState {
-	return &CurrentEvaluationState{support.NewCurrentStateSupport[*db.ExpressionState, *db.EvaluationCurrentState](n, mymetamodel.PHASE_EVALUATION)}
+	return &CurrentEvaluationState{support.NewCurrentStateSupport[*db.ExpressionState, *db.EvaluationCurrentState](n, mymetamodel.PHASE_CALCULATING)}
 }
 
 func (c *CurrentEvaluationState) GetLinks() []ElementId {
@@ -205,7 +205,7 @@ type TargetEvaluationState struct {
 var _ model.TargetState = (*TargetEvaluationState)(nil)
 
 func NewTargetEvaluationState(n *ExpressionState) *TargetEvaluationState {
-	return &TargetEvaluationState{support.NewTargetStateSupport[*db.ExpressionState, *db.EvaluationTargetState](n, mymetamodel.PHASE_EVALUATION)}
+	return &TargetEvaluationState{support.NewTargetStateSupport[*db.ExpressionState, *db.EvaluationTargetState](n, mymetamodel.PHASE_CALCULATING)}
 }
 
 func (c *TargetEvaluationState) GetLinks() []mmids.ElementId {

@@ -70,7 +70,7 @@ var _ = Describe("Processing", func() {
 				AddOperation("eA", db.OP_ADD, "iA", "iB").
 				AddOutput("C-A", "eA")
 
-			mEx := env.FutureFor(model.STATUS_WAITING, NewElementId(mymetamodel.TYPE_EXPRESSION_STATE, NS, "C", mymetamodel.PHASE_EVALUATION))
+			mEx := env.FutureFor(model.STATUS_WAITING, NewElementId(mymetamodel.TYPE_EXPRESSION_STATE, NS, "C", mymetamodel.PHASE_CALCULATING))
 			MustBeSuccessfull(env.SetObject(opC))
 
 			Expect(env.Wait(mEx)).To(BeTrue())
@@ -131,7 +131,7 @@ var _ = Describe("Processing", func() {
 			data := Must(yaml.Marshal(o))
 			fmt.Printf("result:\n%s\n", string(data))
 			Expect(o.(*db.Value).Status.FormalVersion).To(Equal(
-				"ValueState:Propagating/C-A(OperatorState:Calculating/C(ExpressionState:Evaluating/C(OperatorState:Gathering/C[6f646e6ab9bd10e0fc3eeec777ded31ffa70af3f832ebc5ad68a303781c42fef](ValueState:Propagating/A[07953a67895cdbe07665002609a1c24dc503557aadb8db223e398fd2e7593132],ValueState:Propagating/B[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e47ff0f0012])),OperatorState:Gathering/C[6f646e6ab9bd10e0fc3eeec777ded31ffa70af3f832ebc5ad68a303781c42fef](ValueState:Propagating/A[07953a67895cdbe07665002609a1c24dc503557aadb8db223e398fd2e7593132],ValueState:Propagating/B[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e47ff0f0012])))",
+				"ValueState:Propagating/C-A(OperatorState:Exposing/C(ExpressionState:Calculating/C(OperatorState:Gathering/C[6f646e6ab9bd10e0fc3eeec777ded31ffa70af3f832ebc5ad68a303781c42fef](ValueState:Propagating/A[07953a67895cdbe07665002609a1c24dc503557aadb8db223e398fd2e7593132],ValueState:Propagating/B[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e47ff0f0012])),OperatorState:Gathering/C[6f646e6ab9bd10e0fc3eeec777ded31ffa70af3f832ebc5ad68a303781c42fef](ValueState:Propagating/A[07953a67895cdbe07665002609a1c24dc503557aadb8db223e398fd2e7593132],ValueState:Propagating/B[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e47ff0f0012])))",
 			))
 		})
 	})
