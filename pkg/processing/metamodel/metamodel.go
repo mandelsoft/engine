@@ -56,12 +56,12 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 		for _, p := range i.Phases {
 			e := m.internal[i.Name].phases[p.Name]
 			for _, d := range p.Dependencies {
-				t, err := m.checkDep(d)
+				t, local, err := m.checkDep(d, i.Name)
 				if err != nil {
 					return nil, fmt.Errorf("dependency \"%s:%s\" of phase %q of internal type %q: %w",
 						d.Type, d.Phase, p.Name, i.Name, err)
 				}
-				e.addDependency(t)
+				e.addDependency(t, local)
 			}
 		}
 	}
@@ -69,7 +69,7 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 	for _, e := range spec.ExternalTypes {
 		d := e.Trigger
 
-		t, err := m.checkDep(d)
+		t, _, err := m.checkDep(d, d.Type)
 		if err != nil {
 			return nil, fmt.Errorf("trigger \"%s:%s\" of external type %q: %w",
 				d.Type, d.Phase, e.Name, err)
@@ -176,8 +176,8 @@ func (m *metaModel) GetDependentTypePhases(name TypeId) ([]Phase, []Phase) {
 
 	for i := 0; i < len(r); i++ {
 		t := NewTypeId(name.GetType(), r[i])
-		for _, ph := range d.intType.Phases() {
-			if !slices.Contains(r, ph) && d.intType.Element(ph).HasDependency(t) {
+		for ph, e := range d.phases {
+			if !slices.Contains(r, ph) && e.HasLocalDependency(t) {
 				r = append(r, ph)
 				leafs.Insert(ph)
 				leafs.Delete(t.GetPhase())
@@ -232,16 +232,19 @@ func (m *metaModel) GetPhaseFor(ext string) *TypeId {
 	return utils.Pointer(i.Trigger().Id())
 }
 
-func (m *metaModel) checkDep(d DependencyTypeSpecification) (*elementType, error) {
-	ti := m.internal[d.Type]
+func (m *metaModel) checkDep(d DependencyTypeSpecification, typ string) (*elementType, bool, error) {
+	if d.Type != "" {
+		typ = d.Type
+	}
+	ti := m.internal[typ]
 	if ti == nil {
-		return nil, fmt.Errorf("type %q not defined", d.Type)
+		return nil, false, fmt.Errorf("type %q not defined", typ)
 	}
 	t := ti.phases[d.Phase]
 	if ti == nil {
-		return nil, fmt.Errorf("phase %q not defined for type %q", d.Phase, d.Type)
+		return nil, false, fmt.Errorf("phase %q not defined for type %q", d.Phase, typ)
 	}
-	return t, nil
+	return t, typ != d.Type, nil
 }
 
 func (m *metaModel) GetExternalTypesFor(id TypeId) []string {
@@ -298,8 +301,12 @@ func (m *metaModel) Dump(w io.Writer) {
 			fmt.Fprintf(w, "  triggered by: %s\n", *t)
 		}
 		fmt.Fprintf(w, "  dependencies:\n")
-		for _, d := range i.Dependencies() {
-			fmt.Fprintf(w, "  - %s\n", d.Id())
+		for _, d := range i.dependencies {
+			if d.local {
+				fmt.Fprintf(w, "  - %s (local)\n", d.Id())
+			} else {
+				fmt.Fprintf(w, "  - %s\n", d.Id())
+			}
 		}
 		fmt.Fprintf(w, "  updated states:\n")
 		for _, d := range i.ExternalStates() {
@@ -319,10 +326,10 @@ func cycle(p *elementType, stack ...Phase) []Phase {
 		if d.id.GetType() != p.id.GetType() {
 			continue
 		}
-		if d == p {
+		if !d.local {
 			continue
 		}
-		c := cycle(d, append(stack, p.id.GetPhase())...)
+		c := cycle(d.elementType, append(stack, p.id.GetPhase())...)
 		if c != nil {
 			return c
 		}
@@ -339,10 +346,10 @@ func determineExtStates(p *elementType, stack ...Phase) []string {
 			if d.id.GetType() != p.id.GetType() {
 				continue
 			}
-			if d == p {
+			if !d.local {
 				continue
 			}
-			p.states = utils.AppendUnique(p.states, determineExtStates(d, append(stack, p.id.GetPhase())...)...)
+			p.states = utils.AppendUnique(p.states, determineExtStates(d.elementType, append(stack, p.id.GetPhase())...)...)
 		}
 		sort.Strings(p.states)
 	}

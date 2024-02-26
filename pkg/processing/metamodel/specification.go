@@ -41,8 +41,15 @@ type DependencyTypeSpecification struct {
 	Phase Phase
 }
 
+// Dep describes a dependency to a phase of another object,
+// which might have the same type.
 func Dep(typ string, phase Phase) DependencyTypeSpecification {
 	return DependencyTypeSpecification{typ, phase}
+}
+
+// LocalDep describes a dependency to another ahe of the same object.
+func LocalDep(phase Phase) DependencyTypeSpecification {
+	return DependencyTypeSpecification{"", phase}
 }
 
 type ExternalTypeSpecification struct {

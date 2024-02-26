@@ -2,6 +2,7 @@ package multidemo_test
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
@@ -39,6 +40,7 @@ var _ = Describe("meta model", func() {
 		m := Must(spec.GetMetaModel())
 		m.Dump(buf)
 
+		fmt.Printf("\n%s\n", buf.String())
 		Expect("\n" + buf.String()).To(Equal(`
 Namespace type: Namespace
 External types:
@@ -55,7 +57,7 @@ Internal types:
 Element types:
 - NodeState:Calculating
   dependencies:
-  - NodeState:Gathering
+  - NodeState:Gathering (local)
   updated states:
   - Node
 - NodeState:Gathering

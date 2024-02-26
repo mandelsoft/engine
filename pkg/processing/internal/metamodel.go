@@ -25,6 +25,7 @@ type ElementType interface {
 	Dependencies() []ElementType
 	TriggeredBy() *string
 	HasDependency(name TypeId) bool
+	HasLocalDependency(name TypeId) bool
 }
 
 type MetaModel interface {

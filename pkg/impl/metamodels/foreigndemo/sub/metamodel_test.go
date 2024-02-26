@@ -81,7 +81,7 @@ Element types:
 - OperatorState:Calculating
   dependencies:
   - ExpressionState:Evaluating
-  - OperatorState:Gathering
+  - OperatorState:Gathering (local)
   updated states:
   - Operator
 - OperatorState:Gathering

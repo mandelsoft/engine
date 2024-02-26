@@ -3,7 +3,7 @@ package multidemo
 import (
 	"slices"
 
-	metamodel2 "github.com/mandelsoft/engine/pkg/processing/metamodel"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel"
 )
 
 const TYPE_NAMESPACE = "Namespace"
@@ -16,25 +16,25 @@ const PHASE_CALCULATION = "Calculating"
 
 const FINAL_PHASE = PHASE_CALCULATION
 
-var externalTypes = []metamodel2.ExternalTypeSpecification{
-	metamodel2.ExtSpec(TYPE_NODE, TYPE_NODE_STATE, PHASE_GATHER),
+var externalTypes = []metamodel.ExternalTypeSpecification{
+	metamodel.ExtSpec(TYPE_NODE, TYPE_NODE_STATE, PHASE_GATHER),
 }
 
-var internalTypes = []metamodel2.InternalTypeSpecification{
-	metamodel2.IntSpec(TYPE_NODE_STATE,
-		metamodel2.PhaseSpec(PHASE_GATHER, metamodel2.Dep(TYPE_NODE_STATE, PHASE_CALCULATION)),
-		metamodel2.PhaseSpec(PHASE_CALCULATION, metamodel2.Dep(TYPE_NODE_STATE, PHASE_GATHER)),
+var internalTypes = []metamodel.InternalTypeSpecification{
+	metamodel.IntSpec(TYPE_NODE_STATE,
+		metamodel.PhaseSpec(PHASE_GATHER, metamodel.Dep(TYPE_NODE_STATE, PHASE_CALCULATION)),
+		metamodel.PhaseSpec(PHASE_CALCULATION, metamodel.LocalDep(PHASE_GATHER)),
 	),
 }
 
-func MetaModelSpecification() metamodel2.MetaModelSpecification {
-	return metamodel2.MetaModelSpecification{
+func MetaModelSpecification() metamodel.MetaModelSpecification {
+	return metamodel.MetaModelSpecification{
 		NamespaceType: TYPE_NAMESPACE,
 		ExternalTypes: slices.Clone(externalTypes),
 		InternalTypes: slices.Clone(internalTypes),
 	}
 }
 
-func NewMetaModel(name string) (metamodel2.MetaModel, error) {
-	return metamodel2.NewMetaModel(name, MetaModelSpecification())
+func NewMetaModel(name string) (metamodel.MetaModel, error) {
+	return metamodel.NewMetaModel(name, MetaModelSpecification())
 }

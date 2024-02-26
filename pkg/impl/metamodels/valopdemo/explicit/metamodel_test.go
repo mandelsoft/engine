@@ -65,7 +65,7 @@ Internal types:
 Element types:
 - OperatorState:Calculating
   dependencies:
-  - OperatorState:Gathering
+  - OperatorState:Gathering (local)
   updated states:
   - Operator
 - OperatorState:Gathering

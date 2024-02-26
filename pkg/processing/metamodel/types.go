@@ -13,9 +13,14 @@ const DEFAULT_PHASE = Phase("PhaseUpdating")
 
 ///////////////////////////////////////////////////////////////////////////////
 
+type dependency struct {
+	*elementType
+	local bool
+}
+
 type elementType struct {
 	id           TypeId
-	dependencies []*elementType
+	dependencies []dependency
 	trigger      *string
 	states       []string
 }
@@ -33,10 +38,19 @@ func (e *elementType) Id() TypeId {
 	return e.id
 }
 
-func (e *elementType) addDependency(d *elementType) {
-	if !slices.Contains(e.dependencies, d) {
-		e.dependencies = append(e.dependencies, d)
-		slices.SortFunc(e.dependencies, compareElementType)
+func matchDep(e *elementType) func(d dependency) bool {
+	return func(d dependency) bool {
+		return d.elementType == e
+	}
+}
+func (e *elementType) addDependency(d *elementType, local bool) {
+	m := matchDep(d)
+	if !slices.ContainsFunc(e.dependencies, m) {
+		e.dependencies = append(e.dependencies, dependency{
+			elementType: d,
+			local:       local,
+		})
+		slices.SortFunc(e.dependencies, compareDependency)
 	}
 }
 
@@ -44,14 +58,25 @@ func (e *elementType) setTrigger(typ string) {
 	e.trigger = &typ
 }
 
+func dependencyElement(d dependency) ElementType { return d.elementType }
+
 func (e *elementType) Dependencies() []ElementType {
-	return utils.CastPointerSlice[ElementType](e.dependencies)
+	return utils.TransformSlice(e.dependencies, dependencyElement)
 }
 
 func (e *elementType) HasDependency(name TypeId) bool {
 	for _, d := range e.dependencies {
 		if d.Id() == name {
 			return true
+		}
+	}
+	return false
+}
+
+func (e *elementType) HasLocalDependency(name TypeId) bool {
+	for _, d := range e.dependencies {
+		if d.Id() == name {
+			return d.local
 		}
 	}
 	return false
@@ -70,6 +95,10 @@ func CompareElementType(a, b ElementType) int {
 }
 
 func compareElementType(a, b *elementType) int {
+	return strings.Compare(a.Id().String(), b.Id().String())
+}
+
+func compareDependency(a, b dependency) int {
 	return strings.Compare(a.Id().String(), b.Id().String())
 }
 
