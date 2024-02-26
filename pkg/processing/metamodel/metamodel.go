@@ -271,6 +271,28 @@ func (m *metaModel) GetTriggeringTypesForInternalType(name string) []string {
 	return slices.Clone(e.extTypes)
 }
 
+func (m *metaModel) VerifyLink(from, to ElementId) error {
+	e := m.internal[from.GetType()]
+	if e == nil {
+		return fmt.Errorf("from %q: type not defined", from)
+	}
+	p := e.phases[from.GetPhase()]
+	if e == nil {
+		return fmt.Errorf("from %q: phase not defined", from)
+	}
+	for _, d := range p.dependencies {
+		if d.Id() == to.TypeId() {
+			if d.local {
+				if to.GetNamespace() != from.GetNamespace() || to.GetName() != from.GetName() {
+					return fmt.Errorf("from %q to %q: only links to local phase possible", from, to)
+				}
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("from %q to %q: links to phase %q not possible", from, to, to.TypeId())
+}
+
 func (m *metaModel) Dump(w io.Writer) {
 	fmt.Fprintf(w, "Namespace type: %s\n", m.namespace)
 	fmt.Fprintf(w, "External types:\n")

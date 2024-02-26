@@ -88,7 +88,9 @@ type OutputState interface {
 }
 
 type CommitInfo struct {
-	// InputVersion version is the version of the inputs used for this commit.
+	// FormalVersion is the formal (graph) version, which is committed.
+	FormalVersion string
+	// InputVersion is the version of the inputs used for this commit.
 	InputVersion string
 	// ObjectVersion is an optional modified object version, which should be
 	// uses instead of the onw from the target state.
@@ -148,7 +150,9 @@ func (s ProcessingResult) ModifyObjectVersion(v *string) ProcessingResult {
 type StatusUpdate struct {
 	// RunId is the id of the actually pending Run.
 	RunId *RunId
-	// DetectedVersion is object version currently detected by the system.
+	// FormalVersion is the formal version reached.
+	FormalVersion *string
+	// DetectedVersion is the object version currently detected by the system.
 	DetectedVersion *string
 	// ObservedVersion is the object version reached.
 	ObservedVersion *string

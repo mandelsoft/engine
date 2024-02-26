@@ -54,5 +54,6 @@ type MetaModel interface {
 	GetExternalTypesFor(id TypeId) []string
 	GetTriggeringTypesForInternalType(name string) []string
 
+	VerifyLink(from, to ElementId) error
 	Dump(w io.Writer)
 }

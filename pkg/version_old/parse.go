@@ -3,59 +3,22 @@ package version
 import (
 	"fmt"
 	"unicode/utf8"
+
+	"github.com/mandelsoft/engine/pkg/scanner"
 )
 
 type parser struct {
-	in      []byte
-	offset  int
-	no      int
-	current rune
+	scanner.Scanner
 
 	nodes map[string]*node
 }
 
 func NewParser(in string) *parser {
 	p := &parser{
-		in:    []byte(in),
-		nodes: map[string]*node{},
+		Scanner: scanner.NewScanner(in),
+		nodes:   map[string]*node{},
 	}
-	p.Next()
 	return p
-}
-
-func (s *parser) Next() rune {
-	if s.offset >= len(s.in) {
-		s.current = 0
-		return 0
-	}
-	r, size := utf8.DecodeRune(s.in[s.offset:])
-	s.current = r
-	if r == utf8.RuneError {
-		return r
-	}
-	s.offset += size
-	s.no++
-	return r
-}
-
-func (s *parser) parse(r rune) error {
-	if s.Current() != r {
-		return s.Errorf("%q expected", string(r))
-	}
-	s.Next()
-	return nil
-}
-
-func (s *parser) Current() rune {
-	return s.current
-}
-
-func (s *parser) Position() int {
-	return s.no
-}
-
-func (s *parser) Errorf(msg string, args ...interface{}) error {
-	return fmt.Errorf("%q %d: %s", string(s.in), s.Position(), fmt.Sprintf(msg, args...))
 }
 
 func isSpecial(r rune) bool {
@@ -112,7 +75,7 @@ func (s *parser) parseVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = s.parse(']')
+	err = s.ConsumeRune(']')
 	if err != nil {
 		return "", err
 	}
@@ -124,7 +87,7 @@ func (s *parser) parseEffName() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	err = s.parse('/')
+	err = s.ConsumeRune('/')
 	if err != nil {
 		return "", "", err
 	}
@@ -162,7 +125,7 @@ func (s *parser) parseGraph() (*node, error) {
 				break
 			}
 		}
-		err = s.parse(')')
+		err = s.ConsumeRune(')')
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +165,7 @@ func Parse(in string) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = p.parse(':')
+	err = p.ConsumeRune(':')
 	if err != nil {
 		return nil, err
 	}

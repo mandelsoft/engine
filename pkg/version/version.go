@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
@@ -130,6 +131,8 @@ func GetVersionedName(n Node) string {
 type GraphView interface {
 	GetNode(id Id) Node
 	Nodes() []Id
+
+	Dump(w io.Writer) error
 }
 
 type Graph interface {
@@ -151,7 +154,7 @@ func (g *graph) AddNode(n Node) {
 }
 
 func (g *graph) GetNode(id Id) Node {
-	return g.nodes[id]
+	return g.nodes[NewIdFor(id)]
 }
 
 func (g *graph) Nodes() []Id {
@@ -226,4 +229,94 @@ func (e *evaluatedGraph) getVersion(id Id, stack ...Id) (string, error) {
 	}
 	e.versions[id] = e.compose.Compose(n, graphs...)
 	return e.versions[id], nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func (g *graph) Roots() []Id {
+	var r []Id
+	for id, n := range g.nodes {
+		if len(n.GetLinks()) == 0 {
+			r = append(r, id)
+		}
+	}
+	return r
+}
+
+func (g *graph) Leaves() []Id {
+	var r []Id
+outer:
+	for id, n := range g.nodes {
+		for _, t := range g.nodes {
+			for _, d := range t.GetLinks() {
+				if d == n.GetId() {
+					continue outer
+				}
+			}
+		}
+		r = append(r, id)
+	}
+	return r
+}
+
+func (g *graph) Dump(w io.Writer) error {
+	for _, r := range g.Leaves() {
+		err := g.dump(w, r, "")
+		if err != nil {
+			return err
+		}
+	}
+	return g.dumpVersions(w)
+}
+
+func (g *graph) dumpVersions(w io.Writer) error {
+	for id, n := range g.nodes {
+		if n.GetVersion() != "" {
+			_, err := fmt.Fprintf(w, "\n%s[%s]", id, n.GetVersion())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (g *graph) dump(w io.Writer, id Id, gap string) error {
+	n := g.nodes[NewIdFor(id)]
+	if n == nil {
+		_, err := fmt.Fprintf(w, "%s%s (unknown)", gap, n.GetId())
+		return err
+	}
+	_, err := fmt.Fprintf(w, "%s%s", gap, n.GetId())
+	if err != nil {
+		return err
+	}
+	links := n.GetLinks()
+	if len(links) > 0 {
+		_, err := fmt.Fprintf(w, " (")
+		if err != nil {
+			return err
+		}
+		for i, l := range links {
+			if i > 0 {
+				_, err := fmt.Fprintf(w, ",")
+				if err != nil {
+					return err
+				}
+			}
+			_, err := fmt.Fprintf(w, "\n")
+			if err != nil {
+				return err
+			}
+			err = g.dump(w, l, gap+"  ")
+			if err != nil {
+				return err
+			}
+		}
+		_, err = fmt.Fprintf(w, "\n%s)", gap)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"slices"
 
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/version"
-
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
@@ -233,6 +231,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 	log.Info("processing element {{element}} with status {{status}} (finalizers {{finalizers}}) (marked for deletion: {{deletion}})", "finalizers", e.GetObject().GetFinalizers(), "deletion", e.IsMarkedForDeletion())
 
 	var links []ElementId
+	var formalVersion string
 
 	curlinks := e.GetCurrentState().GetLinks()
 	deletion := false
@@ -268,10 +267,8 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				log.Info("checking current links")
 				links = e.GetCurrentState().GetLinks()
 
-				for _, l := range links {
-					if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-						return p.fail(lctx, log, ni, e, true, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
-					}
+				if err := p.verifyLinks(e, links...); err != nil {
+					return p.fail(lctx, log, ni, e, true, err)
 				}
 
 				// first, check current state
@@ -307,10 +304,8 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				// checking target dependencies after fixing the target state
 				log.Info("checking target links and get actual inputs")
 				links = e.GetObject().GetTargetState(e.GetPhase()).GetLinks()
-				for _, l := range links {
-					if !p.processingModel.MetaModel().HasDependency(e.Id().TypeId(), l.TypeId()) {
-						return p.fail(lctx, log, ni, e, true, fmt.Errorf("invalid dependency from %s to %s", e.Id().TypeId(), l.TypeId()))
-					}
+				if err := p.verifyLinks(e, links...); err != nil {
+					return p.fail(lctx, log, ni, e, true, err)
 				}
 			} else {
 				log.Info("continue interrupted processing")
@@ -348,7 +343,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			obdiff := diff(log, "object version", e.GetCurrentState().GetObjectVersion(), target.GetObjectVersion())
 			if !indiff && !obdiff {
 				log.Info("effective version unchanged -> skip processing of phase")
-				err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil, nil)
+				err := p.notifyCompletedState(lctx, log, ni, e, "no processing required", nil, inputs)
 				if err == nil {
 					_, err = e.SetStatus(p.processingModel.ObjectBase(), model.STATUS_COMPLETED)
 					if err == nil {
@@ -359,10 +354,13 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				return pool.StatusCompleted(err)
 			}
 
+			formalVersion = p.formalVersion(e, inputs)
+
 			upstate := func(log logging.Logger, o model.ExternalObject) error {
 				return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
-					Status:  utils.Pointer(model.STATUS_PROCESSING),
-					Message: utils.Pointer(fmt.Sprintf("processing phase %s", e.GetPhase())),
+					Status:        utils.Pointer(model.STATUS_PROCESSING),
+					FormalVersion: utils.Pointer(formalVersion),
+					Message:       utils.Pointer(fmt.Sprintf("processing phase %s", e.GetPhase())),
 				})
 			}
 
@@ -384,6 +382,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 					"missing", utils.Join(missing), "waiting", utils.Join(waiting))
 				return p.fail(lctx, log, ni, e, false, fmt.Errorf("unexpected state of parents"))
 			}
+			formalVersion = p.formalVersion(e, inputs)
 		}
 	} else {
 		err := p.setStatus(log, e, model.STATUS_DELETING)
@@ -392,11 +391,8 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		}
 	}
 
-	var fv string
 	if !deletion {
-		n := version.NewNode(e.Id().TypeId(), e.GetName(), e.GetTargetState().GetFormalObjectVersion())
-		fv = p.composer.Compose(n, formalInputVersions(inputs)...)
-		log.Debug("working on formal target version {{formal}}", "formal", fv)
+		log.Debug("working on formal target version {{formal}}", "formal", formalVersion)
 	}
 
 	if isProcessable(e) {
@@ -407,7 +403,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			Model:           p.processingModel,
 			Element:         e,
 			Delete:          deletion,
-			FormalVersion:   fv,
+			FormalVersion:   formalVersion,
 			Inputs:          inputs,
 			ElementAccess:   ni,
 			SlaveManagement: newSlaveManagement(log, p, ni, e),
@@ -417,10 +413,10 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			if result.Status == model.STATUS_FAILED || result.Status == model.STATUS_INVALID {
 				// non-recoverable error, wait for new change in external object state
 				log.Error("processing provides non recoverable error", "error", result.Error)
-				return p.fail(lctx, log, ni, e, result.Status == model.STATUS_INVALID, result.Error, fv)
+				return p.fail(lctx, log, ni, e, result.Status == model.STATUS_INVALID, result.Error, formalVersion)
 			}
 			log.Error("processing provides error", "error", result.Error)
-			err := p.updateStatus(lctx, log, e, result.Status, result.Error.Error())
+			err := p.updateStatus(lctx, log, e, result.Status, result.Error.Error(), FormalVersion(formalVersion))
 			if err != nil {
 				return pool.StatusCompleted(err)
 			}
@@ -445,7 +441,9 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				p.triggerLinks(log, "parent", links...)
 				p.triggerChildren(log, ni, e, true)
 			case model.STATUS_COMPLETED:
-				err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", result.EffectiveObjectVersion, inputs, result.ResultState, CalcEffectiveVersion(inputs, e.GetProcessingState().GetObjectVersion()))
+				err := p.notifyCompletedState(lctx, log, ni, e, "processing completed", result.EffectiveObjectVersion, inputs,
+					result.ResultState,
+					CalcEffectiveVersion(inputs, e.GetProcessingState().GetObjectVersion()))
 				if err != nil {
 					return pool.StatusCompleted(err)
 				}
@@ -607,10 +605,12 @@ func (p *Processor) phaseDeleted(lctx pool.MessageContext, log logging.Logger, n
 func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger, ni *namespaceInfo, e _Element, msg string, eff *string, inputs model.Inputs, args ...interface{}) error {
 	var ci *model.CommitInfo
 
+	formal := p.formalVersion(e, inputs)
 	result := GetResultState(args...)
 	target := e.GetProcessingState()
 	if result != nil {
 		ci = &model.CommitInfo{
+			FormalVersion: formal,
 			InputVersion:  target.GetInputVersion(inputs),
 			ObjectVersion: eff,
 			OutputState:   result,
@@ -628,7 +628,7 @@ func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger,
 		log.Info("skipping commit of target state")
 	}
 	log.Info("completed processing of element {{element}}", "output")
-	err := p.updateStatus(lctx, log, e, model.STATUS_COMPLETED, msg, append(args, RunId(""))...)
+	err := p.updateStatus(lctx, log, e, model.STATUS_COMPLETED, msg, append(args, RunId(""), FormalVersion(formal))...)
 	if err != nil {
 		return err
 	}
@@ -716,7 +716,13 @@ func (p *Processor) failed(lctx model.Logging, log logging.Logger, e _Element, i
 	if invalid {
 		status = model.STATUS_INVALID
 	}
-	err := p.updateStatus(lctx, log, e, status, msg, e.GetLock())
+	opts := []interface{}{
+		e.GetLock(),
+	}
+	if len(formal) > 0 && formal[0] != "" {
+		opts = append(opts, FormalVersion(formal[0]))
+	}
+	err := p.updateStatus(lctx, log, e, status, msg, opts...)
 	if err == nil {
 		_, err = e.Rollback(lctx, p.processingModel.ObjectBase(), e.GetLock(), true, formal...)
 	}

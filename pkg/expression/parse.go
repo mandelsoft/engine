@@ -1,69 +1,21 @@
 package expression
 
 import (
-	"fmt"
 	"unicode"
-	"unicode/utf8"
 
+	"github.com/mandelsoft/engine/pkg/scanner"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type parser struct {
-	in      []byte
-	offset  int
-	no      int
-	current rune
+	scanner.Scanner
 }
 
 func NewParser(in string) *parser {
 	p := &parser{
-		in: []byte(in),
+		Scanner: scanner.NewScanner(in),
 	}
-	p.Next()
 	return p
-}
-
-func (s *parser) Next() rune {
-	if s.offset >= len(s.in) {
-		s.current = 0
-		return 0
-	}
-	r, size := utf8.DecodeRune(s.in[s.offset:])
-	s.current = r
-	if r == utf8.RuneError {
-		return r
-	}
-	s.offset += size
-	s.no++
-	return r
-}
-
-func (s *parser) ParseRune(r rune) error {
-	if s.Current() != r {
-		return s.Errorf("%q expected", string(r))
-	}
-	s.Next()
-	return nil
-}
-
-func (s *parser) Current() rune {
-	return s.current
-}
-
-func (s *parser) Position() int {
-	return s.no
-}
-
-func (s *parser) Errorf(msg string, args ...interface{}) error {
-	return fmt.Errorf("%q %d: %s", string(s.in), s.Position(), fmt.Sprintf(msg, args...))
-}
-
-func (s *parser) SkipBlank() rune {
-	n := s.Current()
-	for unicode.IsSpace(n) {
-		n = s.Next()
-	}
-	return n
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -73,7 +25,7 @@ func (s *parser) parseExpression() (*Node, error) {
 }
 
 func (s *parser) parseOperand() (*Node, error) {
-	n := s.SkipBlank()
+	n := s.SkipBlanks()
 	switch {
 	case unicode.IsDigit(n) || n == '-':
 		return s.parseNumber()
@@ -85,7 +37,7 @@ func (s *parser) parseOperand() (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = s.ParseRune(')')
+		err = s.ConsumeRune(')')
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +49,7 @@ func (s *parser) parseOperand() (*Node, error) {
 
 func (s *parser) parseNumber() (*Node, error) {
 	sign := 1
-	n := s.SkipBlank()
+	n := s.SkipBlanks()
 	for n == '-' {
 		sign = -sign
 		n = s.Next()
@@ -117,7 +69,7 @@ func (s *parser) parseNumber() (*Node, error) {
 }
 
 func (s *parser) parseName() (*Node, error) {
-	n := s.SkipBlank()
+	n := s.SkipBlanks()
 	if !unicode.IsLetter(n) {
 		return nil, s.Errorf("variable name must start with letter, but found %q", string(n))
 	}
@@ -140,7 +92,7 @@ func (s *parser) parseLevel0() (*Node, error) {
 		return nil, err
 	}
 	for {
-		switch s.SkipBlank() {
+		switch s.SkipBlanks() {
 		case '+', '-':
 			op := s.Current()
 			s.Next()
@@ -165,7 +117,7 @@ func (s *parser) parseLevel1() (*Node, error) {
 		return nil, err
 	}
 	for {
-		switch s.SkipBlank() {
+		switch s.SkipBlanks() {
 		case '/', '*':
 			op := s.Current()
 			s.Next()

@@ -10,6 +10,7 @@ import (
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/yaml"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
@@ -125,6 +126,13 @@ var _ = Describe("Processing", func() {
 			}))
 
 			Expect(mCA.WaitUntil(env, 10, "C", 3)).To(BeTrue())
+
+			o := Must(env.GetObject(database.NewObjectId(mymetamodel.TYPE_VALUE, NS, "C-A")))
+			data := Must(yaml.Marshal(o))
+			fmt.Printf("result:\n%s\n", string(data))
+			Expect(o.(*db.Value).Status.FormalVersion).To(Equal(
+				"ValueState:Propagating/C-A(OperatorState:Calculating/C(ExpressionState:Evaluating/C(OperatorState:Gathering/C[6f646e6ab9bd10e0fc3eeec777ded31ffa70af3f832ebc5ad68a303781c42fef](ValueState:Propagating/A[07953a67895cdbe07665002609a1c24dc503557aadb8db223e398fd2e7593132],ValueState:Propagating/B[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e47ff0f0012])),OperatorState:Gathering/C[6f646e6ab9bd10e0fc3eeec777ded31ffa70af3f832ebc5ad68a303781c42fef](ValueState:Propagating/A[07953a67895cdbe07665002609a1c24dc503557aadb8db223e398fd2e7593132],ValueState:Propagating/B[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e47ff0f0012])))",
+			))
 		})
 	})
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-test/deep"
 
-	me "github.com/mandelsoft/engine/pkg/version"
+	me "github.com/mandelsoft/engine/pkg/version_old"
 )
 
 var _ = Describe("parser", func() {

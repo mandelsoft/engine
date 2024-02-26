@@ -17,6 +17,7 @@ import (
 )
 
 type EffectiveVersion string
+type FormalVersion string
 type ObservedVersion string
 
 func CalcEffectiveVersion(inputs model.Inputs, objvers string) EffectiveVersion {
@@ -98,6 +99,9 @@ func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _E
 		case model.OutputState:
 			update.ResultState = opt
 			keys = append(keys, "result", DescribeObject(opt))
+		case FormalVersion:
+			update.FormalVersion = utils.Pointer(string(opt))
+			keys = append(keys, "formal version", opt)
 		case ObservedVersion:
 			update.ObservedVersion = utils.Pointer(string(opt))
 			keys = append(keys, "observed version", opt)
@@ -208,6 +212,20 @@ func (p *Processor) isDeleting(objs ...model.ExternalObject) bool {
 		}
 	}
 	return false
+}
+
+func (p *Processor) verifyLinks(e _Element, links ...ElementId) error {
+	for _, l := range links {
+		if err := p.processingModel.MetaModel().VerifyLink(e.Id(), l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Processor) formalVersion(e _Element, inputs model.Inputs) string {
+	n := version.NewNode(e.Id().TypeId(), e.GetName(), e.GetTargetState().GetFormalObjectVersion())
+	return p.composer.Compose(n, formalInputVersions(inputs)...)
 }
 
 func formalInputVersions(inputs model.Inputs) []string {
