@@ -122,7 +122,7 @@ func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	err := req.SlaveManagement.AssureSlaves(
 		nil,
 		support.SlaveCreationOnly,
-		model.SlaveId(req.Element.Id(), mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING),
+		model.SlaveId(req.Element.Id(), mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE),
 	)
 
 	if err != nil {
@@ -132,6 +132,7 @@ func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	out := &db.GatherOutput{
 		Operands:   operands,
 		Operations: t.GetOperations(),
+		Outputs:    t.GetOutputs(),
 	}
 	return model.StatusCompleted(NewGatherOutputState(req.FormalVersion, out))
 }
@@ -204,4 +205,8 @@ func (c *TargetGatherState) GetOperations() map[string]db.Operation {
 
 func (c *TargetGatherState) GetOperands() map[string]string {
 	return c.Get().Spec.Operands
+}
+
+func (c *TargetGatherState) GetOutputs() map[string]string {
+	return c.Get().Spec.Outputs
 }

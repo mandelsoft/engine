@@ -43,6 +43,10 @@ func (n *Value) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem 
 			log.Debug("Update detected version for Value {{name}} to {{state}}", "state", *update.DetectedVersion)
 		}
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
+		if update.FormalVersion != nil {
+			log.Debug("Update formal version for Value {{name}} to {{state}}", "state", *update.FormalVersion)
+		}
+		support.UpdateField(&o.Status.FormalVersion, update.FormalVersion, &mod)
 		support.UpdateField(&o.Status.Status, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
 		if update.ResultState != nil {

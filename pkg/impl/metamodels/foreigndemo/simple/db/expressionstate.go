@@ -14,7 +14,7 @@ func init() {
 	database.MustRegisterType[ExpressionState, db.DBObject](Scheme) // Goland requires second type parameter
 
 	// register access to phase info parts in ExpressionState
-	ExpressionPhaseStateAccess.Register(mymetamodel.PHASE_CALCULATING, func(o *ExpressionState) db.PhaseState { return &o.EvaluationState })
+	ExpressionPhaseStateAccess.Register(mymetamodel.PHASE_CALCULATE, func(o *ExpressionState) db.PhaseState { return &o.EvaluationState })
 }
 
 type ExpressionState struct {

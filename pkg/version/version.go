@@ -82,6 +82,13 @@ func NewNode(typ any, name, version string, deps ...Id) ConfigurableNode {
 	return &node{NewId(typ, name), version, deps}
 }
 
+func NewNodeById(id Id, version string, deps ...Id) ConfigurableNode {
+	deps = slices.Clone(deps)
+
+	slices.SortFunc(deps, CompareId)
+	return &node{NewIdFor(id), version, deps}
+}
+
 func (n *node) GetId() Id {
 	return n.id
 }
@@ -260,7 +267,13 @@ outer:
 }
 
 func (g *graph) Dump(w io.Writer) error {
-	for _, r := range g.Leaves() {
+	for i, r := range g.Leaves() {
+		if i > 0 {
+			_, err := fmt.Fprintf(w, "\n")
+			if err != nil {
+				return err
+			}
+		}
 		err := g.dump(w, r, "")
 		if err != nil {
 			return err
@@ -270,7 +283,8 @@ func (g *graph) Dump(w io.Writer) error {
 }
 
 func (g *graph) dumpVersions(w io.Writer) error {
-	for id, n := range g.nodes {
+	for _, id := range g.Nodes() {
+		n := g.nodes[id]
 		if n.GetVersion() != "" {
 			_, err := fmt.Fprintf(w, "\n%s[%s]", id, n.GetVersion())
 			if err != nil {

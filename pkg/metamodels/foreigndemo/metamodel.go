@@ -22,16 +22,16 @@ const PHASE_EXPOSE = "Exposing"
 const TYPE_EXPRESSION = "Expression"
 const TYPE_EXPRESSION_STATE = "ExpressionState"
 
-const PHASE_CALCULATING = "Calculating"
+const PHASE_CALCULATE = "Calculating"
 
 const FINAL_VALUE_PHASE = PHASE_PROPAGATE
 const FINAL_OPERATOR_PHASE = PHASE_EXPOSE
-const FINAL_EXPRESSION_PHASE = PHASE_CALCULATING
+const FINAL_EXPRESSION_PHASE = PHASE_CALCULATE
 
 var externalTypes = []metamodel.ExternalTypeSpecification{
 	metamodel.ExtSpec(TYPE_VALUE, TYPE_VALUE_STATE, PHASE_PROPAGATE),
 	metamodel.ExtSpec(TYPE_OPERATOR, TYPE_OPERATOR_STATE, PHASE_GATHER),
-	metamodel.ExtSpec(TYPE_EXPRESSION, TYPE_EXPRESSION_STATE, PHASE_CALCULATING).
+	metamodel.ExtSpec(TYPE_EXPRESSION, TYPE_EXPRESSION_STATE, PHASE_CALCULATE).
 		Foreign(),
 }
 
@@ -40,13 +40,13 @@ var internalTypes = []metamodel.InternalTypeSpecification{
 		metamodel.PhaseSpec(PHASE_PROPAGATE, metamodel.Dep(TYPE_OPERATOR_STATE, PHASE_EXPOSE)),
 	),
 	metamodel.IntSpec(TYPE_EXPRESSION_STATE,
-		metamodel.PhaseSpec(PHASE_CALCULATING, metamodel.Dep(TYPE_OPERATOR_STATE, PHASE_GATHER)),
+		metamodel.PhaseSpec(PHASE_CALCULATE, metamodel.Dep(TYPE_OPERATOR_STATE, PHASE_GATHER)),
 	),
 	metamodel.IntSpec(TYPE_OPERATOR_STATE,
 		metamodel.PhaseSpec(PHASE_GATHER, metamodel.Dep(TYPE_VALUE_STATE, PHASE_PROPAGATE)),
 		metamodel.PhaseSpec(PHASE_EXPOSE,
 			metamodel.LocalDep(PHASE_GATHER),
-			metamodel.Dep(TYPE_EXPRESSION_STATE, PHASE_CALCULATING)),
+			metamodel.Dep(TYPE_EXPRESSION_STATE, PHASE_CALCULATE)),
 	),
 }
 

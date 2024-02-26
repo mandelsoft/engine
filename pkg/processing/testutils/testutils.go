@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mandelsoft/engine/pkg/processing/metamodel"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
@@ -120,6 +121,10 @@ func (t *TestEnv) Processor() *processor.Processor {
 
 func (t *TestEnv) Database() database.Database[db.DBObject] {
 	return t.db
+}
+
+func (t *TestEnv) MetaModel() metamodel.MetaModel {
+	return t.proc.Model().MetaModel()
 }
 
 func (t *TestEnv) AddService(s Startable) error {

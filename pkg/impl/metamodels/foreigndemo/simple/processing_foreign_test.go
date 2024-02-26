@@ -70,7 +70,7 @@ var _ = Describe("Processing", func() {
 				AddOperation("eA", db.OP_ADD, "iA", "iB").
 				AddOutput("C-A", "eA")
 
-			mEx := env.FutureFor(model.STATUS_WAITING, NewElementId(mymetamodel.TYPE_EXPRESSION_STATE, NS, "C", mymetamodel.PHASE_CALCULATING))
+			mEx := env.FutureFor(model.STATUS_WAITING, NewElementId(mymetamodel.TYPE_EXPRESSION_STATE, NS, "C", mymetamodel.PHASE_CALCULATE))
 			MustBeSuccessfull(env.SetObject(opC))
 
 			Expect(env.Wait(mEx)).To(BeTrue())

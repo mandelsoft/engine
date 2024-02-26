@@ -60,6 +60,11 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 			state = n.EffectiveTargetSpec(nil)
 		}
 		s := state.(*EffectiveValueState).GetState()
+		fv := "" // if used as slave it does not have an own formal object version, only a formal (graph) version.
+		if s.Provider == "" {
+			fv = support.NewState(s.ValueSpec).GetVersion()
+		}
+		mod = t.SetFormalObjectVersion(fv) || mod
 		support.UpdateField(&t.Spec, s, &mod)
 		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod

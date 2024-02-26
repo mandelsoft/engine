@@ -62,7 +62,7 @@ func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		values[n] = o.Value
 	}
 	log.Info("- value set from inputs: {{values}}", "values", values)
-	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING)].(*EvaluationOutputState).GetState()
+	ex := req.Inputs[s.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE)].(*EvaluationOutputState).GetState()
 	log.Info("- value set from expressions: {{values}}", "values", ex)
 	for n, v := range ex {
 		values[n] = v
@@ -130,7 +130,7 @@ func NewCurrentExposeState(n *OperatorState) model.CurrentState {
 }
 
 func (c *CurrentExposeState) GetLinks() []ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING)}
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE)}
 }
 
 func (c *CurrentExposeState) GetOutput() model.OutputState {
@@ -150,5 +150,5 @@ func NewTargetExposeState(n *OperatorState) *TargetExposeState {
 }
 
 func (c *TargetExposeState) GetLinks() []ElementId {
-	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATING)}
+	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER), c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE)}
 }
