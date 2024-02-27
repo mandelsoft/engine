@@ -1,6 +1,8 @@
 package database
 
 import (
+	"strings"
+
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
@@ -21,4 +23,15 @@ func SetObjectName[O Object](ns string, n string) runtime.Initializer[O] {
 		o.SetName(n)
 		o.SetNamespace(ns)
 	}
+}
+
+func CompareObjectId(a, b ObjectId) int {
+	d := strings.Compare(a.GetNamespace(), b.GetNamespace())
+	if d == 0 {
+		d = strings.Compare(a.GetName(), b.GetName())
+	}
+	if d == 0 {
+		d = strings.Compare(a.GetType(), b.GetType())
+	}
+	return d
 }

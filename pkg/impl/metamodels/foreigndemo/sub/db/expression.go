@@ -55,11 +55,13 @@ type ExpressionStatus struct {
 	ObservedVersion string           `json:"observedVersion,omitempty"`
 	Output          ExpressionOutput `json:"output,omitempty"`
 
-	Generated GeneratedExpressions `json:"generatedExpressions,omitempty"`
+	Generated GeneratedObjects `json:"generatedExpressions,omitempty"`
 }
 
-type GeneratedExpressions struct {
-	Elements []ElementName `json:"elements,omitempty"`
+type GeneratedObjects struct {
+	Namespace string                    `json:"namespace,omitempty"`
+	Objects   []database.LocalObjectRef `json:"objects,omitempty"`
+	Deleting  []database.LocalObjectRef `json:"deleting,omitempty"`
 }
 
 type ElementName struct {

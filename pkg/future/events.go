@@ -31,7 +31,9 @@ func NewEventManager[I comparable, E comparable]() EventManager[I, E] {
 }
 
 func (p *eventManager[I, E]) Trigger(log logging.Logger, e E, id I) {
-	log.Debug("trigger event {{event}} for {{target}}", "event", e, "target", id)
+	if log != nil {
+		log.Debug("trigger event {{event}} for {{target}}", "event", e, "target", id)
+	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
 

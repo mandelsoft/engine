@@ -65,6 +65,7 @@ type OperatorStatus struct {
 	Message          string       `json:"message,omitempty"`
 	RunId            RunId        `json:"runid,omitempty"`
 	DetectedVersion  string       `json:"detectedVersion,omitempty"`
+	FormalVersion    string       `json:"formalVersion,omitempty"`
 	ObservedVersion  string       `json:"observedVersion,omitempty"`
 	EffectiveVersion string       `json:"effectiveVersion,omitempty"`
 

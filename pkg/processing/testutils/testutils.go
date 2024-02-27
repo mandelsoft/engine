@@ -7,22 +7,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mandelsoft/engine/pkg/processing/metamodel"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
+
+	"github.com/mandelsoft/logging"
+	"github.com/mandelsoft/logging/logrusl"
+	"github.com/mandelsoft/logging/logrusr"
+	"github.com/mandelsoft/vfs/pkg/vfs"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/future"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
-	"github.com/mandelsoft/logging"
-	"github.com/mandelsoft/logging/logrusl"
-	"github.com/mandelsoft/logging/logrusr"
-	"github.com/mandelsoft/vfs/pkg/vfs"
 )
 
 var log = logging.DefaultContext().Logger(logging.NewRealm("testenv"))
@@ -78,7 +79,7 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 	logging.DefaultContext().SetBaseLogger(logrusr.New(logcfg.NewLogrus()))
 
 	lctx := logging.DefaultContext()
-	lctx.AddRule(logging.NewConditionRule(options.debugLevel, logging.NewRealmPrefix("engine/processor")))
+	lctx.AddRule(logging.NewConditionRule(options.debugLevel, logging.NewRealmPrefix("engine")))
 	lctx.AddRule(logging.NewConditionRule(options.debugLevel, logging.NewRealmPrefix("database")))
 
 	ctx := ctxutil.CancelContext(context.Background())
@@ -229,6 +230,8 @@ type handler struct {
 
 var _ database.EventHandler = (*handler)(nil)
 
+const STATUS_ANY = model.Status("any")
+
 func (h *handler) HandleEvent(id database.ObjectId) {
 	o, err := h.db.GetObject(id)
 	if errors.Is(err, database.ErrNotExist) {
@@ -238,6 +241,7 @@ func (h *handler) HandleEvent(id database.ObjectId) {
 			if s, ok := o.(database.StatusSource); ok {
 				h.mgr.Trigger(log, model.Status(s.GetStatusValue()), NewObjectIdFor(id))
 			}
+			h.mgr.Trigger(log, STATUS_ANY, NewObjectIdFor(id))
 		}
 	}
 }

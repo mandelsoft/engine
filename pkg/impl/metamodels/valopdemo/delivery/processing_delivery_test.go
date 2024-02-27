@@ -45,7 +45,7 @@ var _ = Describe("Processing", func() {
 
 			n5 := db.NewValueNode(NS, "A", 5)
 			mn5 := ValueCompleted(env, "A")
-			MustBeSuccessfull(env.SetObject(n5))
+			MustBeSuccessful(env.SetObject(n5))
 
 			Expect(env.Wait(mn5)).To(BeTrue())
 
@@ -56,13 +56,13 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 			opC := db.NewOperatorNode(NS, "C", "A", "B").AddOperation(db.OP_ADD, "C-A")
 
 			mCA := ValueCompleted(env, "C-A")
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(env.Wait(mCA)).To(BeTrue())
 			mCA.Check(env, 11, "C")
@@ -72,11 +72,11 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 			vD := db.NewValueNode(NS, "D", 7)
-			MustBeSuccessfull(env.SetObject(vD))
+			MustBeSuccessful(env.SetObject(vD))
 
 			opC := db.NewOperatorNode(NS, "C", "B", "A").
 				AddOperation(db.OP_ADD, "C-A").
@@ -88,8 +88,8 @@ var _ = Describe("Processing", func() {
 			mEA := ValueCompleted(env, "E-A")
 			mCS := ValueCompleted(env, "C-S")
 
-			MustBeSuccessfull(env.SetObject(opC))
-			MustBeSuccessfull(env.SetObject(opE))
+			MustBeSuccessful(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opE))
 
 			Expect(env.Wait(mEA)).To(BeTrue())
 			Expect(env.Wait(mCS)).To(BeTrue())
@@ -115,12 +115,12 @@ var _ = Describe("Processing", func() {
 			mEA := ValueCompleted(env, "E-A")
 			mCS := ValueCompleted(env, "C-S")
 
-			MustBeSuccessfull(env.SetObject(opE))
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opE))
+			MustBeSuccessful(env.SetObject(opC))
 
-			MustBeSuccessfull(env.SetObject(vD))
-			MustBeSuccessfull(env.SetObject(vB))
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vD))
+			MustBeSuccessful(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vA))
 
 			Expect(env.Wait(mEA)).To(BeTrue())
 			Expect(env.Wait(mCS)).To(BeTrue())
@@ -137,13 +137,13 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 			opC := db.NewOperatorNode(NS, "C", "A", "B").AddOperation(db.OP_ADD, "C-A")
 
 			mCA := ValueCompleted(env, "C-A")
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(env.Wait(mCA)).To(BeTrue())
 			mCA.Check(env, 11, "C")

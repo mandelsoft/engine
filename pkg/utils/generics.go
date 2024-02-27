@@ -142,6 +142,32 @@ func TransformMap[K comparable, V any, M ~map[K]V, TK comparable, TV any](in M, 
 	return r
 }
 
+func FilterSlice[E any, A ~[]E](in A, f func(E) bool) A {
+	var r A
+	for _, v := range in {
+		if f(v) {
+			r = append(r, v)
+		}
+	}
+	return r
+}
+
+func ContainsFilter[E comparable](in ...E) func(E) bool {
+	return func(e E) bool {
+		return slices.Contains(in, e)
+	}
+}
+
+func ContainsFilterFunc[E any](cmp func(E, E) int, in ...E) func(E) bool {
+	return func(e E) bool {
+		return slices.ContainsFunc(in, func(c E) bool { return cmp(e, c) == 0 })
+	}
+}
+
+func NotFilter[E any](f func(E) bool) func(e E) bool {
+	return func(e E) bool { return !f(e) }
+}
+
 func AssertType[C any]() C {
 	var _nil C
 	return _nil

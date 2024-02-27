@@ -28,6 +28,8 @@ import (
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
+const NS = "testspace"
+
 var _ = Describe("Processing", func() {
 	var env *TestEnv
 
@@ -47,7 +49,7 @@ var _ = Describe("Processing", func() {
 
 			n5 := db.NewValueNode(NS, "A", 5)
 			mn5 := ValueCompleted(env, "A")
-			MustBeSuccessfull(env.SetObject(n5))
+			MustBeSuccessful(env.SetObject(n5))
 
 			Expect(env.Wait(mn5)).To(BeTrue())
 
@@ -59,9 +61,9 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 
 			opC := db.NewOperatorNode(NS, "C").
 				AddOperand("iA", "A").
@@ -79,7 +81,7 @@ var _ = Describe("Processing", func() {
 			expected := g.FormalVersion(graph.MapToPhaseId(rid, env.MetaModel()))
 
 			mCA := ValueCompleted(env, "C-A")
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(env.Wait(mCA)).To(BeTrue())
 			mCA.Check(env, 11, "C")

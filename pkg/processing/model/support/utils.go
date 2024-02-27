@@ -319,7 +319,7 @@ var statusmerge = map[model.Status]map[model.Status]model.Status{
 	},
 }
 
-func mergeStatus(a, b model.Status) model.Status {
+func MergeStatus(a, b model.Status) model.Status {
 	n := statusmerge[a]
 	if n != nil {
 		m, ok := n[b]
@@ -335,7 +335,7 @@ func mergeStatus(a, b model.Status) model.Status {
 func CombinedPhaseStatus[I db.InternalDBObject](access PhaseStateAccess[I], o I) model.Status {
 	status := model.STATUS_INITIAL
 	for _, a := range access {
-		status = mergeStatus(status, a(o).GetStatus())
+		status = MergeStatus(status, a(o).GetStatus())
 	}
 	return status
 }
@@ -343,7 +343,7 @@ func CombinedPhaseStatus[I db.InternalDBObject](access PhaseStateAccess[I], o I)
 func CombinedStatus(ss ...StatusSource) model.Status {
 	status := model.STATUS_INITIAL
 	for _, s := range ss {
-		status = mergeStatus(status, s.GetStatus())
+		status = MergeStatus(status, s.GetStatus())
 	}
 	return status
 }

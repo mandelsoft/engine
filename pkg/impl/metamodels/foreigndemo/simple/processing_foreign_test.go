@@ -49,7 +49,7 @@ var _ = Describe("Processing", func() {
 
 			n5 := db.NewValueNode(NS, "A", 5)
 			mn5 := ValueCompleted(env, "A")
-			MustBeSuccessfull(env.SetObject(n5))
+			MustBeSuccessful(env.SetObject(n5))
 
 			Expect(env.Wait(mn5)).To(BeTrue())
 
@@ -60,9 +60,9 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 
 			opC := db.NewOperatorNode(NS, "C").
 				AddOperand("iA", "A").
@@ -71,7 +71,7 @@ var _ = Describe("Processing", func() {
 				AddOutput("C-A", "eA")
 
 			mEx := env.FutureFor(model.STATUS_WAITING, NewElementId(mymetamodel.TYPE_EXPRESSION_STATE, NS, "C", mymetamodel.PHASE_CALCULATE))
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(env.Wait(mEx)).To(BeTrue())
 		})
@@ -81,9 +81,9 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 
 			opC := db.NewOperatorNode(NS, "C").
 				AddOperand("iA", "A").
@@ -92,7 +92,7 @@ var _ = Describe("Processing", func() {
 				AddOutput("C-A", "eA")
 
 			mCA := ValueCompleted(env, "C-A")
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(env.Wait(mCA)).To(BeTrue())
 			mCA.Check(env, 11, "C")
@@ -103,9 +103,9 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 
 			opC := db.NewOperatorNode(NS, "C").
 				AddOperand("iA", "A").
@@ -114,7 +114,7 @@ var _ = Describe("Processing", func() {
 				AddOutput("C-A", "eA")
 
 			mCA := ValueCompleted(env, "C-A", true)
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(env.Wait(mCA)).To(BeTrue())
 			mCA.Check(env, 11, "C")
@@ -147,9 +147,9 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA = db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB = db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 
 			opC = db.NewOperatorNode(NS, "C").
 				AddOperand("iA", "A").
@@ -158,7 +158,7 @@ var _ = Describe("Processing", func() {
 				AddOutput("C-A", "eA")
 
 			fCA = env.FutureFor(model.STATUS_COMPLETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "C-A", mymetamodel.FINAL_VALUE_PHASE), true)
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 		})
 
 		It("deletes all", func() {
@@ -168,9 +168,9 @@ var _ = Describe("Processing", func() {
 			fvA := env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
 			fvB := env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "B", mymetamodel.FINAL_VALUE_PHASE))
 
-			MustBeSuccessfull(env.DéleteObject(vA))
-			MustBeSuccessfull(env.DéleteObject(vB))
-			MustBeSuccessfull(env.DéleteObject(opC))
+			MustBeSuccessful(env.DéleteObject(vA))
+			MustBeSuccessful(env.DéleteObject(vB))
+			MustBeSuccessful(env.DéleteObject(opC))
 
 			Expect(env.WaitWithTimeout(fvA)).To(BeTrue())
 			Expect(env.WaitWithTimeout(fvB)).To(BeTrue())

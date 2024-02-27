@@ -48,7 +48,7 @@ var _ = Describe("Processing", func() {
 			mvA := NewValueMon(env, "A")
 
 			fmt.Printf("set A\n")
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 
 			fmt.Printf("wait A\n")
 			Expect(env.Wait(mvA)).To(BeTrue())
@@ -59,13 +59,13 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(vA))
+			MustBeSuccessful(env.SetObject(vA))
 			vB := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(vB))
+			MustBeSuccessful(env.SetObject(vB))
 			opC := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 
 			opCcompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			Expect(opCcompleted.Wait(ctxutil.TimeoutContext(env.Context(), 20*time.Second))).To(BeTrue())
 			nan := Must(env.GetObject(opC))
@@ -78,16 +78,16 @@ var _ = Describe("Processing", func() {
 			env.Start()
 
 			nr := db.NewResultNode(NS, "D", "C")
-			MustBeSuccessfull(env.SetObject(nr))
+			MustBeSuccessful(env.SetObject(nr))
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			nacompleted := env.CompletedFuture(mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE), true)
-			MustBeSuccessfull(env.SetObject(na))
+			MustBeSuccessful(env.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(n5))
+			MustBeSuccessful(env.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(n6))
+			MustBeSuccessful(env.SetObject(n6))
 
 			var result *int
 			for i := 0; i < 3; i++ {
@@ -142,16 +142,16 @@ var _ = Describe("Processing", func() {
 			//    C
 			//    D
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(env.SetObject(n5))
+			MustBeSuccessful(env.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(env.SetObject(n6))
+			MustBeSuccessful(env.SetObject(n6))
 			opC = db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			opCcompleted := env.FutureFor(model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.FINAL_OPERATOR_PHASE))
-			MustBeSuccessfull(env.SetObject(opC))
+			MustBeSuccessful(env.SetObject(opC))
 
 			nd := db.NewResultNode(NS, "D", "C")
 			vdCompleted := NewValueStateMon(env, "D", model.STATUS_COMPLETED, true)
-			MustBeSuccessfull(env.SetObject(nd))
+			MustBeSuccessful(env.SetObject(nd))
 
 			Expect(env.Wait(opCcompleted)).To(BeTrue())
 			Expect(env.Wait(vdCompleted)).To(BeTrue())
@@ -183,9 +183,9 @@ var _ = Describe("Processing", func() {
 
 			vGCompleted := NewValueStateMon(env, "G", model.STATUS_COMPLETED, true)
 
-			MustBeSuccessfull(env.SetObject(opF))
-			MustBeSuccessfull(env.SetObject(vE))
-			MustBeSuccessfull(env.SetObject(vG))
+			MustBeSuccessful(env.SetObject(opF))
+			MustBeSuccessful(env.SetObject(vE))
+			MustBeSuccessful(env.SetObject(vG))
 
 			Expect(env.Wait(vGCompleted)).To(BeTrue())
 			o := Must(env.GetObject(vG)).(*db.Value)

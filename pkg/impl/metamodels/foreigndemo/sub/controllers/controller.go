@@ -4,19 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/expression"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/pool"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/engine/pkg/version"
 	"github.com/mandelsoft/logging"
-
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 type ExpressionController struct {
@@ -27,7 +29,7 @@ type ExpressionController struct {
 var _ pool.Action = (*ExpressionController)(nil)
 
 func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.DBObject]) *ExpressionController {
-	p := pool.NewPool(ctx, lctx, "controller", size, 0)
+	p := pool.NewPool(ctx, lctx, "controller", size, 0, true)
 
 	c := &ExpressionController{
 		pool: p,
@@ -66,14 +68,152 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 		log.Info("already up to date")
 		return pool.StatusCompleted()
 	}
-	err = Validate(o)
+	infos, order, err := Validate(o)
 	if err != nil {
 		return c.StatusFailed(log, o, "validation of {{expression}} failed", err)
 	}
 
-	out, err := Calculate(log, o)
+	values := Values{}
+	err = PreCalc(log, order, infos, values)
+
 	if err != nil {
-		return c.StatusFailed(log, o, "calculation of {{expression}} failed", err)
+		return c.StatusFailed(log, o, "validation of {{expression}} failed", err)
+	}
+
+	namespace := o.Status.Generated.Namespace
+
+	var g graph.Graph
+	if m := values.Missing(infos); len(m) > 0 {
+		log.Info("found external expressions {{missing}}", "missing", strings.Join(m, ","))
+		if namespace == "" {
+			namespace = o.Namespace + "/" + o.Name
+			_, err = database.Modify(c.db, &o, func(o *db.Expression) (bool, bool) {
+				mod := support.UpdateField(&o.Status.Generated.Namespace, &namespace)
+				return mod, mod
+			})
+			if err != nil {
+				return pool.StatusCompleted(err)
+			}
+			log.Info("using namespace {{namespace}}", "namespace", namespace)
+		}
+		g, err = Generate(log, namespace, infos, values)
+		if err != nil {
+			return c.StatusFailed(log, o, "generation of slaves failed", err)
+		}
+	} else {
+		g, _ = graph.NewGraph(version.Composed)
+	}
+
+	d := OldRefs(o, g)
+	n := NewRefs(o, g)
+	if len(d) > 0 || len(n) > 0 {
+		log.Info("found new slaves {{new}}", "new", utils.Join(n, ","))
+		log.Info("found obsolete slaves {{obsolete}}", "obsolete", utils.Join(d, ","))
+		mod := func(o *db.Expression) bool {
+			m := false
+			support.UpdateField(&o.Status.Generated.Objects, utils.Pointer(utils.AppendUnique(o.Status.Generated.Objects, n...)), &m)
+			support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.AppendUnique(o.Status.Generated.Deleting, d...)), &m)
+			return m
+		}
+		ok, err := database.DirectModify(c.db, &o, mod)
+		if err != nil {
+			return pool.StatusCompleted(err)
+		}
+		if !ok {
+			return pool.StatusCompleted(fmt.Errorf("object outdated"))
+		}
+	}
+
+	if len(o.Status.Generated.Deleting) > 0 {
+		var deleted []database.LocalObjectRef
+
+		log.Info("handled graph deletions")
+		for _, l := range o.Status.Generated.Deleting {
+			id := l.In(namespace)
+			d, err := c.db.GetObject(id)
+			if err == database.ErrNotExist {
+				deleted = append(deleted, l)
+				log.Info("- {{oid}} already deleted", "oid", id)
+			} else if err != nil {
+				return pool.StatusCompleted(err)
+			}
+
+			if d.IsDeleting() {
+				log.Info("- {{oid}} still deleting", "oid", id)
+			} else {
+				err := c.db.DeleteObject(id)
+				if err != nil {
+					return pool.StatusCompleted(err)
+				}
+				d, err = c.db.GetObject(id)
+				if err == database.ErrNotExist {
+					log.Info("- {{oid}} deleted", "oid", id)
+					deleted = append(deleted, l)
+				} else {
+					log.Info("- {{oid}} deletion requested", "oid", id)
+				}
+			}
+		}
+
+		if len(deleted) > 0 {
+			log.Info("removing deleted objects ({{deleted}})", utils.Join(deleted, ","))
+			mod := func(o *db.Expression) bool {
+				return support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.FilterSlice(o.Status.Generated.Deleting, utils.NotFilter(utils.ContainsFilter(deleted...)))))
+			}
+			ok, err := database.DirectModify(c.db, &o, mod)
+			if err != nil {
+				return pool.StatusCompleted(err)
+			}
+			if !ok {
+				return pool.StatusCompleted(fmt.Errorf("object outdated"))
+			}
+		}
+	}
+
+	if !g.IsEmpty() {
+		mod, err := g.UpdateDB(log, c.db)
+		if mod || err != nil {
+			if err != nil {
+				log.LogError(err, "db update for generated object failed")
+			}
+			if mod {
+				log.Info("generated graph updated on db -> skip further processing")
+			}
+			return pool.StatusCompleted(err)
+		}
+
+		final, status, err := g.CheckDB(log, c.db)
+		if err != nil {
+			return pool.StatusCompleted(err)
+		}
+		if !final {
+			log.Info("expression graph processing not yet final ({{status}})", "status", status)
+			return pool.StatusCompleted()
+		}
+		if status != model.STATUS_COMPLETED {
+			return c.StatusFailed(log, o, "", fmt.Errorf("graph processing failed"))
+		}
+	} else {
+		log.Info("no expression graph required")
+	}
+
+	if !values.IsComplete(infos) {
+		err = Gather(log, c.db, namespace, infos, values)
+		if err != nil {
+			return pool.StatusCompleted(err)
+		}
+		err = PreCalc(log, order, infos, values)
+		if err != nil {
+			return c.StatusFailed(log, o, "expression calculation failed", err)
+		}
+	}
+
+	out := db.ExpressionOutput{}
+
+	log.Info("setting outputs")
+	for _, n := range utils.OrderedMapKeys(o.Spec.Expressions) {
+		out[n] = values[n]
+		log.Info("- {{output}} = {{value}}", "output", n, "value", out[n])
 	}
 
 	l := len(o.Spec.Expressions)
@@ -124,110 +264,25 @@ func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression
 	return pool.StatusFailed(err)
 }
 
-func Validate(o *db.Expression) error {
-	if len(o.Spec.Operands) == 0 && len(o.Spec.Expressions) > 0 {
-		return fmt.Errorf("no operand specified")
-	}
-	for n, e := range o.Spec.Expressions {
-		switch e.Operator {
-		case db.OP_ADD, db.OP_SUB, db.OP_MUL, db.OP_DIV:
-			if e.Expression != "" {
-				return fmt.Errorf("complex expression not possible for simple operator %q for expression %q", e.Operator, n)
-			}
-			for _, a := range e.Operands {
-				if _, ok := o.Spec.Operands[a]; !ok {
-					return fmt.Errorf("operand %q for expression %q not found", a, n)
-				}
-			}
-		case db.OP_EXPR:
-			if e.Expression == "" {
-				return fmt.Errorf("complex expression required for operator %q in expression %q", e.Operator, n)
-			}
-			if len(e.Operands) != 0 {
-				return fmt.Errorf("explicit operands not possible for complex expression in expression %q", n)
-			}
-			node, err := expression.Parse(e.Expression)
-			if err != nil {
-				return fmt.Errorf("complex expression in expression %q is invalid: %w", n, err)
-			}
-			for _, a := range node.Operands() {
-				if _, ok := o.Spec.Operands[a]; !ok {
-					return fmt.Errorf("operand %q for expression %q not found", a, n)
-				}
-			}
-		default:
-			return fmt.Errorf("invalid operator %q for expression %q", e.Operator, n)
-		}
-	}
-	return nil
+type ExpressionInfo struct {
+	Value    *int
+	Operator db.OperatorName
+	Node     *expression.Node
+	Operands []string
 }
 
-func Calculate(log logging.Logger, o *db.Expression) (db.ExpressionOutput, error) {
-	out := db.ExpressionOutput{}
-
-	if len(o.Spec.Expressions) == 0 {
-		log.Info("no expressions found")
+func NewExpressionInfo(ops ...string) *ExpressionInfo {
+	return &ExpressionInfo{
+		Operands: ops,
 	}
-	for n, e := range o.Spec.Expressions {
-		if len(e.Operands) == 0 {
-			continue
-		}
-		var operands []int
-		for _, a := range e.Operands {
-			operands = append(operands, o.Spec.Operands[a])
-		}
-		op := e.Operator
-
-		r := operands[0]
-		log.Info("calculate operation {{operation}}: {{operator}} {{operands}}", "operation", n, "operator", op, "operands", operands)
-		switch op {
-		case db.OP_ADD:
-			for _, v := range operands[1:] {
-				r += v
-			}
-		case db.OP_SUB:
-			for _, v := range operands[1:] {
-				r -= v
-			}
-		case db.OP_MUL:
-			for _, v := range operands[1:] {
-				r *= v
-			}
-		case db.OP_DIV:
-			for _, v := range operands[1:] {
-				if v == 0 {
-					return nil, fmt.Errorf("division by zero for operation %q", n)
-				}
-				r /= v
-			}
-		}
-		out[n] = r
-		log.Info("result {{result}}", "result", r)
-	}
-	return out, nil
 }
 
-func Generate(log logging.Logger, o *db.Expression) error {
-
-	values := map[string]int{}
-
-	for n, e := range o.Spec.Expressions {
-		{
-			if e.Operator != db.OP_EXPR {
-				continue
-			}
-
-			node, err := expression.Parse(e.Expression)
-			if err != nil {
-				return fmt.Errorf("expression %q: %w", n, err)
-			}
-
-			for _, a := range node.Operands() {
-				_ = a
-			}
-		}
+func (i *ExpressionInfo) String() string {
+	if i.Value != nil {
+		return fmt.Sprintf("%d", *i.Value)
 	}
-
-	_ = values
-	return nil
+	if i.Node != nil {
+		return i.Node.String()
+	}
+	return fmt.Sprintf("%s [%s]", i.Operator, strings.Join(i.Operands, ","))
 }

@@ -3,6 +3,8 @@ package expression
 import (
 	"fmt"
 	"slices"
+
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type Node struct {
@@ -17,9 +19,34 @@ func (n *Node) String() string {
 		return fmt.Sprintf("%d", *n.Value)
 	}
 	if len(n.Parents) > 0 {
-		return fmt.Sprintf("(%s%s%s)", n.Parents[0], n.Name, n.Parents[1])
+		s := ""
+		sep := ""
+		for _, p := range n.Parents {
+			s = fmt.Sprintf("%s%s%s", s, sep, p)
+			sep = n.Name
+		}
+		return fmt.Sprintf("(%s)", s)
 	}
 	return n.Name
+}
+
+func NewValueNode(v int) *Node {
+	return &Node{
+		Value: utils.Pointer(v),
+	}
+}
+
+func NewOperandNode(n string) *Node {
+	return &Node{
+		Name: n,
+	}
+}
+
+func NewOperatorNode(op string, ops ...*Node) *Node {
+	return &Node{
+		Name:    op,
+		Parents: ops,
+	}
 }
 
 func (n *Node) Operands() []string {

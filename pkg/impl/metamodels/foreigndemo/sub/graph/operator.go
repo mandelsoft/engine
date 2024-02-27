@@ -3,8 +3,11 @@ package graph
 import (
 	"strconv"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
 )
@@ -19,6 +22,39 @@ func NewOperator(v *db.Operator) *Operator {
 	return &Operator{
 		Operator: v,
 	}
+}
+
+func (v *Operator) Object() database.Object {
+	return v.Operator
+}
+
+func (v *Operator) DBUpdate(o database.Object) bool {
+	op := o.(*db.Operator)
+	mod := false
+	support.UpdateField(&op.Spec, &v.Spec, &mod)
+	return mod
+}
+
+func (v *Operator) DBCheck(g Graph, o database.Object) (bool, model.Status, error) {
+	op := o.(*db.Operator)
+
+	if op.Status.DetectedVersion != utils.HashData(v.Spec) {
+		return false, "", nil
+	}
+
+	fvmatch := op.Status.FormalVersion == g.FormalVersion(GraphIdForPhase(o, op.Status.Phase))
+
+	switch op.Status.Phase {
+	case mymetamodel.PHASE_GATHER:
+		if fvmatch && op.Status.Status != model.STATUS_COMPLETED {
+			return true, op.Status.Status, nil
+		}
+	case mymetamodel.PHASE_EXPOSE:
+		if fvmatch {
+			return true, op.Status.Status, nil
+		}
+	}
+	return false, "", nil
 }
 
 func (v *Operator) SubGraph() []version.Node {

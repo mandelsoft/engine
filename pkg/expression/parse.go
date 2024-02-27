@@ -4,7 +4,6 @@ import (
 	"unicode"
 
 	"github.com/mandelsoft/engine/pkg/scanner"
-	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type parser struct {
@@ -63,9 +62,7 @@ func (s *parser) parseNumber() (*Node, error) {
 		num = num*10 + int(n-rune('0'))
 		n = s.Next()
 	}
-	return &Node{
-		Value: utils.Pointer(num * sign),
-	}, nil
+	return NewValueNode(num * sign), nil
 }
 
 func (s *parser) parseName() (*Node, error) {
@@ -81,9 +78,7 @@ func (s *parser) parseName() (*Node, error) {
 			break
 		}
 	}
-	return &Node{
-		Name: name,
-	}, nil
+	return NewOperandNode(name), nil
 }
 
 func (s *parser) parseLevel0() (*Node, error) {
@@ -100,11 +95,7 @@ func (s *parser) parseLevel0() (*Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			o1 = &Node{
-				Name:    string(op),
-				Parents: []*Node{o1, o2},
-				Value:   nil,
-			}
+			o1 = NewOperatorNode(string(op), o1, o2)
 		default:
 			return o1, nil
 		}
@@ -125,11 +116,7 @@ func (s *parser) parseLevel1() (*Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			o1 = &Node{
-				Name:    string(op),
-				Parents: []*Node{o1, o2},
-				Value:   nil,
-			}
+			o1 = NewOperatorNode(string(op), o1, o2)
 		default:
 			return o1, nil
 		}

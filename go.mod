@@ -3,6 +3,7 @@ module github.com/mandelsoft/engine
 go 1.21
 
 require (
+	github.com/drone/envsubst v1.0.3
 	github.com/go-test/deep v1.1.0
 	github.com/google/uuid v1.3.0
 	github.com/gowebpki/jcs v1.0.1

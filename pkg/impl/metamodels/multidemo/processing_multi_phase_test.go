@@ -48,7 +48,7 @@ var _ = Describe("Processing", func() {
 		fs = Must(TestFileSystem("testdata", false))
 
 		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[db2.DBObject]("testdata", fs))
-		MustBeSuccessfull(spec.Validate())
+		MustBeSuccessful(spec.Validate())
 
 		logbuf = bytes.NewBuffer(nil)
 		logcfg := logrusl.Human(true)
@@ -80,7 +80,7 @@ var _ = Describe("Processing", func() {
 			n5 := db.NewValueNode(NS, "A", 5)
 			n5completed := proc.FutureFor(model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "A", mymetamodel.FINAL_PHASE))
 
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessful(odb.SetObject(n5))
 
 			Expect(n5completed.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 
@@ -94,12 +94,12 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessful(odb.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(n6))
+			MustBeSuccessful(odb.SetObject(n6))
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			nacompleted := proc.FutureFor(model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))
-			MustBeSuccessfull(odb.SetObject(na))
+			MustBeSuccessful(odb.SetObject(na))
 
 			Expect(nacompleted.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 			nan := Must(odb.GetObject(na))
@@ -117,12 +117,12 @@ var _ = Describe("Processing", func() {
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			nacompleted := proc.FutureFor(model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE), true)
-			MustBeSuccessfull(odb.SetObject(na))
+			MustBeSuccessful(odb.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessful(odb.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(n6))
+			MustBeSuccessful(odb.SetObject(n6))
 
 			var result *int
 			for i := 0; i < 3; i++ {

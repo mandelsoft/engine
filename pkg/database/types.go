@@ -147,6 +147,30 @@ type ObjectId interface {
 	runtime.TypeAccessor
 }
 
+type LocalObjectRef struct {
+	runtime.ObjectMeta `json:",inline"`
+	Name               string `json:"name"`
+}
+
+func NewLocalObjectRef(typ, name string) LocalObjectRef {
+	return LocalObjectRef{runtime.ObjectMeta{typ}, name}
+}
+
+func NewLocalObjectRefFor(id ObjectId) LocalObjectRef {
+	return LocalObjectRef{
+		ObjectMeta: runtime.ObjectMeta{id.GetType()},
+		Name:       id.GetName(),
+	}
+}
+
+func (r LocalObjectRef) String() string {
+	return fmt.Sprintf("%s:%s", r.Type, r.Name)
+}
+
+func (r LocalObjectRef) In(ns string) ObjectId {
+	return NewObjectId(r.Type, ns, r.Name)
+}
+
 type ObjectRef struct {
 	runtime.ObjectMeta `json:",inline"`
 	Namespace          string `json:"namespace"`

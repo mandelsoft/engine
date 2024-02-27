@@ -57,7 +57,7 @@ var _ = Describe("database", func() {
 	Context("write", func() {
 		It("writes object", func() {
 			a := NewA("ns3/sub1", "o2", "A-ns3/sub1-o2")
-			MustBeSuccessfull(db.SetObject(a))
+			MustBeSuccessful(db.SetObject(a))
 
 			Expect(deep.Equal(Must(db.GetObject(a)), a)).To(BeNil())
 			list := Must(db.ListObjects(TYPE_A, "ns3/sub1"))
@@ -104,7 +104,7 @@ var _ = Describe("database", func() {
 			Expect(database.GetGeneration(o1)).To(Equal(int64(0)))
 
 			o1.(*A).A = "modified"
-			MustBeSuccessfull(db.SetObject(o1))
+			MustBeSuccessful(db.SetObject(o1))
 			Expect(database.GetGeneration(o1)).To(Equal(int64(1)))
 
 			o1 = Must(db.GetObject(id))
@@ -122,7 +122,7 @@ var _ = Describe("database", func() {
 			o1.(*A).A = "modified"
 			o2.(*A).A = "first"
 
-			MustBeSuccessfull(db.SetObject(o2))
+			MustBeSuccessful(db.SetObject(o2))
 			Expect(database.GetGeneration(o2)).To(Equal(int64(1)))
 
 			Expect(db.SetObject(o1)).To(MatchError("object modified"))

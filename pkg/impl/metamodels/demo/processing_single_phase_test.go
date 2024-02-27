@@ -48,7 +48,7 @@ var _ = Describe("Processing", func() {
 		fs = Must(TestFileSystem("testdata", false))
 
 		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[db2.DBObject]("testdata", fs))
-		MustBeSuccessfull(spec.Validate())
+		MustBeSuccessful(spec.Validate())
 
 		logbuf = bytes.NewBuffer(nil)
 		logcfg := logrusl.Human(true)
@@ -79,7 +79,7 @@ var _ = Describe("Processing", func() {
 
 			n5 := db.NewValueNode(NS, "A", 5)
 
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessful(odb.SetObject(n5))
 
 			Expect(proc.Wait(ctxutil.TimeoutContext(ctx, 20*time.Second))).To(BeTrue())
 
@@ -93,11 +93,11 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessful(odb.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(n6))
+			MustBeSuccessful(odb.SetObject(n6))
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			MustBeSuccessfull(odb.SetObject(na))
+			MustBeSuccessful(odb.SetObject(na))
 
 			Expect(proc.WaitFor(ctxutil.TimeoutContext(ctx, 20*time.Second), model.STATUS_COMPLETED, mmids.NewElementId(mymetamodel.TYPE_NODE_STATE, NS, "C", mymetamodel.FINAL_PHASE))).To(BeTrue())
 
@@ -115,12 +115,12 @@ var _ = Describe("Processing", func() {
 			proc.Start(wg)
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
-			MustBeSuccessfull(odb.SetObject(na))
+			MustBeSuccessful(odb.SetObject(na))
 			runtime.Gosched()
 			n5 := db.NewValueNode(NS, "A", 5)
-			MustBeSuccessfull(odb.SetObject(n5))
+			MustBeSuccessful(odb.SetObject(n5))
 			n6 := db.NewValueNode(NS, "B", 6)
-			MustBeSuccessfull(odb.SetObject(n6))
+			MustBeSuccessful(odb.SetObject(n6))
 
 			var result *int
 			for i := 0; i < 3; i++ {
