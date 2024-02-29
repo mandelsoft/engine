@@ -98,7 +98,7 @@ var _ = Describe("Processing", func() {
 			mEA.Check(env, 77, "E")
 		})
 
-		It("multiple operators with multiple outputs creating value node (wrong order)", func() {
+		FIt("multiple operators with multiple outputs creating value node (wrong order)", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)
@@ -229,7 +229,7 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 }
 
 func (m *ValueMon) Check(env *TestEnv, value int, provider string) {
-	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.Object](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	ExpectWithOffset(1, v.(*db.Value).Status.Provider).To(Equal(provider))

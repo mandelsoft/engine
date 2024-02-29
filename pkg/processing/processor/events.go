@@ -35,7 +35,7 @@ func (p *PendingCounter) Add(delta int64) {
 	defer p.lock.Unlock()
 	p.pending += delta
 
-	fmt.Printf("******* pending %d *******\n", p.pending)
+	fmt.Printf("******* pending %d (%d) *******\n", p.pending, len(p.waiting))
 	if p.pending <= 0 {
 		p.pending = 0
 		for _, w := range p.waiting {
@@ -50,6 +50,7 @@ func (p *PendingCounter) Wait(ctx context.Context) bool {
 
 	c := make(chan struct{})
 	p.waiting = append(p.waiting, c)
+	fmt.Printf("******* waiting %d (%d) *******\n", p.pending, len(p.waiting))
 	p.lock.Unlock()
 
 	defer func() {

@@ -13,7 +13,7 @@ import (
 var OperatorPhaseStateAccess = support.NewPhaseStateAccess[*OperatorState]()
 
 func init() {
-	database.MustRegisterType[OperatorState, db.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[OperatorState, db.Object](Scheme) // Goland requires second type parameter
 
 	// register acc to phase info parts in OperatorState
 	OperatorPhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *OperatorState) db.PhaseState { return &o.Gather })

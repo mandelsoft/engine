@@ -12,7 +12,7 @@ import (
 var ValuePhaseStateAccess = support.NewPhaseStateAccess[*ValueState]()
 
 func init() {
-	database.MustRegisterType[ValueState, db.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[ValueState, db.Object](Scheme) // Goland requires second type parameter
 
 	// register access to phase info parts in ValueState
 	ValuePhaseStateAccess.Register(mymetamodel.PHASE_PROPAGATE, func(o *ValueState) db.PhaseState { return &o.PropagateState })

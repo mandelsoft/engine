@@ -4,7 +4,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 )
 
-type DBObject interface {
+type Object interface {
 	database.Object
 	database.GenerationAccess
 	database.Finalizable

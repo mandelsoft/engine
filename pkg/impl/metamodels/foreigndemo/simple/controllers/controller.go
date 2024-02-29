@@ -20,12 +20,12 @@ import (
 
 type ExpressionController struct {
 	pool pool.Pool
-	db   database.Database[db2.DBObject]
+	db   database.Database[db2.Object]
 }
 
 var _ pool.Action = (*ExpressionController)(nil)
 
-func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.DBObject]) *ExpressionController {
+func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.Object]) *ExpressionController {
 	p := pool.NewPool(ctx, lctx, "controller", size, 0)
 
 	c := &ExpressionController{

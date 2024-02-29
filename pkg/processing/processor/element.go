@@ -107,12 +107,13 @@ func (e *element) TryLock(ob objectbase.Objectbase, id RunId) (bool, error) {
 }
 
 func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunId, keepobserved bool, formal ...string) (bool, error) {
-	if e.target != nil && keepobserved {
-		lctx.Logger().Info("rollback target state and update observed version")
+	if keepobserved {
+		v := e.GetTargetState().GetObjectVersion()
+		lctx.Logger().Info("rollback target state and update observed version ({{version}}", "version", v)
 		if len(formal) > 0 {
-			return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, utils.Pointer(e.target.GetObjectVersion()), utils.Pointer(utils.Optional(formal...)))
+			return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, utils.Pointer(v), utils.Pointer(utils.Optional(formal...)))
 		}
-		return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, utils.Pointer(e.target.GetObjectVersion()), nil)
+		return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, utils.Pointer(v), nil)
 	}
 	lctx.Logger().Info("rollback target state")
 	return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, nil, nil)

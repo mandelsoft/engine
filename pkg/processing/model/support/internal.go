@@ -48,7 +48,7 @@ type pointer[P any] interface {
 
 type InternalObject interface {
 	model.InternalObject
-	GetBase() db.DBObject
+	GetBase() db.Object
 	GetPhaseState(phase mmids.Phase) db.PhaseState
 	GetPhaseStateFor(o db.InternalDBObject, phase mmids.Phase) db.PhaseState
 }
@@ -97,8 +97,8 @@ func (n *InternalObjectSupport[I]) GetExternalState(o model.ExternalObject, phas
 	return o.GetState()
 }
 
-func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase2.Objectbase) database.Database[db.DBObject] {
-	return objectbase2.GetDatabase[db.DBObject](ob)
+func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase2.Objectbase) database.Database[db.Object] {
+	return objectbase2.GetDatabase[db.Object](ob)
 }
 
 func (n *InternalObjectSupport[I]) GetStatus(phase mmids.Phase) model.Status {
@@ -111,7 +111,7 @@ func (n *InternalObjectSupport[I]) SetStatus(ob internal.Objectbase, phase mmids
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(o db.DBObject) (bool, bool) {
+	mod := func(o db.Object) (bool, bool) {
 		b := n.GetPhaseState(phase).SetStatus(status)
 		return b, b
 	}
@@ -128,7 +128,7 @@ func (n *InternalObjectSupport[I]) TryLock(ob objectbase2.Objectbase, phase mmid
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(o db.DBObject) (bool, bool) {
+	mod := func(o db.Object) (bool, bool) {
 		b := n.GetPhaseState(phase).TryLock(id)
 		return b, b
 	}
@@ -139,7 +139,7 @@ func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase2.O
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(_o db.DBObject) (bool, bool) {
+	mod := func(_o db.Object) (bool, bool) {
 		p := n.GetPhaseStateFor(_o.(I), phase)
 		b := p.ClearLock(id)
 		if b {
@@ -162,7 +162,7 @@ func (n *InternalObjectSupport[I]) MarkPhasesForDeletion(ob objectbase2.Objectba
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(_o db.DBObject) (bool, bool) {
+	mod := func(_o db.Object) (bool, bool) {
 		mod := false
 		t := utils.NewTimestamp()
 		for _, phase := range phases {
@@ -195,7 +195,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 	defer n.Lock.Unlock()
 
 	log := lctx.Logger()
-	mod := func(_o db.DBObject) (bool, bool) {
+	mod := func(_o db.Object) (bool, bool) {
 		log.Info("Commit target state for {{element}}")
 		o := _o.(I)
 		p := n.GetPhaseStateFor(o, phase)

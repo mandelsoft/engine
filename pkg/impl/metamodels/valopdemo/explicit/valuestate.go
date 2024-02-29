@@ -45,7 +45,7 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 }
 
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalState) (model.AcceptStatus, error) {
-	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false

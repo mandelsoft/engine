@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	database.MustRegisterType[Node, db.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Node, db.Object](Scheme) // Goland requires second type parameter
 }
 
 type Node struct {

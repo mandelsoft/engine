@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	database.MustRegisterType[Expression, db.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Expression, db.Object](Scheme) // Goland requires second type parameter
 }
 
 type Expression struct {

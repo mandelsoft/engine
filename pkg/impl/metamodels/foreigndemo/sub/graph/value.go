@@ -8,6 +8,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/logging"
 )
 
 type Value struct {
@@ -35,11 +36,13 @@ func (v *Value) DBUpdate(o database.Object) bool {
 	return mod
 }
 
-func (v *Value) DBCheck(g Graph, o database.Object) (bool, model.Status, error) {
+func (v *Value) DBCheck(log logging.Logger, g Graph, o database.Object) (bool, model.Status, error) {
 	op := o.(*db.Value)
+	exp := g.FormalVersion(GraphIdForPhase(o, mymetamodel.FINAL_VALUE_PHASE))
 	if op.Status.FormalVersion == g.FormalVersion(GraphIdForPhase(o, mymetamodel.FINAL_VALUE_PHASE)) {
 		return true, op.Status.Status, nil
 	}
+	log.Debug("  formal version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.FormalVersion)
 	if op.Status.DetectedVersion == utils.HashData(v.Spec) {
 		return true, op.Status.Status, nil
 	}

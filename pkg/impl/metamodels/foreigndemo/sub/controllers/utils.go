@@ -8,6 +8,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/logging"
 )
 
 type Values map[string]int
@@ -42,13 +43,26 @@ func (v Values) Missing(elems map[string]*ExpressionInfo) []string {
 
 func OldRefs(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
 	return utils.FilterSlice(o.Status.Generated.Objects, func(l database.LocalObjectRef) bool {
-		return g.HasObject(database.NewObjectId(l.GetType(), o.Status.Generated.Namespace, l.Name))
+		return !g.HasObject(database.NewObjectId(l.GetType(), o.Status.Generated.Namespace, l.Name))
 	})
 }
 
 func NewRefs(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
 	n := utils.TransformSlice(g.Objects(), database.NewLocalObjectRefFor)
-	return utils.FilterSlice(o.Status.Generated.Objects, func(l database.LocalObjectRef) bool {
-		return !slices.Contains(n, l)
+	return utils.FilterSlice(n, func(l database.LocalObjectRef) bool {
+		return !slices.Contains(o.Status.Generated.Objects, l)
 	})
+}
+
+func GenerateGraph(log logging.Logger, e *db.Expression, namespace string) (graph.Graph, error) {
+	infos, order, err := Validate(e)
+	if err != nil {
+		return nil, err
+	}
+	values := map[string]int{}
+	err = PreCalc(log, order, infos, values)
+	if err != nil {
+		return nil, err
+	}
+	return Generate(log, namespace, infos, values)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type InternalDBObject interface {
-	DBObject
+	Object
 }
 
 type InternalDBObjectSupport struct {

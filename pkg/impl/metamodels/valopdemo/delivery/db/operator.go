@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	database.MustRegisterType[Operator, db.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[Operator, db.Object](Scheme) // Goland requires second type parameter
 }
 
 type Operator struct {

@@ -109,8 +109,8 @@ var _ = Describe("Processing", func() {
 			}
 
 			fmt.Printf("*** modify object A ***\n")
-			dbo := (db2.DBObject)(n5)
-			_ = Must(database.Modify(env.Database(), &dbo, func(o db2.DBObject) (bool, bool) {
+			dbo := (db2.Object)(n5)
+			_ = Must(database.Modify(env.Database(), &dbo, func(o db2.Object) (bool, bool) {
 				o.(*db.Value).Spec.Value = 6
 				return true, true
 			}))
@@ -173,6 +173,8 @@ var _ = Describe("Processing", func() {
 		})
 
 		It("continues to process unblocked side branch", func() {
+			fmt.Printf("*** SETUP FINISHED ***\n")
+
 			// ...
 			// D   E
 			//   F
@@ -254,7 +256,7 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 }
 
 func (m *ValueMon) Check(env *TestEnv, value int) {
-	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.Object](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	ExpectWithOffset(1, v.(*db.Value).Status.Result).NotTo(BeNil())

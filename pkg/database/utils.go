@@ -26,12 +26,21 @@ func SetObjectName[O Object](ns string, n string) runtime.Initializer[O] {
 }
 
 func CompareObjectId(a, b ObjectId) int {
-	d := strings.Compare(a.GetNamespace(), b.GetNamespace())
-	if d == 0 {
-		d = strings.Compare(a.GetName(), b.GetName())
+	switch {
+	case a == b:
+		return 0
+	case a == nil:
+		return -1
+	case b == nil:
+		return 1
+	default:
+		d := strings.Compare(a.GetNamespace(), b.GetNamespace())
+		if d == 0 {
+			d = strings.Compare(a.GetName(), b.GetName())
+		}
+		if d == 0 {
+			d = strings.Compare(a.GetType(), b.GetType())
+		}
+		return d
 	}
-	if d == 0 {
-		d = strings.Compare(a.GetType(), b.GetType())
-	}
-	return d
 }

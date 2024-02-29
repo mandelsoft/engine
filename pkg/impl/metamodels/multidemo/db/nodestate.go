@@ -13,7 +13,7 @@ import (
 var NodePhaseStateAccess = support.NewPhaseStateAccess[*NodeState]()
 
 func init() {
-	database.MustRegisterType[NodeState, db.DBObject](Scheme) // Goland requires second type parameter
+	database.MustRegisterType[NodeState, db.Object](Scheme) // Goland requires second type parameter
 
 	NodePhaseStateAccess.Register(mymetamodel.PHASE_GATHER, func(o *NodeState) db.PhaseState { return &o.Gather })
 	NodePhaseStateAccess.Register(mymetamodel.PHASE_CALCULATION, func(o *NodeState) db.PhaseState { return &o.Calculation })

@@ -117,7 +117,7 @@ outer:
 	return nil
 }
 
-func Gather(log logging.Logger, odb database.Database[db2.DBObject], namespace string, elems map[string]*ExpressionInfo, values Values) error {
+func Gather(log logging.Logger, odb database.Database[db2.Object], namespace string, elems map[string]*ExpressionInfo, values Values) error {
 	log.Info("gathering graph outputs")
 	for n := range elems {
 		if _, ok := values[n]; ok {

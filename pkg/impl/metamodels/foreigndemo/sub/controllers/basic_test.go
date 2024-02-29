@@ -110,10 +110,7 @@ ValueState:Propagating/iB[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e
 				AddExpressionOperation("eA", "iA+iB").
 				AddExpressionOperation("eB", "eA+7")
 
-			infos, order := Must2(controllers.Validate(e))
-			values := map[string]int{}
-			MustBeSuccessful(controllers.PreCalc(log, order, infos, values))
-			g := Must(controllers.Generate(log, "ns", infos, values))
+			g := Must(controllers.GenerateGraph(log, e, NS))
 
 			desc := bytes.NewBuffer(nil)
 			MustBeSuccessful(g.Dump(desc))
@@ -174,10 +171,7 @@ ValueState:Propagating/iB[10e7d612060343a8046dfaef0bb9ee50a1d25dc67bc370468a787e
 			AddOperation("oC", db.OP_ADD, "iA", "eA").
 			AddExpressionOperation("eA", "iA+iB")
 
-		infos, order := Must2(controllers.Validate(e))
-		values := map[string]int{}
-		MustBeSuccessful(controllers.PreCalc(log, order, infos, values))
-		g := Must(controllers.Generate(log, "ns", infos, values))
+		g := Must(controllers.GenerateGraph(log, e, NS))
 
 		desc := bytes.NewBuffer(nil)
 		MustBeSuccessful(g.Dump(desc))

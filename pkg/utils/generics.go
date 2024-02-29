@@ -154,7 +154,8 @@ func FilterSlice[E any, A ~[]E](in A, f func(E) bool) A {
 
 func ContainsFilter[E comparable](in ...E) func(E) bool {
 	return func(e E) bool {
-		return slices.Contains(in, e)
+		v := slices.Contains(in, e)
+		return v
 	}
 }
 

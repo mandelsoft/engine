@@ -30,7 +30,7 @@ func (n *Value) GetState() model.ExternalState {
 
 func (n *Value) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem ElementId, update model.StatusUpdate) error {
 	log := lctx.Logger(REALM).WithValues("name", n.GetName())
-	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		o := _o.(*db.Value)
 		mod := false
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)

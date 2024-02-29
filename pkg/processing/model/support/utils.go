@@ -69,7 +69,7 @@ func AssureInternalObject[I db.InternalDBObject, R any](log logging.Logger, ob o
 		if err != nil {
 			return _nil, nil, false, err
 		}
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
+		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.Object]), func(_o db.Object) (R, bool) {
 			o := _o.(I)
 			for _, ph := range tolock {
 				i.(InternalObject).GetPhaseStateFor(o, ph).TryLock(req.Element.GetLock())
@@ -85,7 +85,7 @@ func AssureInternalObject[I db.InternalDBObject, R any](log logging.Logger, ob o
 	} else {
 		log.Info("required slave element {{slave}} already exists", "slave", eid)
 		var modified bool
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
+		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.Object]), func(_o db.Object) (R, bool) {
 			o := _o.(I)
 			r, m := mod(o)
 			modified = m
@@ -100,7 +100,7 @@ func AssureInternalObject[I db.InternalDBObject, R any](log logging.Logger, ob o
 	}
 }
 
-func creationOnly(o db.DBObject) (bool, bool) {
+func creationOnly(o db.Object) (bool, bool) {
 	return false, false
 }
 
@@ -126,7 +126,7 @@ func UpdateSlave[I db.InternalDBObject, R any](ob objectbase.Objectbase, eid mmi
 		i = _i.(model.InternalObject)
 	}
 
-	r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
+	r, err := wrapped.Modify(ob, i.(wrapper.Object[db.Object]), func(_o db.Object) (R, bool) {
 		o := _o.(I)
 		return mod(o)
 	})
@@ -174,7 +174,7 @@ func AssureElement[I db.InternalDBObject, R any](log logging.Logger, ob objectba
 		if err != nil {
 			return _nil, nil, false, err
 		}
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.DBObject]), func(_o db.DBObject) (R, bool) {
+		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.Object]), func(_o db.Object) (R, bool) {
 			o := _o.(I)
 			for _, ph := range tolock {
 				i.(InternalObject).GetPhaseStateFor(o, ph).TryLock(req.Element.GetLock())

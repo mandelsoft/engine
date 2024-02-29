@@ -10,6 +10,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/logging"
 )
 
 type Operator struct {
@@ -35,15 +36,21 @@ func (v *Operator) DBUpdate(o database.Object) bool {
 	return mod
 }
 
-func (v *Operator) DBCheck(g Graph, o database.Object) (bool, model.Status, error) {
+func (v *Operator) DBCheck(log logging.Logger, g Graph, o database.Object) (bool, model.Status, error) {
 	op := o.(*db.Operator)
 
-	if op.Status.DetectedVersion != utils.HashData(v.Spec) {
+	exp := utils.HashData(v.Spec)
+	if op.Status.DetectedVersion != exp {
+		log.Debug("  detected version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.DetectedVersion)
 		return false, "", nil
 	}
 
-	fvmatch := op.Status.FormalVersion == g.FormalVersion(GraphIdForPhase(o, op.Status.Phase))
+	exp = g.FormalVersion(GraphIdForPhase(o, op.Status.Phase))
+	fvmatch := op.Status.FormalVersion == exp
 
+	if !fvmatch {
+		log.Debug("  formal version od phase {{phase}} not yet reached (expected {{expected}}, found {{found}})", "phase", op.Status.Phase, "expected", exp, "found", op.Status.DetectedVersion)
+	}
 	switch op.Status.Phase {
 	case mymetamodel.PHASE_GATHER:
 		if fvmatch && op.Status.Status != model.STATUS_COMPLETED {

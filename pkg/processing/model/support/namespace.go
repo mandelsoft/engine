@@ -25,8 +25,8 @@ func (n *Namespace) GetNamespaceName() string {
 	return fmt.Sprintf("%s/%s", n.GetNamespace(), n.GetName())
 }
 
-func (n *Namespace) GetDatabase(ob objectbase2.Objectbase) database.Database[db.DBObject] {
-	return objectbase2.GetDatabase[db.DBObject](ob)
+func (n *Namespace) GetDatabase(ob objectbase2.Objectbase) database.Database[db.Object] {
+	return objectbase2.GetDatabase[db.Object](ob)
 }
 
 func (n *Namespace) GetLock() mmids.RunId {
@@ -38,7 +38,7 @@ func (n *Namespace) ClearLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, 
 	defer n.Lock.Unlock()
 
 	dbo := n.GetDatabase(ob)
-	mod := func(o db.DBObject) (bool, bool) {
+	mod := func(o db.Object) (bool, bool) {
 		ns := utils.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != id {
@@ -59,7 +59,7 @@ func (n *Namespace) TryLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, er
 	defer n.Lock.Unlock()
 
 	dbo := n.GetDatabase(ob)
-	mod := func(o db.DBObject) (bool, bool) {
+	mod := func(o db.Object) (bool, bool) {
 		ns := utils.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != "" {

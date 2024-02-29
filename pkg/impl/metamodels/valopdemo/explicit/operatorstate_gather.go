@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/processing/mmids"

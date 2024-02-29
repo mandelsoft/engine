@@ -21,7 +21,7 @@ type Node interface {
 	Object() database.Object
 
 	DBUpdate(o database.Object) bool
-	DBCheck(g Graph, o database.Object) (bool, model.Status, error)
+	DBCheck(log logging.Logger, g Graph, o database.Object) (bool, model.Status, error)
 
 	SubGraph() []version.Node
 }
@@ -43,8 +43,8 @@ type Graph interface {
 	HasObject(id database.ObjectId) bool
 	IsEmpty() bool
 
-	UpdateDB(log logging.Logger, odb database.Database[db.DBObject]) (bool, error)
-	CheckDB(log logging.Logger, odb database.Database[db.DBObject]) (bool, model.Status, error)
+	UpdateDB(log logging.Logger, odb database.Database[db.Object]) (bool, error)
+	CheckDB(log logging.Logger, odb database.Database[db.Object]) (bool, model.Status, error)
 }
 
 type graph struct {
@@ -82,7 +82,7 @@ func (g *graph) HasObject(id database.ObjectId) bool {
 	return g.nodes[database.NewObjectIdFor(id)] != nil
 }
 
-func (g *graph) UpdateDB(log logging.Logger, odb database.Database[db.DBObject]) (bool, error) {
+func (g *graph) UpdateDB(log logging.Logger, odb database.Database[db.Object]) (bool, error) {
 	objs := g.Objects()
 	log.Info("update generated expression graph on db", "ids", objs)
 	mod := false
@@ -104,7 +104,7 @@ func (g *graph) UpdateDB(log logging.Logger, odb database.Database[db.DBObject])
 	return mod, nil
 }
 
-func (g *graph) CheckDB(log logging.Logger, odb database.Database[db.DBObject]) (bool, model.Status, error) {
+func (g *graph) CheckDB(log logging.Logger, odb database.Database[db.Object]) (bool, model.Status, error) {
 	log.Info("checking generated expression graph on db")
 	rstatus := model.STATUS_INITIAL
 	final := true
@@ -115,7 +115,7 @@ func (g *graph) CheckDB(log logging.Logger, odb database.Database[db.DBObject]) 
 			return false, "", err
 		}
 
-		ok, status, err := n.DBCheck(g, o)
+		ok, status, err := n.DBCheck(log, g, o)
 		if err != nil {
 			return false, "", err
 		}

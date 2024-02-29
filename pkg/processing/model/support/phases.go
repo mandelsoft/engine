@@ -233,7 +233,7 @@ func (n *InternalPhaseObjectSupport[I, T]) AcceptExternalState(lctx model.Loggin
 	if status != model.ACCEPT_OK || err != nil {
 		return status, err
 	}
-	mod := func(_o db.DBObject) (bool, bool) {
+	mod := func(_o db.Object) (bool, bool) {
 		mod := false
 		n.phases.DBSetExternalState(lctx, n, _o.(db.InternalDBObject), phase, state, &mod)
 		return mod, mod
@@ -254,7 +254,7 @@ func (n *InternalPhaseObjectSupport[I, T]) Rollback(lctx model.Logging, ob objec
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	mod := func(_o db.DBObject) (bool, bool) {
+	mod := func(_o db.Object) (bool, bool) {
 		o := _o.(T)
 		p := n.GetPhaseStateFor(o, phase)
 		b := p.ClearLock(id)

@@ -119,7 +119,7 @@ func (g *FinalizedMeta) AddFinalizer(f string) bool {
 }
 
 func (g *FinalizedMeta) HasFinalizer(f string) bool {
-	if !slices.Contains(g.Finalizers, f) {
+	if slices.Contains(g.Finalizers, f) {
 		return true
 	}
 	return false
@@ -238,28 +238,31 @@ type objectid struct {
 	name      string
 }
 
-func (o *objectid) GetName() string {
+func (o objectid) GetName() string {
 	return o.name
 }
 
-func (o *objectid) GetNamespace() string {
+func (o objectid) GetNamespace() string {
 	return o.namespace
 }
 
-func (o *objectid) GetType() string {
+func (o objectid) GetType() string {
 	return o.kind
 }
 
-func (o *objectid) String() string {
+func (o objectid) String() string {
 	return fmt.Sprintf("%s/%s/%s", o.kind, o.namespace, o.name)
 }
 
 func NewObjectId(typ, ns, name string) ObjectId {
-	return &objectid{typ, ns, name}
+	return objectid{typ, ns, name}
 }
 
 func NewObjectIdFor(id ObjectId) ObjectId {
-	return &objectid{
+	if eff, ok := id.(objectid); ok {
+		return eff
+	}
+	return objectid{
 		kind:      id.GetType(),
 		namespace: id.GetNamespace(),
 		name:      id.GetName(),

@@ -168,9 +168,9 @@ var _ = Describe("Processing", func() {
 			fvA := env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "A", mymetamodel.FINAL_VALUE_PHASE))
 			fvB := env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_VALUE_STATE, NS, "B", mymetamodel.FINAL_VALUE_PHASE))
 
-			MustBeSuccessful(env.DéleteObject(vA))
-			MustBeSuccessful(env.DéleteObject(vB))
-			MustBeSuccessful(env.DéleteObject(opC))
+			MustBeSuccessful(env.DeleteObject(vA))
+			MustBeSuccessful(env.DeleteObject(vB))
+			MustBeSuccessful(env.DeleteObject(opC))
 
 			Expect(env.WaitWithTimeout(fvA)).To(BeTrue())
 			Expect(env.WaitWithTimeout(fvB)).To(BeTrue())
@@ -255,7 +255,7 @@ func (m *ValueMon) WaitUntil(env *TestEnv, value int, provider string, omax ...i
 }
 
 func (m *ValueMon) Test(env *TestEnv, value int, provider string) bool {
-	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.Object](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	if v.(*db.Value).Status.Provider != provider {
@@ -268,7 +268,7 @@ func (m *ValueMon) Test(env *TestEnv, value int, provider string) bool {
 }
 
 func (m *ValueMon) Check(env *TestEnv, value int, provider string) {
-	odb := objectbase.GetDatabase[db2.DBObject](env.Processor().Model().ObjectBase())
+	odb := objectbase.GetDatabase[db2.Object](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
 	ExpectWithOffset(1, v.(*db.Value).Status.Provider).To(Equal(provider))

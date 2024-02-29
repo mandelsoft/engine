@@ -8,11 +8,11 @@ import (
 	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 )
 
-type _DBObject = db.DBObject
+type _DBObject = db.Object
 
 type Object interface {
 	objectbase.Object
-	wrapped2.Object[db.DBObject]
+	wrapped2.Object[db.Object]
 }
 
 type Wrapper struct {
@@ -20,18 +20,18 @@ type Wrapper struct {
 }
 
 var _ objectbase.Object = (*Wrapper)(nil)
-var _ wrapper.Object[db.DBObject] = (*Wrapper)(nil)
+var _ wrapper.Object[db.Object] = (*Wrapper)(nil)
 
-func (w *Wrapper) SetBase(o db.DBObject) {
+func (w *Wrapper) SetBase(o db.Object) {
 	w._DBObject = o
 }
 
-func (w *Wrapper) GetBase() db.DBObject {
+func (w *Wrapper) GetBase() db.Object {
 	return w._DBObject
 }
 
 func (n *Wrapper) AddFinalizer(ob objectbase.Objectbase, f string) (bool, error) {
-	mod := func(o db.DBObject) (bool, bool) {
+	mod := func(o db.Object) (bool, bool) {
 		b := o.AddFinalizer(f)
 		return b, b
 	}
@@ -43,7 +43,7 @@ func (n *Wrapper) AddFinalizer(ob objectbase.Objectbase, f string) (bool, error)
 }
 
 func (n *Wrapper) RemoveFinalizer(ob objectbase.Objectbase, f string) (bool, error) {
-	mod := func(o db.DBObject) (bool, bool) {
+	mod := func(o db.Object) (bool, bool) {
 		b := o.RemoveFinalizer(f)
 		return b, b
 	}

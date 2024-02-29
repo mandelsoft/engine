@@ -5,6 +5,6 @@ import (
 )
 
 type ExternalDBObject interface {
-	DBObject
+	Object
 	database.StatusSource
 }

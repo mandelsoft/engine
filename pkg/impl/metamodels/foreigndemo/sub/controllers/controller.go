@@ -21,14 +21,17 @@ import (
 	"github.com/mandelsoft/logging"
 )
 
+const FINALIZER = "expression"
+
 type ExpressionController struct {
-	pool pool.Pool
-	db   database.Database[db2.DBObject]
+	pool    pool.Pool
+	db      database.Database[db2.Object]
+	handler *Handler
 }
 
 var _ pool.Action = (*ExpressionController)(nil)
 
-func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.DBObject]) *ExpressionController {
+func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.Object]) *ExpressionController {
 	p := pool.NewPool(ctx, lctx, "controller", size, 0, true)
 
 	c := &ExpressionController{
@@ -39,21 +42,23 @@ func NewExpressionController(ctx context.Context, lctx logging.AttributionContex
 }
 
 func (c *ExpressionController) Start(wg *sync.WaitGroup) error {
+	if c.handler != nil {
+		return nil
+	}
 	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_EXPRESSION), c)
 
-	h := &Handler{c}
-	c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION)
+	c.handler = NewHandler(c)
+	c.handler.Register()
 	c.pool.Start(wg)
 	return nil
 }
 
 func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.MessageContext, id database.ObjectId) pool.Status {
 	log := messageContext.Logger(REALM).WithValues("expression", id)
-	log.Info("reconciling {{expression}}")
 
 	_o, err := c.db.GetObject(id)
 	if errors.Is(err, database.ErrNotExist) {
-		log.Info("{{expression}} deleted")
+		log.Info("skipping deleted {{expression}}")
 		return pool.StatusCompleted()
 
 	}
@@ -62,43 +67,66 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	}
 
 	o := (_o).(*db.Expression)
-	v := support.NewState(&o.Spec).GetVersion()
+	log.Info("reconciling {{expression}} (deleting {{deleting}} (finalizers {{finalizers}})", "deleting", _o.IsDeleting(), "finalizers", o.GetFinalizers())
 
-	if v == o.Status.ObservedVersion {
-		log.Info("already up to date")
-		return pool.StatusCompleted()
-	}
-	infos, order, err := Validate(o)
-	if err != nil {
-		return c.StatusFailed(log, o, "validation of {{expression}} failed", err)
-	}
-
-	values := Values{}
-	err = PreCalc(log, order, infos, values)
-
-	if err != nil {
-		return c.StatusFailed(log, o, "validation of {{expression}} failed", err)
+	if o.IsDeleting() {
+		if !o.HasFinalizer(FINALIZER) {
+			log.Info("finalizer already removed for deleting object -> don't touch it anymore")
+			return pool.StatusCompleted()
+		}
+	} else {
+		ok, err := db2.AddFinalizer(c.db, &o, FINALIZER)
+		if err != nil {
+			return pool.StatusCompleted(err)
+		}
+		if ok {
+			log.Info("added finalizer")
+		}
 	}
 
 	namespace := o.Status.Generated.Namespace
 
 	var g graph.Graph
-	if m := values.Missing(infos); len(m) > 0 {
-		log.Info("found external expressions {{missing}}", "missing", strings.Join(m, ","))
-		if namespace == "" {
-			namespace = o.Namespace + "/" + o.Name
-			_, err = database.Modify(c.db, &o, func(o *db.Expression) (bool, bool) {
-				mod := support.UpdateField(&o.Status.Generated.Namespace, &namespace)
-				return mod, mod
-			})
-			if err != nil {
-				return pool.StatusCompleted(err)
-			}
-			log.Info("using namespace {{namespace}}", "namespace", namespace)
+	var infos map[string]*ExpressionInfo
+	var order []string
+
+	values := Values{}
+	v := support.NewState(&o.Spec).GetVersion()
+
+	if !o.IsDeleting() {
+		if v == o.Status.ObservedVersion {
+			log.Info("already up to date")
+			return pool.StatusCompleted()
 		}
-		g, err = Generate(log, namespace, infos, values)
+		infos, order, err = Validate(o)
 		if err != nil {
-			return c.StatusFailed(log, o, "generation of slaves failed", err)
+			return c.StatusFailed(log, o, "validation of {{expression}} failed", err)
+		}
+
+		err = PreCalc(log, order, infos, values)
+		if err != nil {
+			return c.StatusFailed(log, o, "validation of {{expression}} failed", err)
+		}
+
+		if m := values.Missing(infos); len(m) > 0 {
+			log.Info("found external expressions {{missing}}", "missing", strings.Join(m, ","))
+			if namespace == "" {
+				namespace = o.Namespace + "/" + o.Name
+				_, err = database.Modify(c.db, &o, func(o *db.Expression) (bool, bool) {
+					mod := support.UpdateField(&o.Status.Generated.Namespace, &namespace)
+					return mod, mod
+				})
+				if err != nil {
+					return pool.StatusCompleted(err)
+				}
+				log.Info("using namespace {{namespace}}", "namespace", namespace)
+			}
+			g, err = Generate(log, namespace, infos, values)
+			if err != nil {
+				return c.StatusFailed(log, o, "generation of slaves failed", err)
+			}
+		} else {
+			g, _ = graph.NewGraph(version.Composed)
 		}
 	} else {
 		g, _ = graph.NewGraph(version.Composed)
@@ -107,11 +135,18 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	d := OldRefs(o, g)
 	n := NewRefs(o, g)
 	if len(d) > 0 || len(n) > 0 {
-		log.Info("found new slaves {{new}}", "new", utils.Join(n, ","))
-		log.Info("found obsolete slaves {{obsolete}}", "obsolete", utils.Join(d, ","))
+		if len(n) > 0 {
+			log.Info("found new slaves {{new}}", "new", utils.Join(n, ","))
+		}
+		if len(d) > 0 {
+			log.Info("found obsolete slaves {{obsolete}}", "obsolete", utils.Join(d, ","))
+		}
 		mod := func(o *db.Expression) bool {
 			m := false
-			support.UpdateField(&o.Status.Generated.Objects, utils.Pointer(utils.AppendUnique(o.Status.Generated.Objects, n...)), &m)
+			support.UpdateField(&o.Status.Generated.Objects, utils.Pointer(
+				utils.FilterSlice(
+					utils.AppendUnique(o.Status.Generated.Objects, n...),
+					utils.NotFilter(utils.ContainsFilter(d...)))), &m)
 			support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.AppendUnique(o.Status.Generated.Deleting, d...)), &m)
 			return m
 		}
@@ -127,13 +162,14 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	if len(o.Status.Generated.Deleting) > 0 {
 		var deleted []database.LocalObjectRef
 
-		log.Info("handled graph deletions")
+		log.Info("handle graph deletions")
 		for _, l := range o.Status.Generated.Deleting {
 			id := l.In(namespace)
 			d, err := c.db.GetObject(id)
-			if err == database.ErrNotExist {
+			if errors.Is(err, database.ErrNotExist) {
 				deleted = append(deleted, l)
 				log.Info("- {{oid}} already deleted", "oid", id)
+				continue
 			} else if err != nil {
 				return pool.StatusCompleted(err)
 			}
@@ -156,7 +192,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 		}
 
 		if len(deleted) > 0 {
-			log.Info("removing deleted objects ({{deleted}})", utils.Join(deleted, ","))
+			log.Info("removing deleted objects ({{deleted}}) from status", "deleted", utils.Join(deleted, ","))
 			mod := func(o *db.Expression) bool {
 				return support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.FilterSlice(o.Status.Generated.Deleting, utils.NotFilter(utils.ContainsFilter(deleted...)))))
 			}
@@ -167,10 +203,31 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 			if !ok {
 				return pool.StatusCompleted(fmt.Errorf("object outdated"))
 			}
+			for _, id := range deleted {
+				src := id.In(namespace)
+				if c.handler.Unuse(src) {
+					log.Info("remove trigger for {{oid}}", "oid", src)
+				}
+			}
 		}
 	}
 
+	if o.IsDeleting() {
+		if len(o.Status.Generated.Deleting) == 0 && len(o.Status.Generated.Objects) == 0 {
+			log.Info("no more slave objects to be deleted -> removing finalizer")
+			_, err := db2.RemoveFinalizer(c.db, &o, FINALIZER)
+			return pool.StatusCompleted(err)
+		}
+		log.Info("waiting for slave objects to be deleted")
+		return pool.StatusCompleted()
+	}
+
 	if !g.IsEmpty() {
+		for _, id := range g.Objects() {
+			if c.handler.Use(id, o) {
+				log.Info("establish trigger for {{oid}}", "oid", id)
+			}
+		}
 		mod, err := g.UpdateDB(log, c.db)
 		if mod || err != nil {
 			if err != nil {
@@ -234,16 +291,6 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 func (c *ExpressionController) Command(p pool.Pool, messageContext pool.MessageContext, command pool.Command) pool.Status {
 	return pool.StatusCompleted()
 }
-
-type Handler struct {
-	c *ExpressionController
-}
-
-func (h *Handler) HandleEvent(id database.ObjectId) {
-	h.c.pool.EnqueueKey(id)
-}
-
-var _ database.EventHandler = (*Handler)(nil)
 
 func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression, msg string, err error) pool.Status {
 	v := o.Spec.GetVersion()

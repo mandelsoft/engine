@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
 	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/engine/pkg/version"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
+	"github.com/mandelsoft/engine/pkg/version"
 )
 
 var NS = "testspace"

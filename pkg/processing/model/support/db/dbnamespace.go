@@ -5,7 +5,7 @@ import (
 )
 
 type DBNamespace interface {
-	DBObject
+	Object
 	GetRunLock() mmids.RunId
 	SetRunLock(id mmids.RunId)
 }

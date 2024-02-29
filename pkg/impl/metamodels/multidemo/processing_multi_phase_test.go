@@ -42,12 +42,12 @@ var _ = Describe("Processing", func() {
 	var lctx logging.Context
 	var logbuf *bytes.Buffer
 	var proc *processor.Processor
-	var odb database.Database[db2.DBObject]
+	var odb database.Database[db2.Object]
 
 	BeforeEach(func() {
 		fs = Must(TestFileSystem("testdata", false))
 
-		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[db2.DBObject]("testdata", fs))
+		spec := mymodel.NewModelSpecification("test", filesystem.NewSpecification[db2.Object]("testdata", fs))
 		MustBeSuccessful(spec.Validate())
 
 		logbuf = bytes.NewBuffer(nil)
@@ -62,7 +62,7 @@ var _ = Describe("Processing", func() {
 
 		m := Must(model.NewModel(spec))
 		proc = Must(processor.NewProcessor(ctx, lctx, m, 1))
-		odb = objectbase.GetDatabase[db2.DBObject](proc.Model().ObjectBase())
+		odb = objectbase.GetDatabase[db2.Object](proc.Model().ObjectBase())
 		wg = &sync.WaitGroup{}
 		_ = logbuf
 	})
@@ -144,8 +144,8 @@ var _ = Describe("Processing", func() {
 			}
 
 			fmt.Printf("*** modify object A ***\n")
-			dbo := (db2.DBObject)(n5)
-			_ = Must(database.Modify(odb, &dbo, func(o db2.DBObject) (bool, bool) {
+			dbo := (db2.Object)(n5)
+			_ = Must(database.Modify(odb, &dbo, func(o db2.Object) (bool, bool) {
 				o.(*db.Value).Spec.Value = utils.Pointer(6)
 				return true, true
 			}))

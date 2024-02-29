@@ -47,7 +47,7 @@ func (n *ExpressionState) assureTarget(o *db.ExpressionState) *db.EvaluationTarg
 }
 
 func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
-	_, err := wrapped2.Modify(ob, n, func(_o db2.DBObject) (bool, bool) {
+	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ExpressionState))
 
 		mod := false
@@ -137,7 +137,7 @@ func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectba
 
 	if err == nil {
 		o := _o.(*Expression)
-		updated, err = wrapped2.Modify(ob, o, func(_o db2.DBObject) (bool, bool) {
+		updated, err = wrapped2.Modify(ob, o, func(_o db2.Object) (bool, bool) {
 			o := _o.(*db.Expression)
 			mod := false
 			support.UpdateField(&o.Spec, ex, &mod)
