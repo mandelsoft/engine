@@ -3,15 +3,16 @@ package graph
 import (
 	"slices"
 
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
+	"github.com/mandelsoft/logging"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/metamodel"
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
-	"github.com/mandelsoft/logging"
-
 	"github.com/mandelsoft/engine/pkg/version"
 )
 
@@ -41,6 +42,7 @@ type Graph interface {
 
 	Objects() []database.ObjectId
 	HasObject(id database.ObjectId) bool
+	GetObject(id database.ObjectId) database.Object
 	IsEmpty() bool
 
 	UpdateDB(log logging.Logger, odb database.Database[db.Object]) (bool, error)
@@ -76,6 +78,14 @@ func (g *graph) Objects() []database.ObjectId {
 	ids := utils.MapKeys(g.nodes, database.CompareObjectId)
 	slices.SortFunc(ids, database.CompareObjectId)
 	return ids
+}
+
+func (g *graph) GetObject(id database.ObjectId) database.Object {
+	n := g.nodes[database.NewObjectIdFor(id)]
+	if n != nil {
+		return n.Object()
+	}
+	return nil
 }
 
 func (g *graph) HasObject(id database.ObjectId) bool {

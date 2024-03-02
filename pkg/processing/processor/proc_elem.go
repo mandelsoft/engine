@@ -651,11 +651,10 @@ func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger,
 
 func (p *Processor) notifyCurrentWaitingState(lctx model.Logging, log logging.Logger, e _Element, missing, waiting []ElementId, inputs model.Inputs) bool {
 	var keys []interface{}
+
+	keys = append(keys, "found", utils.Join(utils.MapKeys(inputs)))
 	if len(missing) > 0 {
-		keys = append(keys, "ignored missing", utils.Join(missing))
-	}
-	if len(inputs) > 0 {
-		keys = append(keys, "found", utils.Join(utils.MapKeys(inputs)))
+		keys = append(keys, "missing", utils.Join(missing))
 	}
 	if len(waiting) > 0 {
 		keys = append(keys, "waiting", utils.Join(waiting))

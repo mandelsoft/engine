@@ -100,7 +100,7 @@ var _ = Describe("Controller Test", func() {
 		It("generates, evaluates(fake) and deletes external expressions", func() {
 			env.Start(cntr)
 
-			vEXPR := db.NewExpression(NS, "EXPR").
+			ooEXPR := db.NewExpression(NS, "EXPR").
 				AddOperand("A", 1).
 				AddOperand("B", 2).
 				AddOperation("oA", db.OP_ADD, "A", "1").
@@ -116,7 +116,7 @@ var _ = Describe("Controller Test", func() {
 			eoE1 := env.FutureForObjectStatus(STATUS_ANY, ioE1)
 			evoA := env.FutureForObjectStatus(STATUS_ANY, ivoA)
 			eExpr := env.FutureForObjectStatus(model.STATUS_COMPLETED, ioE)
-			env.SetObject(vEXPR)
+			env.SetObject(ooEXPR)
 
 			env.WaitWithTimeout(eoE)
 			env.WaitWithTimeout(eoE1)
@@ -152,7 +152,7 @@ var _ = Describe("Controller Test", func() {
 `))
 
 			// caclculate graph versions
-			g := Must(me.GenerateGraph(log, vEXPR, NS))
+			g := Must(me.GenerateGraph(log, ooEXPR, path.Join(NS, "EXPR")))
 
 			ovA := Must(env.GetObject(ivA)).(*db.Value)
 			fvA := "ValueState:Propagating/A[48208f9428d64634bd8e28ff345bf0eab60d53c18fa2fbdb0b9bc1e84df2b5f6]"
@@ -199,9 +199,9 @@ var _ = Describe("Controller Test", func() {
 
 			env.WaitWithTimeout(eExpr)
 
-			eExpr = env.FutureForObjectStatus(model.STATUS_DELETED, vEXPR)
+			eExpr = env.FutureForObjectStatus(model.STATUS_DELETED, ooEXPR)
 			eoE = env.FutureForObjectStatus(model.STATUS_DELETED, ioE)
-			MustBeSuccessful(env.DeleteObject(vEXPR))
+			MustBeSuccessful(env.DeleteObject(ooEXPR))
 			env.WaitWithTimeout(eoE)
 
 			Must(db2.RemoveFinalizer(env.Database(), &ooE1, "test"))

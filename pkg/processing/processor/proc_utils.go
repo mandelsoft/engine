@@ -142,19 +142,19 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem 
 	for _, e := range ni.elements {
 		if e.GetProcessingState() != nil {
 			links := e.GetProcessingState().GetLinks()
-			log.Debug("- elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
+			log.Debug("  elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Info("  trigger pending element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Info("- trigger pending element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}
 		} else if e.GetStatus() != model.STATUS_DELETED && e.GetCurrentState() != nil {
 			links := e.GetCurrentState().GetObservedState().GetLinks()
-			log.Debug("- elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
+			log.Debug("  elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {
-					log.Info("  trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
+					log.Info("- trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
 					p.EnqueueKey(CMD_ELEM, e.Id())
 				}
 			}

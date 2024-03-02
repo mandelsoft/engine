@@ -1,14 +1,16 @@
 package graph
 
 import (
+	"github.com/mandelsoft/logging"
+
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
-	"github.com/mandelsoft/logging"
+
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 type Value struct {
