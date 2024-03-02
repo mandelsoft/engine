@@ -2,10 +2,10 @@ package db
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
@@ -24,7 +24,6 @@ type OperatorState struct {
 	db.InternalDBObjectSupport `json:",inline"`
 
 	// phase specific states
-
 	Gather      GatherState      `json: "gather"`
 	Calculation CalculationState `json: "calculation"`
 }
@@ -35,26 +34,36 @@ func (n *OperatorState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(OperatorPhaseStateAccess, n))
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 type GatherState struct {
 	db.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
 }
 
 type GatherCurrentState struct {
 	db.StandardCurrentState
+	ObservedOperands []string `json:"observedOperands,omitempty"`
+
 	Operands []string     `json:"operands"`
 	Output   GatherOutput `json:"output"`
 }
 
 type GatherTargetState struct {
 	db.StandardTargetState
-	Spec   OperatorSpec `json:"spec"`
-	Output GatherOutput `json:"output"`
+	Spec OperatorSpec `json:"spec"`
 }
 
 type GatherOutput struct {
 	Operator OperatorName `json:"operator,omitempty"`
 	Operands []Operand    `json:"operands"`
 }
+
+type Operand struct {
+	Origin ObjectId `json:"origin,omitempty"`
+	Value  int      `json:"value"`
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 type CalculationState struct {
 	db.DefaultPhaseState[CalculationCurrentState, CalculationTargetState, *CalculationCurrentState, *CalculationTargetState]
@@ -71,9 +80,4 @@ type CalculationTargetState struct {
 
 type CalculationOutput struct {
 	Value int `json:"value"`
-}
-
-type Operand struct {
-	Origin ObjectId `json:"origin,omitempty"`
-	Value  int      `json:"value"`
 }

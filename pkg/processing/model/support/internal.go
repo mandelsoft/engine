@@ -9,7 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	objectbase2 "github.com/mandelsoft/engine/pkg/processing/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
@@ -97,8 +97,8 @@ func (n *InternalObjectSupport[I]) GetExternalState(o model.ExternalObject, phas
 	return o.GetState()
 }
 
-func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase2.Objectbase) database.Database[db.Object] {
-	return objectbase2.GetDatabase[db.Object](ob)
+func (n *InternalObjectSupport[I]) GetDatabase(ob objectbase.Objectbase) database.Database[db.Object] {
+	return objectbase.GetDatabase[db.Object](ob)
 }
 
 func (n *InternalObjectSupport[I]) GetStatus(phase mmids.Phase) model.Status {
@@ -124,7 +124,7 @@ func (n *InternalObjectSupport[I]) GetLock(phase mmids.Phase) mmids.RunId {
 	return n.GetPhaseState(phase).GetLock()
 }
 
-func (n *InternalObjectSupport[I]) TryLock(ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
+func (n *InternalObjectSupport[I]) TryLock(ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -135,30 +135,48 @@ func (n *InternalObjectSupport[I]) TryLock(ob objectbase2.Objectbase, phase mmid
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) Rollback(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId, observed, formal *string) (bool, error) {
+type Rollbacker[P any] interface {
+	DBRollback(lctx model.Logging, o P, phase mmids.Phase)
+}
+
+type RollbackFunc[P any] func(lctx model.Logging, o P, phase mmids.Phase)
+
+func (f RollbackFunc[P]) DBRollback(lctx model.Logging, o P, phase mmids.Phase) {
+	f(lctx, o, phase)
+}
+
+func (n *InternalObjectSupport[I]) HandleRollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, tgt model.TargetState, formal *string, rollbacker Rollbacker[I]) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
+	log := lctx.Logger()
 	mod := func(_o db.Object) (bool, bool) {
+		o := _o.(I)
 		p := n.GetPhaseStateFor(_o.(I), phase)
 		b := p.ClearLock(id)
 		if b {
-			if observed != nil {
-				lctx.Logger().Info("setting observed version {{observed}}", "observed", *observed)
-				p.GetCurrent().SetObservedVersion(*observed)
+			log.Info("  runlock {{runid}} cleared", "runid", id)
+			if tgt != nil {
+				log.Info("  setting observed state {{observed}}", "observed", p.GetTarget().GetObjectVersion())
+				p.GetCurrent().SetObservedVersion(p.GetTarget().GetObjectVersion())
 			}
 			if formal != nil {
-				lctx.Logger().Info("setting formal version {{formal}}", "formal", *formal)
+				log.Info("  setting formal version {{formal}}", "formal", *formal)
 				p.GetCurrent().SetFormalVersion(*formal)
 			}
+			if rollbacker != nil {
+				rollbacker.DBRollback(lctx, o, phase)
+			}
 			p.ClearTarget()
+		} else {
+			log.Error("{{element}} not locked for {{runid}} (found {{busy}})", "runid", id, "busy", p.GetLock())
 		}
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) MarkPhasesForDeletion(ob objectbase2.Objectbase, phases ...mmids.Phase) (bool, error) {
+func (n *InternalObjectSupport[I]) MarkPhasesForDeletion(ob objectbase.Objectbase, phases ...mmids.Phase) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -181,16 +199,16 @@ func (n *InternalObjectSupport[I]) IsMarkedForDeletion(phase mmids.Phase) bool {
 }
 
 type Committer[P any] interface {
-	Commit(lctx model.Logging, o P, phase mmids.Phase, spec *model.CommitInfo)
+	DBCommit(lctx model.Logging, o P, phase mmids.Phase, spec *model.CommitInfo)
 }
 
 type CommitFunc[P any] func(lctx model.Logging, o P, phase mmids.Phase, spec *model.CommitInfo)
 
-func (f CommitFunc[P]) Commit(lctx model.Logging, o P, phase mmids.Phase, spec *model.CommitInfo) {
+func (f CommitFunc[P]) DBCommit(lctx model.Logging, o P, phase mmids.Phase, spec *model.CommitInfo) {
 	f(lctx, o, phase, spec)
 }
 
-func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, committer Committer[I]) (bool, error) {
+func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo, committer Committer[I]) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -201,6 +219,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 		p := n.GetPhaseStateFor(o, phase)
 		b := p.ClearLock(id)
 		if b {
+			log.Info("  runlock {{runid}} cleared", "runid", id)
 			if commit != nil {
 				c := p.GetCurrent()
 				log.Info("  input version {{input}}", "input", commit.InputVersion)
@@ -223,18 +242,18 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 				c.SetFormalVersion(v)
 			}
 			if committer != nil {
-				committer.Commit(lctx, o, phase, commit)
+				committer.DBCommit(lctx, o, phase, commit)
 			}
 			p.ClearTarget()
 		} else {
-			log.Error("{{element}} not locked for {{runid}}", "runid", id)
+			log.Error("{{element}} not locked for {{runid}} (found {{busy}})", "runid", id, "busy", p.GetLock())
 		}
 		return b, b
 	}
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) PrepareDeletion(lctx model.Logging, ob objectbase2.Objectbase, phase mmids.Phase) error {
+func (n *InternalObjectSupport[I]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {
 	return nil
 }
 
@@ -294,6 +313,16 @@ func (c *CurrentStateSupport[I, C]) Get() C {
 	return c.GetPhaseInfo().GetCurrent().(C)
 }
 
+func (c *CurrentStateSupport[I, C]) GetObservedStateForTypeAndPhase(typ string, phase mmids.Phase, names ...string) model.ObservedState {
+	return NewDefaultObservedStateForTypePhase(c.GetObservedVersion(), typ, c.GetNamespace(), phase, names...)
+}
+
+func (c *CurrentStateSupport[I, C]) GetObservedStateForPhase(phase mmids.Phase, add ...mmids.ElementId) model.ObservedState {
+	s := NewDefaultObservedStateForTypePhase(c.GetObservedVersion(), c.GetType(), c.GetNamespace(), phase, c.GetName())
+	s.(*defaultObservedState).links = append(s.(*defaultObservedState).links, add...)
+	return s
+}
+
 func (c *CurrentStateSupport[I, C]) GetObservedVersion() string {
 	return c.Get().GetObservedVersion()
 }
@@ -343,4 +372,37 @@ func (c *TargetStateSupport[I, T]) GetInputVersion(inputs model.Inputs) string {
 
 func (c *TargetStateSupport[I, T]) GetObjectVersion() string {
 	return c.Get().GetObjectVersion()
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type defaultObservedState struct {
+	version string
+	links   []mmids.ElementId
+}
+
+var _ model.ObservedState = (*defaultObservedState)(nil)
+
+func NewDefaultObservedState(v string, links []mmids.ElementId) model.ObservedState {
+	return &defaultObservedState{v, links}
+}
+
+func NewDefaultObservedStateForTypePhase(v string, typ string, namespace string, phase mmids.Phase, names ...string) model.ObservedState {
+	return &defaultObservedState{v, LinksForTypePhase(typ, namespace, phase, names...)}
+}
+
+func LinksForTypePhase(typ string, namespace string, phase mmids.Phase, names ...string) []mmids.ElementId {
+	var links []mmids.ElementId
+	for _, l := range utils.FilterSlice(names, utils.NotInitialFilter[string]) {
+		links = append(links, mmids.NewElementId(typ, namespace, l, phase))
+	}
+	return links
+}
+
+func (d *defaultObservedState) GetObjectVersion() string {
+	return d.version
+}
+
+func (d *defaultObservedState) GetLinks() []mmids.ElementId {
+	return d.links
 }

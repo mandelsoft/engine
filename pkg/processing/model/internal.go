@@ -16,6 +16,7 @@ type SlaveUpdateFunction = internal.SlaveUpdateFunction
 type SlaveManagement = internal.SlaveManagement
 type Request = internal.Request
 type LinkState = internal.LinkState
+type ObservedState = internal.ObservedState
 type CurrentState = internal.CurrentState
 type TargetState = internal.TargetState
 type AcceptStatus = internal.AcceptStatus

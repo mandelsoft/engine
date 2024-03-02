@@ -2,10 +2,10 @@ package db
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
@@ -23,6 +23,7 @@ func init() {
 type OperatorState struct {
 	db.InternalDBObjectSupport `json:",inline"`
 
+	// phase specific states
 	Gather      GatherState      `json: "gather"`
 	Calculation CalculationState `json: "calculation"`
 }
@@ -39,13 +40,10 @@ type GatherState struct {
 	db.DefaultPhaseState[GatherCurrentState, GatherTargetState, *GatherCurrentState, *GatherTargetState]
 }
 
-type ObjectTargetState struct {
-	Spec          OperatorSpec `json:"spec"`
-	ObjectVersion string       `json:"objectVersion"`
-}
-
 type GatherCurrentState struct {
 	db.StandardCurrentState
+	ObservedOperands []string `json:"observedOperands,omitempty"`
+
 	Operands []string     `json:"operands,omitempty"`
 	Output   GatherOutput `json:"output"`
 }

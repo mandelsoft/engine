@@ -2,24 +2,24 @@ package demo
 
 import (
 	"fmt"
+	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/utils"
 
-	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/runtime"
+	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
 
 func init() {
-	wrapped2.MustRegisterType[NodeState](scheme)
+	wrapped.MustRegisterType[NodeState](scheme)
 }
 
 type NodeState struct {
@@ -47,8 +47,8 @@ func (n *NodeState) assureTarget(o *db.NodeState) *db.TargetState {
 	return o.State.CreateTarget().(*db.TargetState)
 }
 
-func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
-	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
+func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalState) (model.AcceptStatus, error) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.NodeState))
 
 		mod := false
@@ -155,6 +155,17 @@ func (n *NodeState) Validate() error {
 	return nil
 }
 
+func (n *NodeState) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, tgt model.TargetState, formal *string) (bool, error) {
+	return n.InternalObjectSupport.HandleRollback(lctx, ob, phase, id, tgt, formal, support.RollbackFunc[*db.NodeState](n.rollbackTargetState))
+}
+
+func (n *NodeState) rollbackTargetState(lctx model.Logging, o *db.NodeState, phase Phase) {
+	if o.State.Target != nil {
+		lctx.Logger().Info("  object version {{version}}", "version", o.State.Target.ObjectVersion)
+		o.State.Current.ObservedOperands = o.State.Target.Spec.Operands
+	}
+}
+
 func (n *NodeState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
 	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, support.CommitFunc[*db.NodeState](n.commitTargetState))
 }
@@ -162,11 +173,16 @@ func (n *NodeState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase P
 func (n *NodeState) commitTargetState(lctx model.Logging, o *db.NodeState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
 	if o.State.Target != nil && spec != nil {
+		log.Info("  operands {{operands}}", "operands", strings.Join(o.State.Target.Spec.Operands, ","))
 		o.State.Current.Operands = o.State.Target.Spec.Operands
+		o.State.Current.ObservedOperands = o.State.Target.Spec.Operands
+		log.Info("  input version {{version}}", "version", spec.InputVersion)
 		o.State.Current.InputVersion = spec.InputVersion
 		log.Info("  object version {{version}}", "version", o.State.Target.ObjectVersion)
 		o.State.Current.ObjectVersion = o.State.Target.ObjectVersion
+		log.Info("  output version {{version}}", "version", spec.OutputState.(*OutputState).GetOutputVersion())
 		o.State.Current.OutputVersion = spec.OutputState.(*OutputState).GetOutputVersion()
+		log.Info("  output {{output}}", "output", spec.OutputState.(*OutputState).GetState())
 		o.State.Current.Output.Value = spec.OutputState.(*OutputState).GetState()
 	} else {
 		log.Info("  nothing to commit for NodeState {{name}}", "name", o.Name)
@@ -193,13 +209,15 @@ func NewCurrentState(n *NodeState) *CurrentState {
 	}
 }
 
-func (c *CurrentState) GetLinks() []ElementId {
-	var r []ElementId
-
-	for _, o := range c.Get().Operands {
-		r = append(r, mmids.NewElementId(c.GetType(), c.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
+func (c *CurrentState) GetObservedState() model.ObservedState {
+	if c.GetObjectVersion() == c.GetObservedVersion() {
+		return c
 	}
-	return r
+	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_NODE_STATE, mymetamodel.PHASE_UPDATING, c.Get().ObservedOperands...)
+}
+
+func (c *CurrentState) GetLinks() []ElementId {
+	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_NODE_STATE, mymetamodel.PHASE_UPDATING, c.Get().Operands...).GetLinks()
 }
 
 func (c *CurrentState) GetOutput() model.OutputState {
@@ -215,22 +233,15 @@ type TargetState struct {
 var _ model.TargetState = (*TargetState)(nil)
 
 func NewTargetState(n *NodeState) *TargetState {
-	return &TargetState{
-		support.NewTargetStateSupport[*db.NodeState, *db.TargetState](n, mymetamodel.PHASE_UPDATING),
-	}
+	return &TargetState{support.NewTargetStateSupport[*db.NodeState, *db.TargetState](n, mymetamodel.PHASE_UPDATING)}
 }
 
-func (c *TargetState) GetLinks() []mmids.ElementId {
-	var r []ElementId
-
+func (c *TargetState) GetLinks() []ElementId {
 	t := c.Get()
 	if t == nil {
 		return nil
 	}
-	for _, o := range t.Spec.Operands {
-		r = append(r, mmids.NewElementId(c.GetType(), c.GetNamespace(), o, mymetamodel.PHASE_UPDATING))
-	}
-	return r
+	return support.LinksForTypePhase(c.GetType(), c.GetNamespace(), mymetamodel.PHASE_UPDATING, t.Spec.Operands...)
 }
 
 func (c *TargetState) GetOperator() *db.OperatorName {

@@ -56,9 +56,6 @@ func (_ DefaultPhase[I, T]) GetExternalState(o I, ext model.ExternalObject, phas
 	return ext.GetState()
 }
 
-func (_ DefaultPhase[I, T]) DBRollback(log logging.Logger, o T, phase mmids.Phase, mod *bool) {
-}
-
 func (_ DefaultPhase[I, T]) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o I, phase mmids.Phase) error {
 	return nil
 }
@@ -250,25 +247,28 @@ func (n *InternalPhaseObjectSupport[I, T]) Process(request model.Request) model.
 	return n.phases.Process(n.self, request)
 }
 
-func (n *InternalPhaseObjectSupport[I, T]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, observed, formal *string) (bool, error) {
+func (n *InternalPhaseObjectSupport[I, T]) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, tgt model.TargetState, formal *string) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
+	log := lctx.Logger()
 
 	mod := func(_o db.Object) (bool, bool) {
 		o := _o.(T)
 		p := n.GetPhaseStateFor(o, phase)
 		b := p.ClearLock(id)
 		if b {
-			if observed != nil {
-				lctx.Logger().Info("setting observed version {{observed}}", "observed", *observed)
-				p.GetCurrent().SetObservedVersion(*observed)
-			}
+			log.Info("  runlock {{runid}} cleared", "runid", id)
 			if formal != nil {
-				lctx.Logger().Info("setting formal version {{formal}}", "formal", *formal)
+				log.Info("setting formal version {{formal}}", "formal", *formal)
 				p.GetCurrent().SetFormalVersion(*formal)
 			}
-			p.ClearTarget()
+			if tgt != nil {
+				p.GetCurrent().SetObservedVersion(p.GetTarget().GetObjectVersion())
+			}
 			n.phases.DBRollback(lctx, o, phase, &b)
+			p.ClearTarget()
+		} else {
+			log.Error("{{element}} not locked for {{runid}} (found {{busy}})", "runid", id, "busy", p.GetLock())
 		}
 		return b, b
 	}
@@ -276,7 +276,6 @@ func (n *InternalPhaseObjectSupport[I, T]) Rollback(lctx model.Logging, ob objec
 }
 
 func (n *InternalPhaseObjectSupport[I, T]) Commit(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, id mmids.RunId, commit *model.CommitInfo) (bool, error) {
-
 	f := CommitFunc[T](func(lctx model.Logging, o T, phase mmids.Phase, spec *model.CommitInfo) {
 		var b bool
 		n.phases.DBCommit(lctx, o, phase, commit, &b)

@@ -22,7 +22,7 @@ type ExposePhase struct{ PhaseBase }
 var _ OperatorStatePhase = (*ExposePhase)(nil)
 
 func (c ExposePhase) GetCurrentState(o *OperatorState, phase Phase) model.CurrentState {
-	return NewCurrentCalcState(o)
+	return NewCurrentExposeState(o)
 }
 
 func (c ExposePhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
@@ -34,11 +34,14 @@ func (c ExposePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState,
 	support.UpdateField(&o.Expose.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
 }
 
+func (_ ExposePhase) DBRollback(log logging.Logger, o *db.OperatorState, phase Phase, mod *bool) {
+}
+
 func (c ExposePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
-	if o.Expose.Target != nil && spec != nil {
+	if spec != nil {
 		c := &o.Expose.Current
 		log.Info("  output {{output}}", "output", spec.OutputState.(*ExposeOutputState).GetState())
-		support.UpdateField(&c.Output, utils.Pointer(spec.OutputState.(*ExposeOutputState).GetState()), mod)
+		c.Output = spec.OutputState.(*ExposeOutputState).GetState()
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
@@ -69,7 +72,7 @@ func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	}
 
 	// calculate value schedule
-	log.Info("preparing outbound assignments")
+	log.Info("preparing {{amount}} outbound assignments", "amount", len(op.Outputs))
 	for i, e := range op.Outputs {
 		v := values[e]
 		out[i] = v
@@ -97,11 +100,11 @@ func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		slaves...,
 	)
 
-	return model.StatusCompleted(NewExposeState(req.FormalVersion, out))
+	return model.StatusCompleted(NewExposeOutputState(req.FormalVersion, out))
 }
 
 func (_ ExposePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase Phase) error {
-	s := NewCurrentCalcState(o)
+	s := NewCurrentExposeState(o)
 
 	for k := range s.GetOutput().(*ExposeOutputState).GetState() {
 		oid := database.NewObjectId(mymetamodel.TYPE_VALUE, o.GetNamespace(), k)
@@ -117,7 +120,7 @@ func (_ ExposePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbas
 
 type ExposeOutputState = support.OutputState[db.ExposeOutput]
 
-var NewExposeState = support.NewOutputState[db.ExposeOutput]
+var NewExposeOutputState = support.NewOutputState[db.ExposeOutput]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -125,8 +128,12 @@ type CurrentExposeState struct {
 	support.CurrentStateSupport[*db.OperatorState, *db.ExposeCurrentState]
 }
 
-func NewCurrentCalcState(n *OperatorState) model.CurrentState {
+func NewCurrentExposeState(n *OperatorState) model.CurrentState {
 	return &CurrentExposeState{support.NewCurrentStateSupport[*db.OperatorState, *db.ExposeCurrentState](n, mymetamodel.PHASE_EXPOSE)}
+}
+
+func (c *CurrentExposeState) GetObservedState() model.ObservedState {
+	return c.GetObservedStateForPhase(mymetamodel.PHASE_GATHER, c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE))
 }
 
 func (c *CurrentExposeState) GetLinks() []ElementId {
@@ -134,7 +141,7 @@ func (c *CurrentExposeState) GetLinks() []ElementId {
 }
 
 func (c *CurrentExposeState) GetOutput() model.OutputState {
-	return NewExposeState(c.GetFormalVersion(), c.Get().Output)
+	return NewExposeOutputState(c.GetFormalVersion(), c.Get().Output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

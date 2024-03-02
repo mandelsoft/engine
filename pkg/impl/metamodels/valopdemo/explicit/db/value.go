@@ -27,8 +27,8 @@ func (n *Value) GetStatusValue() string {
 }
 
 type ValueSpec struct {
-	Owner string `json:"owner"`
-	Value int    `json:"value"`
+	Provider string `json:"provider"`
+	Value    int    `json:"value"`
 }
 
 type ValueStatus struct {
@@ -55,7 +55,7 @@ func NewResultNode(ns, n string, operator string) *Value {
 	return &Value{
 		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_VALUE, ns, n),
 		Spec: ValueSpec{
-			Owner: operator,
+			Provider: operator,
 		},
 	}
 }

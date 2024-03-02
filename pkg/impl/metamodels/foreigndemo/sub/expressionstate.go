@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 
@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	wrapped2.MustRegisterType[ExpressionState](scheme)
+	wrapped.MustRegisterType[ExpressionState](scheme)
 }
 
 type ExpressionState struct {
@@ -47,7 +47,7 @@ func (n *ExpressionState) assureTarget(o *db.ExpressionState) *db.EvaluationTarg
 }
 
 func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
-	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ExpressionState))
 
 		mod := false
@@ -84,7 +84,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 
 	ex := db.NewExpressionSpec()
 	for n, v := range gathered.Operands {
-		log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, v.Origin)
+		log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, "oid", v.Origin)
 		ex.AddOperand(n, v.Value)
 	}
 	for n, o := range gathered.Operations {
@@ -107,6 +107,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 		log.Info("required version {{required}} not reached -> wait for next change", "required", required)
 		return model.StatusWaiting()
 	}
+	log.Info("required version {{required}} reached -> propagate expression results", "required", required)
 
 	if target.Spec.Status != model.STATUS_COMPLETED {
 		log.Warn("expression processing failed with status {{status}}[{{message}}]", "status", target.Spec.Status, "message", target.Spec.Message)
@@ -137,7 +138,7 @@ func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectba
 
 	if err == nil {
 		o := _o.(*Expression)
-		updated, err = wrapped2.Modify(ob, o, func(_o db2.Object) (bool, bool) {
+		updated, err = wrapped.Modify(ob, o, func(_o db2.Object) (bool, bool) {
 			o := _o.(*db.Expression)
 			mod := false
 			support.UpdateField(&o.Spec, ex, &mod)
@@ -154,6 +155,13 @@ func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectba
 		log.Info("slave expression object spec for {{extid}} up to date", "extid", extid)
 	}
 	return updated, nil
+}
+
+func (n *ExpressionState) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, tgt model.TargetState, formal *string) (bool, error) {
+	return n.InternalObjectSupport.HandleRollback(lctx, ob, phase, id, tgt, formal, support.RollbackFunc[*db.ExpressionState](n.rollbackTargetState))
+}
+
+func (n *ExpressionState) rollbackTargetState(lctx model.Logging, o *db.ExpressionState, phase Phase) {
 }
 
 func (n *ExpressionState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
@@ -186,6 +194,13 @@ var _ model.CurrentState = (*CurrentEvaluationState)(nil)
 
 func NewCurrentExpressionState(n *ExpressionState) model.CurrentState {
 	return &CurrentEvaluationState{support.NewCurrentStateSupport[*db.ExpressionState, *db.EvaluationCurrentState](n, mymetamodel.PHASE_CALCULATE)}
+}
+
+func (s *CurrentEvaluationState) GetObservedState() model.ObservedState {
+	if s.GetObservedVersion() == s.GetObjectVersion() {
+		return s
+	}
+	return s.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_OPERATOR_STATE, mymetamodel.PHASE_GATHER, s.GetName())
 }
 
 func (c *CurrentEvaluationState) GetLinks() []ElementId {

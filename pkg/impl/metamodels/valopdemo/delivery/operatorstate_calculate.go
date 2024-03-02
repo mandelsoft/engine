@@ -32,10 +32,13 @@ func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorSta
 	support.UpdateField(&o.Calculation.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
 }
 
-func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
-	if o.Calculation.Target != nil && spec != nil {
-		c := &o.Calculation.Current
+func (_ CalculatePhase) DBRollback(log logging.Logger, o *db.OperatorState, phase Phase, mod *bool) {
+}
+
+func (_ CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
+	if spec != nil {
 		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
+		c := &o.Calculation.Current
 		c.Output = spec.OutputState.(*CalcOutputState).GetState()
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
@@ -43,7 +46,7 @@ func (c CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase 
 }
 
 func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
-	log := req.Logging.Logger()
+	log := req.Logging.Logger(REALM)
 
 	var inp *db.GatherOutput
 	for _, l := range req.Inputs {
@@ -120,6 +123,10 @@ type CurrentCalcState struct {
 
 func NewCurrentCalcState(n *OperatorState) model.CurrentState {
 	return &CurrentCalcState{support.NewCurrentStateSupport[*db.OperatorState, *db.CalculationCurrentState](n, mymetamodel.PHASE_CALCULATION)}
+}
+
+func (c *CurrentCalcState) GetObservedState() model.ObservedState {
+	return c.GetObservedStateForPhase(mymetamodel.PHASE_GATHER)
 }
 
 func (c *CurrentCalcState) GetLinks() []ElementId {

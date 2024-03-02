@@ -152,6 +152,11 @@ func FilterSlice[E any, A ~[]E](in A, f func(E) bool) A {
 	return r
 }
 
+func NotInitialFilter[E comparable](e E) bool {
+	var _ini E
+	return e != _ini
+}
+
 func ContainsFilter[E comparable](in ...E) func(E) bool {
 	return func(e E) bool {
 		v := slices.Contains(in, e)

@@ -4,11 +4,12 @@ import (
 	"slices"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {

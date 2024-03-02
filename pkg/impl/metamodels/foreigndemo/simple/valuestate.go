@@ -170,6 +170,18 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 	return modobj, nil
 }
 
+func (n *ValueState) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, tgt model.TargetState, formal *string) (bool, error) {
+	return n.InternalObjectSupport.HandleRollback(lctx, ob, phase, id, tgt, formal, support.RollbackFunc[*db.ValueState](n.rollbackTargetState))
+}
+
+func (n *ValueState) rollbackTargetState(lctx model.Logging, o *db.ValueState, phase Phase) {
+	log := lctx.Logger(REALM)
+	if o.Target != nil {
+		log.Info("  observed provider {{provider}}", "provider", o.Target.Spec.Provider)
+		o.Current.ObservedProvider = o.Target.Spec.Provider
+	}
+}
+
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
 	return n.InternalObjectSupport.HandleCommit(lctx, ob, phase, id, commit, support.CommitFunc[*db.ValueState](n.commitTargetState))
 }
@@ -179,8 +191,10 @@ func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, pha
 	if o.Target != nil && spec != nil {
 		log.Info("  output {{output}}", "output", spec.OutputState.(*ValueOutputState).GetState())
 		o.Current.Output.Value = spec.OutputState.(*ValueOutputState).GetState().Value
+
 		log.Info("  provider {{provider}}", "provider", o.Target.Spec.ValueStateSpec.Provider)
 		o.Current.Provider = o.Target.Spec.ValueStateSpec.Provider
+		o.Current.ObservedProvider = o.Target.Spec.ValueStateSpec.Provider
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of ValueState {{name}}")
 	}
@@ -202,6 +216,13 @@ var _ model.CurrentState = (*CurrentValueState)(nil)
 
 func NewCurrentValueState(n *ValueState) model.CurrentState {
 	return &CurrentValueState{support.NewCurrentStateSupport[*db.ValueState, *db.ValueCurrentState](n, mymetamodel.PHASE_PROPAGATE)}
+}
+
+func (s *CurrentValueState) GetObservedState() model.ObservedState {
+	if s.GetObservedVersion() == s.GetObjectVersion() {
+		return s
+	}
+	return s.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_OPERATOR_STATE, mymetamodel.PHASE_EXPOSE, s.Get().ObservedProvider)
 }
 
 func (c *CurrentValueState) GetLinks() []ElementId {
@@ -253,8 +274,4 @@ func (c *TargetValueState) GetProvider() string {
 
 func (c *TargetValueState) GetValue() int {
 	return c.Get().Spec.Value
-}
-
-func (c *TargetValueState) AdjustObjectVersion(v string) {
-	c.Get().ObjectVersion = v
 }

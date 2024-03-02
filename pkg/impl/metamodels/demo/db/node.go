@@ -4,12 +4,13 @@ import (
 	"slices"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/utils"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
 
 func init() {
@@ -23,11 +24,11 @@ type Node struct {
 	Status NodeStatus `json:"status"`
 }
 
-var _ database.Object = (*Node)(nil)
-
 func (n *Node) GetStatusValue() string {
 	return string(n.Status.Status)
 }
+
+var _ database.Object = (*Node)(nil)
 
 type OperatorName string
 

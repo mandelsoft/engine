@@ -3,12 +3,13 @@ package db
 import (
 	"fmt"
 
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
+
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 var OperatorPhaseStateAccess = support.NewPhaseStateAccess[*OperatorState]()
@@ -24,6 +25,7 @@ func init() {
 type OperatorState struct {
 	db.InternalDBObjectSupport `json:",inline"`
 
+	// phase specific states
 	Gather GatherState `json: "gather"`
 	Expose ExposeState `json: "expose"`
 }
@@ -42,6 +44,8 @@ type GatherState struct {
 
 type GatherCurrentState struct {
 	db.StandardCurrentState
+	ObservedOperands map[string]string `json:"observedOperands,omitempty"`
+
 	Output GatherOutput `json:"output"`
 }
 

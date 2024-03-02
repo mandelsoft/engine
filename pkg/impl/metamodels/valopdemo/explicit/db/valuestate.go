@@ -2,6 +2,7 @@ package db
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -37,8 +38,10 @@ type PropagateState struct {
 
 type ValueCurrentState struct {
 	db.StandardCurrentState
-	Owner  string      `json:"owner,omitempty"`
-	Output ValueOutput `json:"output"`
+	ObservedProvider string `json:"observedProvider,omitempty"`
+
+	Provider string      `json:"provider,omitempty"`
+	Output   ValueOutput `json:"output"`
 }
 
 type ValueOutput struct {

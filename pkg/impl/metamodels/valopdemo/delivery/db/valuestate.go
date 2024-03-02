@@ -2,10 +2,10 @@ package db
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
@@ -42,8 +42,10 @@ type ValueStateSpec struct {
 type PropagateState struct {
 	db.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]
 }
+
 type ValueCurrentState struct {
 	db.StandardCurrentState
+	ObservedProvider string `json:"observedProvider,omitempty"`
 
 	Provider string      `json:"provider,omitempty"`
 	Output   ValueOutput `json:"output"`

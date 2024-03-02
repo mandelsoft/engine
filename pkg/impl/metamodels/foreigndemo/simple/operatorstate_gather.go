@@ -11,10 +11,15 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
+
+////////////////////////////////////////////////////////////////////////////////
+// Gather Phase
+////////////////////////////////////////////////////////////////////////////////
 
 type GatherPhase struct{ PhaseBase }
 
@@ -63,6 +68,10 @@ func (g GatherPhase) GetCurrentState(o *OperatorState, phase Phase) model.Curren
 }
 
 func (g GatherPhase) GetTargetState(o *OperatorState, phase Phase) model.TargetState {
+	return g.getTargetState(o)
+}
+
+func (_ GatherPhase) getTargetState(o *OperatorState) *TargetGatherState {
 	return NewTargetGatherState(o)
 }
 
@@ -73,25 +82,36 @@ func (_ GatherPhase) DBSetExternalState(log logging.Logger, o *db.OperatorState,
 	support.UpdateField(&t.Spec, state.(*ExternalOperatorState).GetState(), mod)
 }
 
+func (_ GatherPhase) DBRollback(log logging.Logger, o *db.OperatorState, phase Phase, mod *bool) {
+	if o.Gather.Target != nil {
+		c := &o.Gather.Current
+		log.Info("  observed operands {{operands}}", "operands", o.Gather.Target.Spec.Operands)
+		c.ObservedOperands = o.Gather.Target.Spec.Operands
+	}
+}
+
 func (_ GatherPhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if o.Gather.Target != nil && spec != nil {
 		// update phase specific state
-		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
 		c := &o.Gather.Current
+		log.Info("  operands {{operands}}", "operands", o.Gather.Target.Spec.Operands)
+		c.ObservedOperands = o.Gather.Target.Spec.Operands
+		log.Info("  output {{output}}", "output", spec.OutputState.(*GatherOutputState).GetState())
 		support.UpdateField(&c.Output, spec.OutputState.(*GatherOutputState).GetState(), mod)
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
-func (_ GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
+func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger()
 
 	if req.Delete {
 		log.Info("deletion successful")
 		return model.StatusDeleted()
 	}
-	t := NewTargetGatherState(o)
+
+	t := g.getTargetState(o)
 	operands := map[string]db.Operand{}
 	for iid, e := range req.Inputs {
 		s := e.(*ValueOutputState).GetState()
@@ -160,6 +180,13 @@ func NewCurrentGatherState(n *OperatorState) model.CurrentState {
 
 var _ model.CurrentState = (*CurrentGatherState)(nil)
 
+func (c *CurrentGatherState) GetObservedState() model.ObservedState {
+	if c.GetObjectVersion() == c.GetObservedVersion() {
+		return c
+	}
+	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE, utils.OrderedMapElements(c.Get().ObservedOperands)...)
+}
+
 func (c *CurrentGatherState) GetLinks() []ElementId {
 	var r []ElementId
 
@@ -186,17 +213,12 @@ func NewTargetGatherState(n *OperatorState) *TargetGatherState {
 }
 
 func (c *TargetGatherState) GetLinks() []ElementId {
-	var r []ElementId
-
 	t := c.Get()
 	if t == nil {
 		return nil
 	}
 
-	for _, o := range t.Spec.Operands {
-		r = append(r, NewElementId(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), o, mymetamodel.PHASE_PROPAGATE))
-	}
-	return r
+	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE, utils.OrderedMapElements(t.Spec.Operands)...)
 }
 
 func (c *TargetGatherState) GetOperations() map[string]db.Operation {

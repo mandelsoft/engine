@@ -2,28 +2,24 @@ package explicit
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
-	wrapped2.MustRegisterType[ValueState](scheme)
+	wrapped.MustRegisterType[ValueState](scheme)
 }
 
 type ValueState struct {
 	support.InternalObjectSupport[*db.ValueState] `json:",inline"`
-}
-
-type ValueStateCurrent struct {
-	Value int `json:"value"`
 }
 
 var _ model.InternalObject = (*ValueState)(nil)
@@ -45,7 +41,7 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 }
 
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalState) (model.AcceptStatus, error) {
-	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
 
 		mod := false
@@ -63,10 +59,11 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 
 func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
+	target := n.GetTargetState(req.Element.GetPhase())
 
 	var out db.ValueOutput
 	if len(req.Inputs) > 0 {
-		links := n.GetTargetState(req.Element.GetPhase()).GetLinks()
+		links := target.GetLinks()
 		for iid, e := range req.Inputs {
 			s := e.(*CalcOutputState).GetState()
 			for _, oid := range links {
@@ -74,8 +71,8 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 					out.Value = s
 					out.Origin = iid.ObjectId()
 					log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", out.Value)
-					break
 				}
+				break
 			}
 		}
 	} else {
@@ -84,6 +81,18 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
 	return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out))
+}
+
+func (n *ValueState) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, tgt model.TargetState, formal *string) (bool, error) {
+	return n.InternalObjectSupport.HandleRollback(lctx, ob, phase, id, tgt, formal, support.RollbackFunc[*db.ValueState](n.rollbackTargetState))
+}
+
+func (n *ValueState) rollbackTargetState(lctx model.Logging, o *db.ValueState, phase Phase) {
+	log := lctx.Logger(REALM)
+	if o.Target != nil {
+		log.Info("  observed provider {{provider}}", "provider", o.Target.Spec.Provider)
+		o.Current.ObservedProvider = o.Target.Spec.Provider
+	}
 }
 
 func (n *ValueState) Commit(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, commit *model.CommitInfo) (bool, error) {
@@ -96,10 +105,12 @@ func (n *ValueState) commitTargetState(lctx model.Logging, o *db.ValueState, pha
 		log.Info("  output {{output}}", "output", spec.OutputState.(*ValueOutputState).GetState())
 		o.Current.Output.Value = spec.OutputState.(*ValueOutputState).GetState().Value
 
-		log.Info("  owner {{owner}}", "owner", o.Target.Spec.Owner)
-		o.Current.Owner = o.Target.Spec.Owner
+		log.Info("  provider {{provider}}", "provider", o.Target.Spec.Provider)
+		o.Current.Provider = o.Target.Spec.Provider
+		o.Current.ObservedProvider = o.Target.Spec.Provider
+	} else {
+		log.Info("nothing to commit for phase {{phase}} of ValueState {{name}}")
 	}
-	o.Target = nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,13 +131,25 @@ func NewCurrentValueState(n *ValueState) model.CurrentState {
 	return &CurrentValueState{support.NewCurrentStateSupport[*db.ValueState, *db.ValueCurrentState](n, mymetamodel.PHASE_PROPAGATE)}
 }
 
+func (s *CurrentValueState) GetObservedState() model.ObservedState {
+	if s.GetObservedVersion() == s.GetObjectVersion() {
+		return s
+	}
+	return s.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_OPERATOR_STATE, mymetamodel.PHASE_CALCULATION, s.Get().ObservedProvider)
+}
+
 func (c *CurrentValueState) GetLinks() []ElementId {
 	var r []ElementId
+
 	t := c.Get()
-	if t.Owner != "" {
-		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Owner, mymetamodel.PHASE_CALCULATION))
+	if t.Provider != "" {
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Provider, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
+}
+
+func (c *CurrentValueState) GetProvider() string {
+	return c.Get().Provider
 }
 
 func (c *CurrentValueState) GetOutput() model.OutputState {
@@ -153,14 +176,18 @@ func (c *TargetValueState) GetLinks() []ElementId {
 		return nil
 	}
 
-	if t.Spec.Owner != "" {
-		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Owner, mymetamodel.PHASE_CALCULATION))
+	if t.Spec.Provider != "" {
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Provider, mymetamodel.PHASE_CALCULATION))
 	}
 	return r
 }
 
 func (c *TargetValueState) GetInputVersion(inputs model.Inputs) string {
 	return support.DefaultInputVersion(inputs)
+}
+
+func (c *TargetValueState) GetProvider() string {
+	return c.Get().Spec.Provider
 }
 
 func (c *TargetValueState) GetValue() int {

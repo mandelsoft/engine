@@ -23,24 +23,24 @@ func (_ CalculatePhase) GetCurrentState(o *NodeState, phase Phase) model.Current
 }
 
 func (c CalculatePhase) GetTargetState(o *NodeState, phase Phase) model.TargetState {
-	return c.getTargetState(o)
-}
-
-func (_ CalculatePhase) getTargetState(o *NodeState) *TargetCalcState {
 	return NewTargetCalcState(o)
 }
 
 func (c CalculatePhase) DBSetExternalState(log logging.Logger, o *db.NodeState, phase Phase, state model.ExternalState, mod *bool) {
-	// no external state for this phase -> use object version from gather phase
+	log.Info("set target state for phase {{phase}} of NodeState {{name}}")
 	support.UpdateField(&o.Calculation.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
+}
+
+func (_ CalculatePhase) DBRollback(log logging.Logger, o *db.NodeState, phase Phase, mod *bool) {
 }
 
 func (_ CalculatePhase) DBCommit(log logging.Logger, o *db.NodeState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
-		// update state specific
 		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
 		c := &o.Calculation.Current
 		c.Output.Value = spec.OutputState.(*CalcOutputState).GetState()
+	} else {
+		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
 }
 
@@ -48,7 +48,6 @@ func (_ CalculatePhase) Process(o *NodeState, phase Phase, req model.Request) mo
 	log := req.Logging.Logger(REALM)
 
 	var inp *db.GatherOutput
-
 	for _, l := range req.Inputs {
 		inp = l.(*GatherOutputState).GetState()
 	}
@@ -101,46 +100,16 @@ func NewCurrentCalcState(n *NodeState) model.CurrentState {
 	return &CurrentCalcState{support.NewCurrentStateSupport[*db.NodeState, *db.CalculationCurrentState](n, mymetamodel.PHASE_CALCULATION)}
 }
 
+func (c *CurrentCalcState) GetObservedState() model.ObservedState {
+	return c.GetObservedStateForPhase(mymetamodel.PHASE_GATHER)
+}
+
 func (c *CurrentCalcState) GetLinks() []ElementId {
 	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER)}
 }
 
 func (c *CurrentCalcState) GetOutput() model.OutputState {
 	return NewCalcOutputState(c.GetFormalVersion(), c.Get().Output.Value)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type TargetGatherState struct {
-	support.TargetStateSupport[*db.NodeState, *db.GatherTargetState]
-}
-
-var _ model.TargetState = (*TargetGatherState)(nil)
-
-func NewTargetGatherState(n *NodeState) *TargetGatherState {
-	return &TargetGatherState{support.NewTargetStateSupport[*db.NodeState, *db.GatherTargetState](n, mymetamodel.PHASE_GATHER)}
-}
-
-func (c *TargetGatherState) GetLinks() []ElementId {
-	var r []ElementId
-
-	t := c.Get()
-	if t == nil {
-		return nil
-	}
-
-	for _, o := range t.Spec.Operands {
-		r = append(r, NewElementId(c.GetType(), c.GetNamespace(), o, mymetamodel.PHASE_CALCULATION))
-	}
-	return r
-}
-
-func (c *TargetGatherState) GetOperator() *db.OperatorName {
-	return c.Get().Spec.Operator
-}
-
-func (c *TargetGatherState) GetValue() *int {
-	return c.Get().Spec.Value
 }
 
 ////////////////////////////////////////////////////////////////////////////////

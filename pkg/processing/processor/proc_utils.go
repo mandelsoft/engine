@@ -150,7 +150,7 @@ func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem 
 				}
 			}
 		} else if e.GetStatus() != model.STATUS_DELETED && e.GetCurrentState() != nil {
-			links := e.GetCurrentState().GetLinks()
+			links := e.GetCurrentState().GetObservedState().GetLinks()
 			log.Debug("- elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
 			for _, l := range links {
 				if l == id {

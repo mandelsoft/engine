@@ -34,11 +34,14 @@ func (c ExposePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState,
 	support.UpdateField(&o.Expose.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
 }
 
+func (_ ExposePhase) DBRollback(log logging.Logger, o *db.OperatorState, phase Phase, mod *bool) {
+}
+
 func (c ExposePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
-	if o.Expose.Target != nil && spec != nil {
+	if spec != nil {
 		c := &o.Expose.Current
 		log.Info("  output {{output}}", "output", spec.OutputState.(*ExposeOutputState).GetState())
-		support.UpdateField(&c.Output, utils.Pointer(spec.OutputState.(*ExposeOutputState).GetState()), mod)
+		c.Output = spec.OutputState.(*ExposeOutputState).GetState()
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
@@ -127,6 +130,10 @@ type CurrentExposeState struct {
 
 func NewCurrentExposeState(n *OperatorState) model.CurrentState {
 	return &CurrentExposeState{support.NewCurrentStateSupport[*db.OperatorState, *db.ExposeCurrentState](n, mymetamodel.PHASE_EXPOSE)}
+}
+
+func (c *CurrentExposeState) GetObservedState() model.ObservedState {
+	return c.GetObservedStateForPhase(mymetamodel.PHASE_GATHER, c.SlaveLink(mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE))
 }
 
 func (c *CurrentExposeState) GetLinks() []ElementId {

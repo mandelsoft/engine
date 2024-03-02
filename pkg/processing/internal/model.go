@@ -38,7 +38,7 @@ type InternalObject interface {
 
 	GetLock(Phase) RunId
 	TryLock(Objectbase, Phase, RunId) (bool, error)
-	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId, observed, formal *string) (bool, error)
+	Rollback(lctx Logging, ob Objectbase, ph Phase, id RunId, tgt TargetState, formal *string) (bool, error)
 	Commit(lctx Logging, ob Objectbase, ph Phase, id RunId, atomic *CommitInfo) (bool, error)
 
 	GetStatus(Phase) Status
@@ -62,9 +62,16 @@ type LinkState interface {
 	GetLinks() []ElementId
 }
 
-type CurrentState interface {
+type ObservedState interface {
 	LinkState
-	GetObservedVersion() string
+	GetObjectVersion() string
+}
+
+type CurrentState interface {
+	GetObservedState() ObservedState
+
+	LinkState
+	GetFormalVersion() string
 	GetInputVersion() string
 	GetObjectVersion() string
 	GetOutputVersion() string

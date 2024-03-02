@@ -27,20 +27,25 @@ func (_ CalculatePhase) GetTargetState(o *OperatorState, phase Phase) model.Targ
 }
 
 func (_ CalculatePhase) DBSetExternalState(log logging.Logger, o *db.OperatorState, phase Phase, state model.ExternalState, mod *bool) {
+	log.Info("set target state for phase {{phase}} of Operator {{name}}")
 	support.UpdateField(&o.Calculation.Target.ObjectVersion, &o.Gather.Current.ObjectVersion, mod)
+}
+
+func (_ CalculatePhase) DBRollback(log logging.Logger, o *db.OperatorState, phase Phase, mod *bool) {
 }
 
 func (_ CalculatePhase) DBCommit(log logging.Logger, o *db.OperatorState, phase Phase, spec *model.CommitInfo, mod *bool) {
 	if spec != nil {
 		log.Info("  output {{output}}", "output", spec.OutputState.(*CalcOutputState).GetState())
-		cc := &o.Calculation.Current
-		cc.Output.Value = spec.OutputState.(*CalcOutputState).GetState()
+		c := &o.Calculation.Current
+		c.Output.Value = spec.OutputState.(*CalcOutputState).GetState()
+	} else {
+		log.Info("nothing to commit for phase {{phase}} of OperatorState {{name}}")
 	}
-	o.Calculation.Target = nil
 }
 
 func (_ CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request) model.ProcessingResult {
-	log := req.Logging.Logger()
+	log := req.Logging.Logger(REALM)
 
 	var inp *db.GatherOutput
 	for _, l := range req.Inputs {
@@ -91,6 +96,10 @@ func NewCurrentCalcState(n *OperatorState) model.CurrentState {
 	return &CurrentCalcState{support.NewCurrentStateSupport[*db.OperatorState, *db.CalculationCurrentState](n, mymetamodel.PHASE_CALCULATION)}
 }
 
+func (c *CurrentCalcState) GetObservedState() model.ObservedState {
+	return c.GetObservedStateForPhase(mymetamodel.PHASE_GATHER)
+}
+
 func (c *CurrentCalcState) GetLinks() []ElementId {
 	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER)}
 }
@@ -113,8 +122,4 @@ func NewTargetCalcState(n *OperatorState) *TargetCalcState {
 
 func (c *TargetCalcState) GetLinks() []ElementId {
 	return []ElementId{c.PhaseLink(mymetamodel.PHASE_GATHER)}
-}
-
-func (c *TargetCalcState) GetInputVersion(inputs model.Inputs) string {
-	return support.DefaultInputVersion(inputs)
 }

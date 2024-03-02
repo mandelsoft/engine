@@ -19,7 +19,7 @@ func init() {
 type NodeState struct {
 	db.InternalDBObjectSupport `json:",inline"`
 
-	State State `json:"state"`
+	State `json:",inline"`
 }
 
 var _ db.InternalDBObject = (*NodeState)(nil)
@@ -32,6 +32,8 @@ type State = db.DefaultPhaseState[CurrentState, TargetState, *CurrentState, *Tar
 
 type CurrentState struct {
 	db.StandardCurrentState
+	ObservedOperands []string `json:"observedOperands,omitempty"`
+
 	Operands []string `json:"operands"`
 	Output   Output   `json:"output"`
 }
