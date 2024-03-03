@@ -133,7 +133,7 @@ var _ = Describe("Processing", func() {
 	////////////////////////////////////////////////////////////////////////////
 
 	Context("changing structure", func() {
-		It("operator with multiple outputs", func() {
+		It("operator with changing outputs", func() {
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)

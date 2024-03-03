@@ -15,6 +15,11 @@ type Future interface {
 	FinalWait(ctx context.Context) bool
 }
 
+type Trigger interface {
+	Future
+	Trigger() bool
+}
+
 type future struct {
 	retrigger bool
 	lock      sync.Mutex

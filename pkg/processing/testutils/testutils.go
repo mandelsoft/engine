@@ -8,6 +8,7 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/service"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 
 	"github.com/mandelsoft/logging"
@@ -28,13 +29,11 @@ import (
 
 var log = logging.DefaultContext().Logger(logging.NewRealm("testenv"))
 
-type Startable interface {
-	Start(group *sync.WaitGroup) error
-}
+type Startable = service.Service
 
 type TestEnv struct {
 	lock         sync.Mutex
-	wg           *sync.WaitGroup
+	services     service.Services
 	fs           vfs.FileSystem
 	ctx          context.Context
 	lctx         logging.Context
@@ -89,14 +88,16 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 		vfs.Cleanup(fs)
 		return nil, err
 	}
-	proc := Must(processor.NewProcessor(ctx, lctx, m, options.numWorker))
+	proc := Must(processor.NewProcessor(lctx, m, options.numWorker))
 	db := objectbase.GetDatabase[db.Object](proc.Model().ObjectBase())
 
 	mgr := future.NewEventManager[ObjectId, model.Status]()
 
+	srvs := service.New(ctx)
+	srvs.Add(proc)
 	db.RegisterHandler(&handler{db, mgr}, false, "")
 	return &TestEnv{
-		wg:           &sync.WaitGroup{},
+		services:     srvs,
 		fs:           fs,
 		ctx:          ctx,
 		lctx:         lctx,
@@ -104,7 +105,6 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 		db:           db,
 		proc:         proc,
 		objectStatus: mgr,
-		startables:   []Startable{proc},
 	}, nil
 }
 
@@ -129,49 +129,11 @@ func (t *TestEnv) MetaModel() metamodel.MetaModel {
 }
 
 func (t *TestEnv) AddService(s Startable) error {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	t.startables = append(t.startables, s)
-	if t.started {
-		err := s.Start(t.wg)
-		if err != nil {
-			ctxutil.Cancel(t.ctx)
-			return err
-		}
-	}
-	return nil
+	return t.services.Add(s)
 }
 
 func (t *TestEnv) Start(st ...Startable) error {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	if len(st) == 0 {
-		if !t.started {
-			t.started = true
-			for _, s := range t.startables {
-				err := s.Start(t.wg)
-				if err != nil {
-					ctxutil.Cancel(t.ctx)
-					return err
-				}
-			}
-		}
-	} else {
-		for _, s := range st {
-			err := s.Start(t.wg)
-			if err != nil {
-				ctxutil.Cancel(t.ctx)
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (t *TestEnv) WaitGroup() *sync.WaitGroup {
-	return t.wg
+	return t.services.Start(st...)
 }
 
 func (t *TestEnv) List(typ string, ns string) ([]database.ObjectId, error) {
@@ -217,9 +179,7 @@ func Modify[O db.Object, R any](env *TestEnv, o *O, mod func(o O) (R, bool)) (R,
 
 func (t *TestEnv) Cleanup() {
 	ctxutil.Cancel(t.ctx)
-	if t.wg != nil {
-		t.wg.Wait()
-	}
+	t.services.Wait()
 	vfs.Cleanup(t.fs)
 }
 

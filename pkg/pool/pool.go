@@ -3,12 +3,12 @@ package pool
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/healthz"
+	"github.com/mandelsoft/engine/pkg/service"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 	"k8s.io/client-go/util/workqueue"
@@ -19,14 +19,13 @@ var REALM = logging.DefineRealm("engine/pool", "processing worker pool for engin
 var poolkey = ""
 
 type Pool interface {
+	service.Service
+
 	GetName() string
 	Period() time.Duration
 
 	AddAction(key ActionTargetSpec, a Action)
 	GetActions(key interface{}) []Action
-
-	Start(*sync.WaitGroup)
-	Run()
 
 	EnqueueCommand(cmd Command)
 	EnqueueCommandRateLimited(cmd Command)
@@ -50,9 +49,11 @@ type pool struct {
 	actions    *actionMapping
 	useKeyName bool
 	key        string
+	ready      service.Trigger
+	syncher    service.Syncher
 }
 
-func NewPool(ctx context.Context, lctxp logging.AttributionContextProvider, name string, size int, period time.Duration, useKeyName ...bool) Pool {
+func NewPool(lctxp logging.AttributionContextProvider, name string, size int, period time.Duration, useKeyName ...bool) Pool {
 	lctx := lctxp.AttributionContext().WithContext(REALM, logging.NewAttribute("pool", name)).WithName(name)
 	pool := &pool{
 		UnboundLogger: logging.DynamicLogger(lctx),
@@ -69,10 +70,6 @@ func NewPool(ctx context.Context, lctxp logging.AttributionContextProvider, name
 	}
 
 	pool.UnboundLogger = logging.DynamicLogger(lctx, logging.NewAttribute("pool", name))
-	pool.ctx = ctxutil.WaitGroupContext(
-		context.WithValue(ctx, &poolkey, pool),
-		fmt.Sprintf("pool %s", name),
-	)
 
 	if pool.period != 0 {
 		pool.Info("created pool", "name", pool.name, "size", pool.size, "resync period", pool.period.String())
@@ -115,12 +112,25 @@ func (p *pool) Tick() {
 	healthz.Tick(p.Key())
 }
 
-func (p *pool) Start(wg *sync.WaitGroup) {
-	go func() {
-		wg.Add(1)
-		defer wg.Done()
-		p.Run()
-	}()
+func (p *pool) Wait() error {
+	return p.syncher.Wait()
+}
+
+func (p *pool) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
+	if p.syncher == nil {
+		p.ctx = ctxutil.WaitGroupContext(
+			context.WithValue(ctx, &poolkey, p),
+			fmt.Sprintf("pool %s", p.name),
+		)
+
+		wg := ctxutil.WaitGroupGet(p.ctx)
+		p.syncher = service.Sync(wg)
+		p.ready = service.SyncTrigger()
+		go func() {
+			p.Run()
+		}()
+	}
+	return p.ready, p.syncher, nil
 }
 
 func (p *pool) Run() {
@@ -137,6 +147,8 @@ func (p *pool) Run() {
 	for i := 0; i < p.size; i++ {
 		p.startWorker(i, p.ctx.Done())
 	}
+
+	p.ready.Trigger()
 
 	<-p.ctx.Done()
 	p.workqueue.ShutDown()

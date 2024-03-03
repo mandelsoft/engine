@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 	"time"
 
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -35,7 +34,6 @@ import (
 const NS = "testspace"
 
 var _ = Describe("Processing", func() {
-	var wg *sync.WaitGroup
 	var fs vfs.FileSystem
 	// var ob objectbase.Objectbase
 	var ctx context.Context
@@ -61,21 +59,20 @@ var _ = Describe("Processing", func() {
 		ctx = ctxutil.CancelContext(context.Background())
 
 		m := Must(model.NewModel(spec))
-		proc = Must(processor.NewProcessor(ctx, lctx, m, 1))
+		proc = Must(processor.NewProcessor(lctx, m, 1))
 		odb = objectbase.GetDatabase[db2.Object](proc.Model().ObjectBase())
-		wg = &sync.WaitGroup{}
 		_ = logbuf
 	})
 
 	AfterEach(func() {
 		ctxutil.Cancel(ctx)
-		wg.Wait()
+		proc.Wait()
 		vfs.Cleanup(fs)
 	})
 
 	Context("", func() {
 		It("single node", func() {
-			proc.Start(wg)
+			proc.Start(ctx)
 
 			n5 := db.NewValueNode(NS, "A", 5)
 
@@ -92,7 +89,7 @@ var _ = Describe("Processing", func() {
 		})
 
 		It("node with two operands (in order)", func() {
-			proc.Start(wg)
+			proc.Start(ctx)
 
 			n5 := db.NewValueNode(NS, "A", 5)
 			MustBeSuccessful(odb.SetObject(n5))
@@ -114,7 +111,7 @@ var _ = Describe("Processing", func() {
 			lctx.Logger().Debug("debug logs enabled")
 			// os.Stdout.Write(logbuf.Bytes())
 
-			proc.Start(wg)
+			proc.Start(ctx)
 
 			na := db.NewOperatorNode(NS, "C", db.OP_ADD, "A", "B")
 			MustBeSuccessful(odb.SetObject(na))

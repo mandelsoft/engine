@@ -57,7 +57,7 @@ var _ = Describe("Processing", func() {
 		})
 
 		It("operator with two operands (in order)", func() {
-			env.AddService(controllers.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
+			env.AddService(controllers.NewExpressionController(env.Logging(), 1, env.Database()))
 			env.Start()
 
 			vA := db.NewValueNode(NS, "A", 5)

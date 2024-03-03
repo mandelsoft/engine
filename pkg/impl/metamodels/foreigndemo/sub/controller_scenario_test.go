@@ -42,8 +42,8 @@ var _ = Describe("Test Environment", func() {
 	})
 
 	Context("", func() {
-		FIt("handles the controller test scenario", func() {
-			env.AddService(me.NewExpressionController(env.Context(), env.Logging(), 1, env.Database()))
+		It("handles the controller test scenario", func() {
+			env.AddService(me.NewExpressionController(env.Logging(), 1, env.Database()))
 			env.Start()
 
 			ooEXPR := db.NewExpression(NS, "EXPR").

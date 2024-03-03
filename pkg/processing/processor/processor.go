@@ -3,9 +3,9 @@ package processor
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/service"
 	"github.com/mandelsoft/engine/pkg/version"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -25,26 +25,31 @@ const CMD_ELEM = "elem"
 const CMD_NS = "ns"
 
 type Processor struct {
+	lctx   logging.Context
+	worker int
+
 	processingModel *processingModel
 	composer        version.Composer
 
 	ctx     context.Context
 	logging logging.Context
 	pool    pool.Pool
+	syncher service.Syncher
+	ready   service.Trigger
 	handler database.EventHandler
 
 	events  *EventManager
 	pending PendingCounter
 }
 
-func NewProcessor(ctx context.Context, lctx logging.Context, m model.Model, worker int, cmps ...version.Composer) (*Processor, error) {
-	pool := pool.NewPool(ctx, lctx, m.MetaModel().Name(), worker, 0, false)
+var _ service.Service = (*Processor)(nil)
+
+func NewProcessor(lctx logging.Context, m model.Model, worker int, cmps ...version.Composer) (*Processor, error) {
 	p := &Processor{
-		ctx:             ctx,
+		pool:            pool.NewPool(lctx, m.MetaModel().Name(), worker, 0, false),
 		logging:         lctx.WithContext(REALM),
 		processingModel: newProcessingModel(m),
 		composer:        utils.OptionalDefaulted[version.Composer](version.Composed, cmps...),
-		pool:            pool,
 	}
 	p.events = newEventManager(p.processingModel)
 	return p, nil
@@ -62,10 +67,6 @@ func (p *Processor) Model() ProcessingModel {
 	return p.processingModel
 }
 
-func (p *Processor) Wait(ctx context.Context) bool {
-	return p.pending.Wait(ctx)
-}
-
 func (p *Processor) WaitFor(ctx context.Context, etype EventType, id ElementId) bool {
 	return p.events.Wait(ctx, etype, id)
 }
@@ -79,16 +80,19 @@ func (p *Processor) getNamespace(name string) *namespaceInfo {
 	return n
 }
 
-func (p *Processor) Start(wg *sync.WaitGroup) error {
-	if p.handler != nil {
-		return nil
-	}
+func (p *Processor) Wait() error {
+	return p.syncher.Wait()
+}
 
+func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
+	if p.syncher != nil {
+		return p.ready, p.syncher, nil
+	}
 	log := p.logging.Logger().WithName("setup")
 
 	err := p.setupElements(p.logging.AttributionContext(), log)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	p.handler = newHandler(p.pool)
@@ -107,18 +111,32 @@ func (p *Processor) Start(wg *sync.WaitGroup) error {
 
 	p.processingModel.ObjectBase().RegisterHandler(reg, true, "")
 
-	p.pool.Start(wg)
-
-	log.Info("triggering all elements")
-	c := 0
-	for _, n := range p.processingModel.Namespaces() {
-		for _, id := range p.processingModel.GetNamespace(n).Elements() {
-			p.EnqueueKey(CMD_ELEM, id)
-			c++
-		}
+	ready, sy, err := p.pool.Start(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
-	log.Info("{{amount}} elements triggers", "amount", c)
-	return nil
+	p.syncher = sy
+
+	err = ready.Wait()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	p.ready = service.SyncTrigger()
+
+	go func() {
+		log.Info("triggering all elements")
+		c := 0
+		for _, n := range p.processingModel.Namespaces() {
+			for _, id := range p.processingModel.GetNamespace(n).Elements() {
+				p.EnqueueKey(CMD_ELEM, id)
+				c++
+			}
+		}
+		log.Info("{{amount}} elements triggered", "amount", c)
+		p.ready.Trigger()
+	}()
+	return p.ready, sy, nil
 }
 
 func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error {

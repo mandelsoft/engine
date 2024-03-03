@@ -142,7 +142,9 @@ func TransformMap[K comparable, V any, M ~map[K]V, TK comparable, TV any](in M, 
 	return r
 }
 
-func FilterSlice[E any, A ~[]E](in A, f func(E) bool) A {
+type Filter[E any] func(E) bool
+
+func FilterSlice[E any, A ~[]E](in A, f Filter[E]) A {
 	var r A
 	for _, v := range in {
 		if f(v) {
@@ -164,14 +166,18 @@ func ContainsFilter[E comparable](in ...E) func(E) bool {
 	}
 }
 
-func ContainsFilterFunc[E any](cmp func(E, E) int, in ...E) func(E) bool {
+func ContainsFilterFunc[E any](cmp func(E, E) int, in ...E) Filter[E] {
 	return func(e E) bool {
 		return slices.ContainsFunc(in, func(c E) bool { return cmp(e, c) == 0 })
 	}
 }
 
-func NotFilter[E any](f func(E) bool) func(e E) bool {
+func NotFilter[E any](f Filter[E]) Filter[E] {
 	return func(e E) bool { return !f(e) }
+}
+
+func EqualsFilter[E comparable](e E) Filter[E] {
+	return func(c E) bool { return e == c }
 }
 
 func AssertType[C any]() C {

@@ -2,16 +2,16 @@ package watch_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"sync"
 	"time"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
+	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/server"
+	"github.com/mandelsoft/engine/pkg/service"
 	. "github.com/mandelsoft/engine/pkg/testutils"
+	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/watch"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
@@ -27,8 +27,10 @@ var log = logging.DefaultContext().Logger(REALM)
 
 var _ = Describe("Watch Test Environment", func() {
 	Context("", func() {
+		var ctx context.Context
 		var srv *server.Server
 		var registry *Registry
+		var services service.Services
 
 		BeforeEach(func() {
 			logcfg := logrusl.Human(true)
@@ -37,15 +39,18 @@ var _ = Describe("Watch Test Environment", func() {
 			lctx := logging.DefaultContext()
 			lctx.AddRule(logging.NewConditionRule(logging.DebugLevel, logging.NewRealmPrefix("engine")))
 
-			srv = server.NewServer(8080, true)
+			ctx = ctxutil.TimeoutContext(context.Background(), 30*time.Second)
+			services = service.New(ctx)
 			registry = NewRegistry()
-			go func() {
-				MustBeSuccessful(srv.ListenAndServe())
-			}()
+			srv = server.NewServer(8080, true, 10*time.Second)
+			services.Add(srv)
+
+			services.Start()
 		})
 
 		AfterEach(func() {
-			srv.Shutdown(context.Background())
+			ctxutil.Cancel(ctx)
+			MustBeSuccessful(services.Wait())
 		})
 
 		It("runs server", func() {
@@ -53,21 +58,19 @@ var _ = Describe("Watch Test Environment", func() {
 
 			time.Sleep(time.Second)
 			go func() {
-				for i := 1; i < 100; i++ {
+				for i := 1; i < 10; i++ {
 					registry.Trigger(Event{
 						Key:     "test",
 						Message: fmt.Sprintf("message %d", i),
 					})
 					time.Sleep(time.Second)
 				}
+				ctxutil.Cancel(ctx)
 			}()
 
-			go func() {
-				err := Consume()
-				fmt.Printf("consume: %s\n", err)
-			}()
+			s := Must(Consume())
+			MustBeSuccessful(s.Wait())
 
-			time.Sleep(100 * time.Second)
 			Expect("").To(Equal(""))
 		})
 	})
@@ -94,6 +97,7 @@ func NewRegistry() *Registry {
 		handlers: map[string][]Handler{},
 	}
 }
+
 func (r *Registry) Register(req RegistrationRequest, h Handler) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -101,6 +105,14 @@ func (r *Registry) Register(req RegistrationRequest, h Handler) {
 	log.Info("registering handler for {{key}}", "key", req.Key)
 	list := r.handlers[req.Key]
 	r.handlers[req.Key] = append(list, h)
+}
+
+func (r *Registry) Unregister(req RegistrationRequest, h Handler) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	log.Info("unregistering handler for {{key}}", "key", req.Key)
+	r.handlers[req.Key] = utils.FilterSlice(r.handlers[req.Key], utils.NotFilter(utils.EqualsFilter(h)))
 }
 
 func (r *Registry) Trigger(evt Event) {
@@ -116,34 +128,16 @@ func (r *Registry) Trigger(evt Event) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func Consume() error {
-	conn, _, _, err := ws.Dial(context.Background(), "ws://localhost:8080/watch")
-
-	if err != nil {
-		return err
-	}
+func Consume() (watch.Syncher, error) {
+	c := watch.NewClient[RegistrationRequest, Event]("ws://localhost:8080/watch")
 
 	registration := RegistrationRequest{Key: "test"}
+	return c.Register(context.Background(), registration, &handler{})
+}
 
-	data, _ := json.Marshal(registration)
-	err = wsutil.WriteClientMessage(conn, ws.OpBinary, data)
-	if err != nil {
-		return err
-	}
+type handler struct {
+}
 
-	for {
-		msgs, err := wsutil.ReadServerMessage(conn, nil)
-		if err != nil {
-			return err
-		}
-		for _, m := range msgs {
-			var evt Event
-
-			err := json.Unmarshal(m.Payload, &evt)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("%#v\n", evt)
-		}
-	}
+func (h *handler) Handle(e Event) {
+	log.Info("got event {{event}}", "event", e)
 }

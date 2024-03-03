@@ -39,7 +39,7 @@ var _ = Describe("Controller Test", func() {
 
 	BeforeEach(func() {
 		env = Must(NewTestEnv("test", "testdata", mymodel.NewModelSpecification))
-		cntr = me.NewExpressionController(env.Context(), env.Logging(), 1, env.Database())
+		cntr = me.NewExpressionController(env.Logging(), 1, env.Database())
 	})
 
 	AfterEach(func() {

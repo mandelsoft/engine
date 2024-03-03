@@ -74,7 +74,17 @@ func WaitGroupContext(ctx context.Context, desc ...string) context.Context {
 }
 
 func get_wg(ctx context.Context) *WaitGroup {
-	return ctx.Value(&synckey).(*WaitGroup)
+	if w := ctx.Value(&synckey); w != nil {
+		return w.(*WaitGroup)
+	}
+	return nil
+}
+
+func WaitGroupGet(ctx context.Context) *sync.WaitGroup {
+	if w := get_wg(ctx); w != nil {
+		return &w.WaitGroup
+	}
+	return nil
 }
 
 func WaitGroupAdd(ctx context.Context) {

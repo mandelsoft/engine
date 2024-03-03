@@ -127,6 +127,7 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 			return pool.StatusCompleted(fmt.Errorf("cannot get external object %s: %w", id, err))
 		}
 		log.Info("external object {{extid}} not found -> ignore state")
+		return pool.StatusCompleted()
 	}
 
 	o := _o.(model.ExternalObject)

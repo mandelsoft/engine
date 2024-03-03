@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/service"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 
@@ -19,29 +19,33 @@ import (
 )
 
 type ExpressionController struct {
+	lctx   logging.AttributionContextProvider
+	worker int
+
 	pool pool.Pool
 	db   database.Database[db2.Object]
 }
 
 var _ pool.Action = (*ExpressionController)(nil)
+var _ service.Service = (*ExpressionController)(nil)
 
-func NewExpressionController(ctx context.Context, lctx logging.AttributionContextProvider, size int, db database.Database[db2.Object]) *ExpressionController {
-	p := pool.NewPool(ctx, lctx, "controller", size, 0)
-
+func NewExpressionController(lctx logging.AttributionContextProvider, size int, db database.Database[db2.Object]) *ExpressionController {
 	c := &ExpressionController{
-		pool: p,
+		pool: pool.NewPool(lctx, "controller", size, 0),
 		db:   db,
 	}
 	return c
 }
 
-func (c *ExpressionController) Start(wg *sync.WaitGroup) error {
-	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_EXPRESSION), c)
+func (c *ExpressionController) Wait() error {
+	return c.pool.Wait()
+}
 
+func (c *ExpressionController) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
+	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_EXPRESSION), c)
 	h := &Handler{c}
 	c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION)
-	c.pool.Start(wg)
-	return nil
+	return c.pool.Start(ctx)
 }
 
 func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.MessageContext, id database.ObjectId) pool.Status {

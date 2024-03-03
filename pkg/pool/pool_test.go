@@ -11,6 +11,8 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/service"
+	. "github.com/mandelsoft/engine/pkg/testutils"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 	. "github.com/onsi/ginkgo/v2"
@@ -80,18 +82,18 @@ func (a *action) Command(p me.Pool, log me.MessageContext, command me.Command) m
 
 var _ = Describe("version", func() {
 	var pool me.Pool
-	var wg *sync.WaitGroup
 	var ctx context.Context
+	var syncher service.Syncher
 
 	BeforeEach(func() {
 		ctx = ctxutil.CancelContext(context.Background())
-		pool = me.NewPool(ctx, logging.DefaultContext(), "test", 1, 0)
-		wg = &sync.WaitGroup{}
+		pool = me.NewPool(logging.DefaultContext(), "test", 1, 0)
+		_, syncher = Must2(pool.Start(ctx))
 	})
 
 	AfterEach(func() {
 		ctxutil.Cancel(ctx)
-		wg.Wait()
+		syncher.Wait()
 	})
 
 	Context("commad", func() {
@@ -99,7 +101,6 @@ var _ = Describe("version", func() {
 			a := &action{}
 			pool.AddAction(CMD_TEST, a)
 
-			pool.Start(wg)
 			pool.EnqueueCommand(CMD_TEST)
 
 			time.Sleep(time.Second)
@@ -111,7 +112,6 @@ var _ = Describe("version", func() {
 			a := &action{}
 			pool.AddAction(utils.NewStringGlobMatcher(string(CMD_TEST)+":*"), a)
 
-			pool.Start(wg)
 			pool.EnqueueCommand(CMD_TEST + ":2")
 
 			time.Sleep(time.Second)
@@ -123,7 +123,6 @@ var _ = Describe("version", func() {
 			a := &action{}
 			pool.AddAction(utils.NewStringGlobMatcher(string(CMD_SCHED)+":*"), a)
 
-			pool.Start(wg)
 			pool.EnqueueCommand(CMD_SCHED + ":0")
 
 			time.Sleep(time.Second)
@@ -135,7 +134,6 @@ var _ = Describe("version", func() {
 			a := &action{}
 			pool.AddAction(utils.NewStringGlobMatcher(string(CMD_SCHED)+":*"), a)
 
-			pool.Start(wg)
 			pool.EnqueueCommand(CMD_SCHED + ":1")
 
 			time.Sleep(2 * time.Second)
@@ -148,7 +146,6 @@ var _ = Describe("version", func() {
 		It("handles id", func() {
 			a := &action{}
 			pool.AddAction(me.ObjectType("type"), a)
-			pool.Start(wg)
 
 			id := database.NewObjectId("type", "ns", "object")
 			pool.EnqueueKey(id)
