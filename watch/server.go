@@ -14,15 +14,15 @@ import (
 )
 
 type EventHandler[E any] interface {
-	Handle(e E)
+	HandleEvent(e E)
 }
 
 type Registry[R any, E any] interface {
-	Register(r R, h EventHandler[E])
-	Unregister(r R, h EventHandler[E])
+	RegisterHandler(r R, h EventHandler[E])
+	UnregisterHandler(r R, h EventHandler[E])
 }
 
-func WatchRequest[R, E any](r Registry[R, E]) *RequestHandler[R, E] {
+func WatchHttpHandler[R, E any](r Registry[R, E]) *RequestHandler[R, E] {
 	return &RequestHandler[R, E]{registry: r}
 }
 
@@ -98,25 +98,25 @@ type handler[R, E any] struct {
 
 func newHandler[R, E any](hh *RequestHandler[R, E], conn net.Conn, registry Registry[R, E], req R) *handler[R, E] {
 	h := &handler[R, E]{hh, conn, req, registry}
-	registry.Register(req, h)
+	registry.RegisterHandler(req, h)
 	hh.addHandler(h)
 	return h
 }
 
-func (h *handler[R, E]) Handle(e E) {
+func (h *handler[R, E]) HandleEvent(e E) {
 	log.Info("sending event {{event}}", "event", e)
 	data, _ := json.Marshal(e)
 	err := wsutil.WriteServerMessage(h.conn, ws.OpBinary, data)
 	if err != nil {
 		log.LogError(err, "cannot send event -> closing connection")
 		h.conn.Close()
-		h.registry.Unregister(h.req, h)
+		h.registry.UnregisterHandler(h.req, h)
 	}
 }
 func (h *handler[R, E]) Close() error {
 	log.Info("closing connection and unregister handler for {{req}}", "req", h.req)
 	h.conn.Close()
-	h.registry.Unregister(h.req, h)
+	h.registry.UnregisterHandler(h.req, h)
 	h.hhandler.removeHandler(h)
 	return nil
 }

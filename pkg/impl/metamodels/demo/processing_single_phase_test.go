@@ -9,7 +9,11 @@ import (
 
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+	watch2 "github.com/mandelsoft/engine/pkg/processing/watch"
+	"github.com/mandelsoft/engine/pkg/server"
+	"github.com/mandelsoft/engine/pkg/service"
 	. "github.com/mandelsoft/engine/pkg/testutils"
+	"github.com/mandelsoft/engine/watch"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -70,7 +74,7 @@ var _ = Describe("Processing", func() {
 		vfs.Cleanup(fs)
 	})
 
-	Context("", func() {
+	Context("basic", func() {
 		It("single node", func() {
 			proc.Start(ctx)
 
@@ -147,4 +151,62 @@ var _ = Describe("Processing", func() {
 			Expect(*result).To(Equal(12))
 		})
 	})
+
+	Context("watches", func() {
+		var ctx context.Context
+		var services service.Services
+		var consumer service.Syncher
+
+		BeforeEach(func() {
+			ctx = ctxutil.TimeoutContext(context.Background(), 20*time.Second)
+			services = service.New(ctx)
+			srv := server.NewServer(8080, false, 10*time.Second)
+			proc.RegisterWatchHandler(srv, "/watch")
+			services.Add(proc)
+			services.Add(srv)
+
+			MustBeSuccessful(services.Start())
+
+			consumer = Must(Consume(ctx))
+		})
+
+		AfterEach(func() {
+			ctxutil.Cancel(ctx)
+			MustBeSuccessful(services.Wait())
+			if consumer != nil {
+				MustBeSuccessful(consumer.Wait())
+			}
+		})
+
+		FIt("single node", func() {
+
+			n5 := db.NewValueNode(NS, "A", 5)
+
+			f := proc.FutureFor(model.STATUS_COMPLETED, model.NewElementIdForType(mymetamodel.TYPE_NODE_STATE, n5, mymetamodel.FINAL_PHASE))
+			MustBeSuccessful(odb.SetObject(n5))
+
+			f.Wait(ctxutil.TimeoutContext(ctx, 10*time.Second))
+
+			n5n := Must(odb.GetObject(n5))
+
+			Expect(n5n.(*db.Node).Status.Result).NotTo(BeNil())
+			Expect(*n5n.(*db.Node).Status.Result).To(Equal(5))
+		})
+	})
 })
+
+////////////////////////////////////////////////////////////////////////////////
+
+func Consume(ctx context.Context) (watch.Syncher, error) {
+	c := watch.NewClient[watch2.Request, watch2.Event]("ws://localhost:8080/watch")
+
+	registration := watch2.Request{}
+	return c.Register(ctx, registration, &handler{})
+}
+
+type handler struct {
+}
+
+func (h *handler) HandleEvent(e watch2.Event) {
+	logging.DefaultContext().Logger(logging.NewRealm("engine/processor/watch")).Info("got event {{event}}", "event", e)
+}

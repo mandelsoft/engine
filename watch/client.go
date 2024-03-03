@@ -3,13 +3,12 @@ package watch
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"io"
 	"net"
 	"sync"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/mandelsoft/engine/pkg/service"
 	"github.com/mandelsoft/engine/pkg/utils"
 )
 
@@ -57,11 +56,9 @@ func (c *Client[R, E]) Register(ctx context.Context, req R, h EventHandler[E]) (
 		return nil, err
 	}
 
-	s := &syncher{
-		wait: &sync.WaitGroup{},
-		err:  nil,
-	}
-	s.wait.Add(1)
+	wg := &sync.WaitGroup{}
+	s := service.Sync(wg)
+	wg.Add(1)
 
 	go func() {
 		select {
@@ -71,38 +68,22 @@ func (c *Client[R, E]) Register(ctx context.Context, req R, h EventHandler[E]) (
 	}()
 
 	go func() {
-		defer s.wait.Done()
+		defer wg.Done()
 		for {
 			events, err := w.Receive()
 			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					s.err = err
+				if !IsErrClosed(err) {
+					s.SetError(err)
 				}
 				w.Close()
 				break
 			}
 			for _, e := range events {
-				h.Handle(e)
+				h.HandleEvent(e)
 			}
 		}
 	}()
 	return s, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type Syncher interface {
-	Wait() error
-}
-
-type syncher struct {
-	wait *sync.WaitGroup
-	err  error
-}
-
-func (s *syncher) Wait() error {
-	s.wait.Wait()
-	return s.err
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,3 +114,5 @@ func (w *Watch[E]) Receive() ([]E, error) {
 func (w *Watch[E]) Close() error {
 	return w.conn.Close()
 }
+
+type Syncher = service.Syncher

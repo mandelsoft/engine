@@ -54,7 +54,7 @@ var _ = Describe("Watch Test Environment", func() {
 		})
 
 		It("runs server", func() {
-			srv.Handle("/watch", watch.WatchRequest[RegistrationRequest, Event](registry))
+			srv.Handle("/watch", watch.WatchHttpHandler[RegistrationRequest, Event](registry))
 
 			time.Sleep(time.Second)
 			go func() {
@@ -98,7 +98,7 @@ func NewRegistry() *Registry {
 	}
 }
 
-func (r *Registry) Register(req RegistrationRequest, h Handler) {
+func (r *Registry) RegisterHandler(req RegistrationRequest, h Handler) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -107,7 +107,7 @@ func (r *Registry) Register(req RegistrationRequest, h Handler) {
 	r.handlers[req.Key] = append(list, h)
 }
 
-func (r *Registry) Unregister(req RegistrationRequest, h Handler) {
+func (r *Registry) UnregisterHandler(req RegistrationRequest, h Handler) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -138,6 +138,6 @@ func Consume() (watch.Syncher, error) {
 type handler struct {
 }
 
-func (h *handler) Handle(e Event) {
+func (h *handler) HandleEvent(e Event) {
 	log.Info("got event {{event}}", "event", e)
 }

@@ -879,9 +879,9 @@ func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems map[
 			return false, err
 		}
 		ns.pendingElements[elem.Id()] = elem
+		// log.Debug("successfully locked {{nestedelem}}", "nestedelem", elem.Id())
 		p.events.TriggerElementHandled(elem.Id())
 		p.pending.Add(1)
-
 	}
 	ns.pendingElements = nil
 	return true, nil
