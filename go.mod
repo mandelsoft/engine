@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/drone/envsubst v1.0.3
 	github.com/go-test/deep v1.1.0
+	github.com/gobwas/ws v1.2.1
 	github.com/google/uuid v1.3.0
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mandelsoft/logging v0.0.0-20240201091719-67180059d6bf
@@ -21,6 +22,8 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect

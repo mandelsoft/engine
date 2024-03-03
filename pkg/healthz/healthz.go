@@ -3,7 +3,13 @@ package healthz
 import (
 	"io"
 	"net/http"
+
+	"github.com/mandelsoft/engine/pkg/server"
 )
+
+func init() {
+	server.Register("/healthz", http.HandlerFunc(Healthz))
+}
 
 // Healthz is a HTTP handler for the /healthz endpoint which responses with 200 OK status code
 // if the Gardener controller manager is healthy; and with 500 Internal Server error status code otherwise.
