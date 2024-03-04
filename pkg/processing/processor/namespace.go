@@ -82,7 +82,7 @@ func (ni *namespaceInfo) _addElement(i model.InternalObject, phase Phase) _Eleme
 func (ni *namespaceInfo) tryLock(p *Processor, runid RunId) (bool, error) {
 	ok, err := ni.namespace.TryLock(p.processingModel.ObjectBase(), runid)
 	if ok {
-		p.events.TriggerElementHandled(NewElementIdForPhase(ni.namespace, ""))
+		p.events.TriggerNamespaceEvent(ni)
 	}
 	return ok, err
 }
@@ -100,7 +100,7 @@ func (ni *namespaceInfo) clearElementLock(lctx model.Logging, log logging.Logger
 		return err
 	}
 	if ok {
-		p.events.TriggerElementHandled(elem.Id())
+		p.events.TriggerElementEvent(elem)
 		p.pending.Add(-1)
 	}
 	return nil
@@ -117,6 +117,7 @@ func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *P
 			err := ni.clearElementLock(lctx, log, p, elem, rid)
 			if err == nil {
 				delete(ni.pendingElements, eid)
+				p.events.TriggerElementEvent(elem)
 			}
 		}
 		if len(ni.pendingElements) == 0 {
@@ -127,6 +128,7 @@ func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *P
 			} else {
 				log.Info("releasing namespace lock {{runid}} succeeded")
 			}
+			p.events.TriggerNamespaceEvent(ni)
 			ni.pendingElements = nil
 		} else {
 			ni.pendingOperation = func(lctx model.Logging, log logging.Logger) error {
@@ -136,8 +138,8 @@ func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *P
 	}
 	_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), ni.namespace.GetLock())
 	if err == nil {
-		p.events.TriggerElementHandled(NewElementIdForPhase(ni.namespace, ""))
 		log.Info("namespace {{namespace}} unlocked")
+		p.events.TriggerNamespaceEvent(ni)
 	}
 	return err
 }

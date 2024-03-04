@@ -60,8 +60,7 @@ func (s *Server) Start(ctx context.Context) (ready service.Syncher, done service
 }
 
 func (s *Server) Wait() error {
-	// TODO implement me
-	panic("implement me")
+	return s.done.Wait()
 }
 
 func (s *Server) Handle(pattern string, handler http.Handler) {

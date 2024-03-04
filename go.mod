@@ -7,12 +7,14 @@ require (
 	github.com/go-test/deep v1.1.0
 	github.com/gobwas/ws v1.2.1
 	github.com/google/uuid v1.3.0
+	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mandelsoft/logging v0.0.0-20240201091719-67180059d6bf
 	github.com/mandelsoft/vfs v0.4.0
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.29.0
+	github.com/spf13/pflag v1.0.5
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
 	sigs.k8s.io/yaml v1.3.0

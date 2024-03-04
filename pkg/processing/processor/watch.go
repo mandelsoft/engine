@@ -1,13 +1,25 @@
 package processor
 
 import (
-	"sync"
-
-	"github.com/mandelsoft/engine/pkg/events"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
-	"github.com/mandelsoft/engine/watch"
 )
+
+func NewWatchEventForNamespace(ni *namespaceInfo) *elemwatch.Event {
+	id := elemwatch.NewId(NewElementIdForPhase(ni.namespace, ""))
+	lock := string(ni.namespace.GetLock())
+	status := "Ready"
+	if lock != "" {
+		status = "Locked"
+	}
+	evt := &elemwatch.Event{
+		Node:   id,
+		Lock:   lock,
+		Status: status,
+	}
+	return evt
+}
 
 func NewWatchEvent(e _Element) *elemwatch.Event {
 	id := elemwatch.NewId(e.Id())
@@ -33,81 +45,17 @@ func NewWatchEvent(e _Element) *elemwatch.Event {
 	return evt
 }
 
-type WatchRegistry struct {
-	lock           sync.Mutex
-	processingMode *processingModel
-	registry       *EventManager
-	mappers        map[watch.EventHandler[elemwatch.Event]]*watchMapper
-}
-
-var _ watch.Registry[elemwatch.Request, elemwatch.Event] = (*WatchRegistry)(nil)
-
-func NewWatchRegistry(m *processingModel, reg *EventManager) *WatchRegistry {
-	return &WatchRegistry{
-		processingMode: m,
-		registry:       reg,
-		mappers:        map[watch.EventHandler[elemwatch.Event]]*watchMapper{},
-	}
-}
-
-func (r *WatchRegistry) RegisterHandler(req elemwatch.Request, handler watch.EventHandler[elemwatch.Event]) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	m := r.mappers[handler]
-	if m == nil {
-		m = &watchMapper{
-			processingModel: r.processingMode,
-			handler:         handler,
-		}
-		r.mappers[handler] = m
-		r.registry.RegisterHandler(m, true, req.Kind, req.Namespace)
-	}
-	m.count++
-}
-
-func (r *WatchRegistry) UnregisterHandler(req elemwatch.Request, handler watch.EventHandler[elemwatch.Event]) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	m := r.mappers[handler]
-	if m != nil {
-		m.count--
-		if m.count <= 0 {
-			r.registry.UnregisterHandler(m, req.Kind, req.Namespace)
-			delete(r.mappers, handler)
-		}
-	}
-}
-
-type watchMapper struct {
-	count           int
-	processingModel *processingModel
-	handler         watch.EventHandler[elemwatch.Event]
-}
-
-var _ events.EventHandler[ElementId] = (*watchMapper)(nil)
-
-func (w *watchMapper) HandleEvent(id ElementId) {
-	go func() {
-		e := w.processingModel._GetElement(id)
-		if e != nil {
-			w.handler.HandleEvent(*NewWatchEvent(e))
-		}
-	}()
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 type watchEventLister struct {
 	m *processingModel
 }
 
-func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()) ([]elemwatch.Id, error) {
+func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()) ([]elemwatch.Event, error) {
 	l.m.lock.Lock()
 	defer l.m.lock.Unlock()
 
-	var list []elemwatch.Id
+	var list []elemwatch.Event
 
 	if ns == "" {
 		list = l.listAll(typ)
@@ -115,7 +63,10 @@ func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()
 		ni := l.m.namespaces[ns]
 		ids := ni.list(typ)
 		for _, id := range ids {
-			list = append(list, elemwatch.NewId(id))
+			e := l.m._GetElement(id)
+			if e != nil {
+				list = append(list, *NewWatchEvent(e))
+			}
 		}
 	}
 
@@ -125,11 +76,14 @@ func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()
 	return list, nil
 }
 
-func (l *watchEventLister) listAll(typ string) []elemwatch.Id {
-	var list []elemwatch.Id
+func (l *watchEventLister) listAll(typ string) []elemwatch.Event {
+	var list []elemwatch.Event
 	for _, ni := range l.m.namespaces {
 		for _, id := range ni.list(typ) {
-			list = append(list, elemwatch.NewId(id))
+			e := l.m._GetElement(id)
+			if e != nil {
+				list = append(list, *NewWatchEvent(e))
+			}
 		}
 	}
 	return list

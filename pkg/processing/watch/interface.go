@@ -1,6 +1,8 @@
 package watch
 
 import (
+	"fmt"
+
 	"github.com/mandelsoft/engine/pkg/events"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/watch"
@@ -19,6 +21,10 @@ func (i Id) GetType() string {
 
 func (i Id) GetNamespace() string {
 	return i.Namespace
+}
+
+func (i Id) String() string {
+	return fmt.Sprintf("%s/%s/%s:%s", i.Kind, i.Namespace, i.Name, i.Phase)
 }
 
 type Event struct {
@@ -64,12 +70,17 @@ func NewEvent(id Id, lock, status, message string, links ...Id) Event {
 	}
 }
 
-type Registry interface {
-	watch.Registry[Request, Event]
+type Trigger interface {
 	TriggerEvent(Event)
 }
 
+type Registry interface {
+	watch.Registry[Request, Event]
+	Trigger
+}
+
 type EventHandler = watch.EventHandler[Event]
+type ObjectLister = events.ObjectLister[Event]
 
 type registry struct {
 	reg events.HandlerRegistry[Event]
@@ -77,11 +88,17 @@ type registry struct {
 
 var _ Registry = (*registry)(nil)
 
-func (r *registry) RegisterHandler(req Request, h EventHandler) {
+func NewRegistry(l events.ObjectLister[Event]) Registry {
+	return &registry{
+		reg: events.NewHandlerRegistry[Event](l),
+	}
+}
+
+func (r *registry) RegisterWatchHandler(req Request, h EventHandler) {
 	r.reg.RegisterHandler(h, false, req.Kind, req.Namespace)
 }
 
-func (r *registry) UnregisterHandler(req Request, h EventHandler) {
+func (r *registry) UnregisterWatchHandler(req Request, h EventHandler) {
 	r.reg.UnregisterHandler(h, req.Kind, req.Namespace)
 }
 

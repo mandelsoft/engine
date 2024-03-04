@@ -24,8 +24,6 @@ func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId)
 		return pool.StatusCompleted()
 	}
 
-	defer p.events.TriggerElementHandled(id)
-
 	if elem == nil {
 		if cmd != CMD_EXT {
 			return pool.StatusFailed(fmt.Errorf("unknown element %q", id))
@@ -451,7 +449,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				if err != nil {
 					return pool.StatusCompleted(err)
 				}
-				p.events.TriggerStatusEvent(log, model.STATUS_DELETED, e.Id())
+				p.events.TriggerStatusEvent(log, e)
 				p.pending.Add(-1)
 				p.triggerLinks(log, "parent", links...)
 				p.triggerChildren(log, ni, e, true)
@@ -880,7 +878,7 @@ func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems map[
 		}
 		ns.pendingElements[elem.Id()] = elem
 		// log.Debug("successfully locked {{nestedelem}}", "nestedelem", elem.Id())
-		p.events.TriggerElementHandled(elem.Id())
+		p.events.TriggerElementEvent(elem)
 		p.pending.Add(1)
 	}
 	ns.pendingElements = nil

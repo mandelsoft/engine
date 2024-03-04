@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	watch2 "github.com/mandelsoft/engine/pkg/processing/watch"
+	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
 	"github.com/mandelsoft/engine/pkg/server"
 	"github.com/mandelsoft/engine/pkg/service"
 	"github.com/mandelsoft/engine/pkg/version"
@@ -42,7 +42,6 @@ type Processor struct {
 	handler database.EventHandler
 
 	events  *EventManager
-	watches *WatchRegistry
 	pending PendingCounter
 }
 
@@ -56,12 +55,11 @@ func NewProcessor(lctx logging.Context, m model.Model, worker int, cmps ...versi
 		composer:        utils.OptionalDefaulted[version.Composer](version.Composed, cmps...),
 	}
 	p.events = newEventManager(p.processingModel)
-	p.watches = NewWatchRegistry(p.processingModel, p.events)
 	return p, nil
 }
 
 func (p *Processor) RegisterWatchHandler(s *server.Server, pattern string) {
-	s.Handle(pattern, watch.WatchHttpHandler[watch2.Request, watch2.Event](p.watches))
+	s.Handle(pattern, watch.WatchHttpHandler[elemwatch.Request, elemwatch.Event](p.events.registry))
 }
 
 func (p *Processor) RegisterHandler(handler EventHandler, current bool, kind string, nss ...string) {
@@ -224,7 +222,7 @@ func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Statu
 	if ok {
 		log.Info("status updated to {{status}} for {{element}}", "status", status, "element", e.Id())
 		if len(trigger) == 0 || utils.Optional(trigger...) {
-			p.events.TriggerStatusEvent(log, status, e.Id())
+			p.events.TriggerStatusEvent(log, e)
 		}
 	}
 	return nil

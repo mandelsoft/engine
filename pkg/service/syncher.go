@@ -1,11 +1,8 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"sync"
-
-	"github.com/mandelsoft/engine/pkg/future"
 )
 
 type Syncher interface {
@@ -47,19 +44,23 @@ type Trigger interface {
 
 func SyncTrigger() Trigger {
 	return &trigger{
-		trigger: future.NewFuture(true),
+		trigger: make(chan struct{}),
 	}
 }
 
 type trigger struct {
 	err     error
-	trigger future.Trigger
+	trigger chan struct{}
 }
 
 var _ Trigger = (*trigger)(nil)
 
 func (t *trigger) Trigger() {
-	t.trigger.Trigger()
+	select {
+	case <-t.trigger:
+	default:
+		close(t.trigger)
+	}
 }
 
 func (t *trigger) SetError(err error) {
@@ -67,6 +68,6 @@ func (t *trigger) SetError(err error) {
 }
 
 func (t *trigger) Wait() error {
-	t.trigger.Wait(context.Background())
+	<-t.trigger
 	return t.err
 }

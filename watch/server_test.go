@@ -98,7 +98,7 @@ func NewRegistry() *Registry {
 	}
 }
 
-func (r *Registry) RegisterHandler(req RegistrationRequest, h Handler) {
+func (r *Registry) RegisterWatchHandler(req RegistrationRequest, h Handler) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -107,7 +107,7 @@ func (r *Registry) RegisterHandler(req RegistrationRequest, h Handler) {
 	r.handlers[req.Key] = append(list, h)
 }
 
-func (r *Registry) UnregisterHandler(req RegistrationRequest, h Handler) {
+func (r *Registry) UnregisterWatchHandler(req RegistrationRequest, h Handler) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -122,7 +122,7 @@ func (r *Registry) Trigger(evt Event) {
 
 	log.Info("trigger event {{event}} for {{amount}} handlers", "event", evt, "amount", len(list))
 	for _, h := range list {
-		h.Handle(evt)
+		h.HandleEvent(evt)
 	}
 }
 

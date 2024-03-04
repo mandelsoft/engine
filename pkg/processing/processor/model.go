@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -167,38 +166,5 @@ func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.Ext
 }
 
 func (m *processingModel) lister() ObjectLister {
-	return &lister{m}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type lister struct {
-	m *processingModel
-}
-
-func (l *lister) ListObjectIds(typ string, ns string, atomic ...func()) ([]ElementId, error) {
-	l.m.lock.Lock()
-	defer l.m.lock.Unlock()
-
-	var list []ElementId
-
-	if ns == "" {
-		list = l.listAll(typ)
-	} else {
-		ni := l.m.namespaces[ns]
-		list = ni.list(typ)
-	}
-
-	for _, a := range atomic {
-		a()
-	}
-	return list, nil
-}
-
-func (l *lister) listAll(typ string) []ElementId {
-	var list []ElementId
-	for _, ni := range l.m.namespaces {
-		list = append(list, ni.list(typ)...)
-	}
-	return list
+	return &watchEventLister{m}
 }

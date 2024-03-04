@@ -18,8 +18,8 @@ type EventHandler[E any] interface {
 }
 
 type Registry[R any, E any] interface {
-	RegisterHandler(r R, h EventHandler[E])
-	UnregisterHandler(r R, h EventHandler[E])
+	RegisterWatchHandler(r R, h EventHandler[E])
+	UnregisterWatchHandler(r R, h EventHandler[E])
 }
 
 func WatchHttpHandler[R, E any](r Registry[R, E]) *RequestHandler[R, E] {
@@ -55,11 +55,11 @@ func (h *RequestHandler[R, E]) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	msg, op, err := wsutil.ReadClientData(conn)
 	if err != nil {
 		log.LogError(err, "reading registration request")
-		wsutil.WriteServerMessage(conn, ws.OpBinary, (&Error{err.Error()}).Data())
+		wsutil.WriteServerMessage(conn, ws.OpText, (&Error{err.Error()}).Data())
 	}
-	if op != ws.OpBinary {
+	if op != ws.OpText {
 		log.Error("no binary data")
-		wsutil.WriteServerMessage(conn, ws.OpBinary, (&Error{"binary registration request required"}).Data())
+		wsutil.WriteServerMessage(conn, ws.OpText, (&Error{"binary registration request required"}).Data())
 	}
 
 	var registration R
@@ -98,7 +98,7 @@ type handler[R, E any] struct {
 
 func newHandler[R, E any](hh *RequestHandler[R, E], conn net.Conn, registry Registry[R, E], req R) *handler[R, E] {
 	h := &handler[R, E]{hh, conn, req, registry}
-	registry.RegisterHandler(req, h)
+	registry.RegisterWatchHandler(req, h)
 	hh.addHandler(h)
 	return h
 }
@@ -106,17 +106,17 @@ func newHandler[R, E any](hh *RequestHandler[R, E], conn net.Conn, registry Regi
 func (h *handler[R, E]) HandleEvent(e E) {
 	log.Info("sending event {{event}}", "event", e)
 	data, _ := json.Marshal(e)
-	err := wsutil.WriteServerMessage(h.conn, ws.OpBinary, data)
+	err := wsutil.WriteServerMessage(h.conn, ws.OpText, data)
 	if err != nil {
 		log.LogError(err, "cannot send event -> closing connection")
 		h.conn.Close()
-		h.registry.UnregisterHandler(h.req, h)
+		h.registry.UnregisterWatchHandler(h.req, h)
 	}
 }
 func (h *handler[R, E]) Close() error {
 	log.Info("closing connection and unregister handler for {{req}}", "req", h.req)
 	h.conn.Close()
-	h.registry.UnregisterHandler(h.req, h)
+	h.registry.UnregisterWatchHandler(h.req, h)
 	h.hhandler.removeHandler(h)
 	return nil
 }

@@ -34,7 +34,7 @@ func (c *Client[R, E]) Dial(ctx context.Context) (net.Conn, error) {
 
 func (c *Client[R, E]) RequestWatch(conn net.Conn, req R) (*Watch[E], error) {
 	data, _ := json.Marshal(req)
-	err := wsutil.WriteClientMessage(conn, ws.OpBinary, data)
+	err := wsutil.WriteClientMessage(conn, ws.OpText, data)
 	if err != nil {
 		return nil, err
 	}

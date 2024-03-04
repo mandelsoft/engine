@@ -9,17 +9,35 @@ import (
 	"github.com/mandelsoft/engine/pkg/future"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
+	"github.com/mandelsoft/engine/watch"
 	"github.com/mandelsoft/logging"
 )
 
-type ObjectLister = events.ObjectLister[ElementId]
-type EventHandler = events.EventHandler[ElementId]
-type HandlerRegistration = events.HandlerRegistration[ElementId]
-type HandlerRegistrationTest = events.HandlerRegistrationTest[ElementId]
-type HandlerRegistry = events.HandlerRegistry[ElementId]
+type ObjectLister = events.ObjectLister[elemwatch.Event]
+type EventHandler = watch.EventHandler[elemwatch.Event]
+type HandlerRegistration = events.HandlerRegistration[elemwatch.Event]
+type HandlerRegistrationTest = events.HandlerRegistrationTest[elemwatch.Event]
+
+type HandlerRegistry = *handlerRegistry
+
+var _ events.HandlerRegistry[elemwatch.Event] = (*handlerRegistry)(nil)
+var _ watch.Registry[elemwatch.Request, elemwatch.Event] = (*handlerRegistry)(nil)
+
+type handlerRegistry struct {
+	events.HandlerRegistry[elemwatch.Event]
+}
+
+func (r *handlerRegistry) RegisterWatchHandler(req elemwatch.Request, h EventHandler) {
+	r.RegisterHandler(h, true, req.Kind, req.Namespace)
+}
+
+func (r *handlerRegistry) UnregisterWatchHandler(req elemwatch.Request, h EventHandler) {
+	r.UnregisterHandler(h, req.Kind, req.Namespace)
+}
 
 func newHandlerRegistry(l ObjectLister) HandlerRegistry {
-	return events.NewHandlerRegistry[ElementId](l, nil)
+	return &handlerRegistry{events.NewHandlerRegistry[elemwatch.Event](l, nil)}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +94,7 @@ func (p *PendingCounter) Wait(ctx context.Context) bool {
 type EventType = model.Status
 type Future = future.Future
 
-var _ ObjectLister = (*lister)(nil)
+var _ ObjectLister = (*watchEventLister)(nil)
 
 type EventManager struct {
 	lock         sync.Mutex
@@ -99,12 +117,17 @@ func (p *EventManager) UnregisterHandler(handler EventHandler, kind string, nss 
 	p.registry.UnregisterHandler(handler, kind, nss...)
 }
 
-func (p *EventManager) TriggerElementHandled(id ElementId) {
-	p.registry.TriggerEvent(id)
+func (p *EventManager) TriggerElementEvent(e _Element) {
+	p.registry.TriggerEvent(*NewWatchEvent(e))
 }
 
-func (p *EventManager) TriggerStatusEvent(log logging.Logger, etype EventType, id ElementId) {
-	p.statusEvents.Trigger(log, etype, id)
+func (p *EventManager) TriggerNamespaceEvent(ni *namespaceInfo) {
+	p.registry.TriggerEvent(*NewWatchEventForNamespace(ni))
+}
+
+func (p *EventManager) TriggerStatusEvent(log logging.Logger, e _Element) {
+	p.TriggerElementEvent(e)
+	p.statusEvents.Trigger(log, e.GetStatus(), e.Id())
 }
 
 func (p *EventManager) Future(etype EventType, id ElementId, retrigger ...bool) Future {
