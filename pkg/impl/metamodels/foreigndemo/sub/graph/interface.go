@@ -130,10 +130,11 @@ func (g *graph) CheckDB(log logging.Logger, odb database.Database[db.Object]) (b
 			return false, "", err
 		}
 		if ok {
-			log.Info("- found status {{status}} for {{oid}}", "status", status, "oid", id)
 			rstatus = support.MergeStatus(rstatus, status)
+			log.Info("- found status {{status}} for {{oid}} -> {{resulting}}", "status", status, "oid", id, "resulting", rstatus)
 		} else {
-			log.Info("- {{oid}} still processing ({{status}}", "status", status, "oid", id)
+			rstatus = support.MergeStatus(rstatus, status)
+			log.Info("- {{oid}} still processing ({{status}}- > {{resulting}}", "status", status, "oid", id, "resulting", rstatus)
 			final = false
 		}
 	}

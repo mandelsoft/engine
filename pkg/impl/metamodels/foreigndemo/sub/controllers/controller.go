@@ -295,7 +295,7 @@ func (c *ExpressionController) Command(p pool.Pool, messageContext pool.MessageC
 func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression, msg string, err error) pool.Status {
 	v := o.Spec.GetVersion()
 
-	log.LogError(err, "operation failed ({{msg}}) for observed version {{version}}", "message", msg, "version", v)
+	log.LogError(err, "operation failed ({{message}}) for observed version {{version}}", "message", msg, "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
 		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_FAILED), &mod)

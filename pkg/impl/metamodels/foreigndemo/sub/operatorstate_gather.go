@@ -44,21 +44,28 @@ func (_ GatherPhase) AcceptExternalState(log logging.Logger, o *OperatorState, s
 		}
 
 		switch op {
-		case db.OP_ADD:
-		case db.OP_SUB:
-		case db.OP_DIV:
-		case db.OP_MUL:
+		case db.OP_ADD, db.OP_SUB, db.OP_DIV, db.OP_MUL:
+			if e.Expression != "" {
+				return model.ACCEPT_INVALID, fmt.Errorf("no expression possible for operation %q(%s)", n, op)
+			}
+			for i, c := range e.Operands {
+				if _, err := strconv.Atoi(c); err != nil {
+					if _, ok := s.Operands[c]; !ok {
+						return model.ACCEPT_INVALID, fmt.Errorf("operand %d of operation %q: unknown input %q", i+1, n, c)
+					}
+				}
+			}
+		case db.OP_EXPR:
+			if e.Expression == "" {
+				return model.ACCEPT_INVALID, fmt.Errorf("expression required for operation %q(%s)", n, op)
+			}
+			if len(e.Operands) > 0 {
+				return model.ACCEPT_INVALID, fmt.Errorf("no operands possible for operation %q(%s)", n, op)
+			}
 		default:
 			return model.ACCEPT_INVALID, fmt.Errorf("unknown operator %q for operation %q", op, n)
 		}
 
-		for i, c := range e.Operands {
-			if _, err := strconv.Atoi(c); err != nil {
-				if _, ok := s.Operands[c]; !ok {
-					return model.ACCEPT_INVALID, fmt.Errorf("operand %d of operation %q: unknown input %q", i+1, n, c)
-				}
-			}
-		}
 	}
 	return model.ACCEPT_OK, nil
 }

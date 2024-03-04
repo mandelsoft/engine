@@ -51,12 +51,12 @@ func (v *Operator) DBCheck(log logging.Logger, g Graph, o database.Object) (bool
 	fvmatch := op.Status.FormalVersion == exp
 
 	if !fvmatch {
-		log.Debug("  formal version od phase {{phase}} not yet reached (expected {{expected}}, found {{found}})", "phase", op.Status.Phase, "expected", exp, "found", op.Status.DetectedVersion)
+		log.Debug("  formal version of phase {{phase}} not yet reached (expected {{expected}}, found {{found}})", "phase", op.Status.Phase, "expected", exp, "found", op.Status.DetectedVersion)
 	}
 	switch op.Status.Phase {
 	case mymetamodel.PHASE_GATHER:
 		if fvmatch && op.Status.Status != model.STATUS_COMPLETED {
-			return true, op.Status.Status, nil
+			return false, op.Status.Status, nil
 		}
 	case mymetamodel.PHASE_EXPOSE:
 		if fvmatch {

@@ -89,7 +89,12 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 	}
 	for n, o := range gathered.Operations {
 		log.Info("- using operation {{name}}({{value}})", "name", n, "value", o)
-		ex.AddOperation(n, o.Operator, o.Operands...)
+		if o.Operator == db.OP_EXPR {
+			ex.AddExpressionOperation(n, o.Expression)
+
+		} else {
+			ex.AddOperation(n, o.Operator, o.Operands...)
+		}
 	}
 
 	updated, err := n.assureSlave(log, req.Model.ObjectBase(), ex)

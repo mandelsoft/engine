@@ -51,8 +51,9 @@ func (o Operations) String() string {
 }
 
 type Operation struct {
-	Operator OperatorName `json:"operator"`
-	Operands []string     `json:"operands,omitempty"`
+	Operator   OperatorName `json:"operator"`
+	Operands   []string     `json:"operands,omitempty"`
+	Expression string       `json:"expression"`
 }
 
 func (o Operation) String() string {
@@ -94,6 +95,14 @@ func (o *Operator) AddOperation(name string, op OperatorName, operands ...string
 	o.Spec.Operations[name] = Operation{
 		Operator: op,
 		Operands: slices.Clone(operands),
+	}
+	return o
+}
+
+func (o *Operator) AddExpressionOperation(name string, expr string) *Operator {
+	o.Spec.Operations[name] = Operation{
+		Operator:   OP_EXPR,
+		Expression: expr,
 	}
 	return o
 }
