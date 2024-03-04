@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
+	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/watch"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
@@ -49,16 +51,29 @@ func (s *ObjectSpace) ChooseRandomObject() *elemwatch.Event {
 	if len(s.list) == 0 {
 		return nil
 	}
-	l := len(s.list)
+	return s.Get(Random(s.list))
+}
 
-	i := rand.Intn(l)
-	return s.Get(s.list[i])
+func (s *ObjectSpace) ChooseRandomNamespace() *elemwatch.Event {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	list := utils.FilterSlice(s.list, func(id elemwatch.Id) bool { return id.Phase == "" })
+	return s.Get(Random(list))
 }
 
 func (s *ObjectSpace) IsUsed(id elemwatch.Id) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
+	if id.Phase == "" {
+		ns := NamespaceName(id)
+		for _, e := range s.objects {
+			if e.GetNamespace() == ns {
+				return true
+			}
+		}
+	}
 	for _, e := range s.objects {
 		if slices.Contains(e.Links, id) {
 			return true
@@ -166,4 +181,11 @@ func (l *ObjectLister) ListObjectIds(typ string, ns string, atomic ...func()) ([
 		a()
 	}
 	return list, nil
+}
+
+func NamespaceName(id elemwatch.Id) string {
+	if id.GetNamespace() == "" {
+		return id.Name
+	}
+	return fmt.Sprintf("%s/%s", id.Namespace, id.Name)
 }

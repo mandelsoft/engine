@@ -25,17 +25,21 @@ func init() {
 func CreateEvents(objects *ObjectSpace) {
 	for {
 		mod := false
-		i := rand.Intn(100)
+		i := rand.Intn(1000)
 		switch {
 		case i < 5:
-			mod = CreateObject(objects)
+			mod = CreateNamespace(objects)
 		case i < 10:
-			mod = DeleteObject(objects)
-		case i < 80:
-			mod = Progress(objects)
-		case i < 90:
-			mod = AddLink(objects)
+			mod = DeleteNamespace(objects)
+		case i < 50:
+			mod = CreateObject(objects)
 		case i < 100:
+			mod = DeleteObject(objects)
+		case i < 800:
+			mod = Progress(objects)
+		case i < 900:
+			mod = AddLink(objects)
+		case i < 1000:
 			mod = RemoveLink(objects)
 		}
 		if mod {
@@ -44,7 +48,57 @@ func CreateEvents(objects *ObjectSpace) {
 	}
 }
 
+func CreateNamespace(objects *ObjectSpace) bool {
+	ns := objects.ChooseRandomNamespace()
+	name := generator.Generate()
+
+	var id elemwatch.Id
+
+	if ns.Node.Name == NS {
+		if rand.Intn(100) < 10 {
+			id = elemwatch.Id{
+				Kind:  mm.NamespaceType(),
+				Name:  name,
+				Phase: "",
+			}
+		} else {
+			id = elemwatch.Id{
+				Kind:      mm.NamespaceType(),
+				Namespace: NamespaceName(ns.Node),
+				Name:      name,
+				Phase:     "",
+			}
+		}
+	}
+
+	if objects.Has(id) {
+		return false
+	}
+	node := &elemwatch.Event{
+		Node:   id,
+		Status: "Ready",
+	}
+	log.Debug("{{id}} create namespace", "id", id)
+	objects.Set(node)
+	return true
+}
+
+func DeleteNamespace(objects *ObjectSpace) bool {
+	ns := objects.ChooseRandomNamespace()
+
+	if ns.Node.Namespace == "" && ns.Node.Name == NS {
+		return false
+	}
+	if objects.IsUsed(ns.Node) {
+		return false
+	}
+	log.Debug("{{id}} delete namespace", "id", ns.Node)
+	objects.Delete(ns.Node)
+	return true
+}
+
 func CreateObject(objects *ObjectSpace) bool {
+	ns := objects.ChooseRandomNamespace()
 	name := generator.Generate()
 
 	t := Random(mm.InternalTypes())
@@ -52,7 +106,7 @@ func CreateObject(objects *ObjectSpace) bool {
 
 	id := elemwatch.Id{
 		Kind:      t,
-		Namespace: NS,
+		Namespace: NamespaceName(ns.Node),
 		Name:      name,
 		Phase:     string(p),
 	}
@@ -71,7 +125,7 @@ func CreateObject(objects *ObjectSpace) bool {
 
 func DeleteObject(objects *ObjectSpace) bool {
 	o := objects.ChooseRandomObject()
-	if o == nil {
+	if o == nil || o.Node.Phase == "" {
 		return false
 	}
 	if objects.IsUsed(o.Node) {
@@ -116,6 +170,9 @@ func AddLink(objects *ObjectSpace) bool {
 		return false
 	}
 	t := mm.GetInternalType(o.GetType())
+	if t == nil {
+		return false
+	}
 	p := t.Element(mmids.Phase(o.Node.Phase))
 
 	deps := p.Dependencies()
@@ -125,7 +182,7 @@ func AddLink(objects *ObjectSpace) bool {
 
 	d := Random(deps)
 
-	list := objects.List(string(d.Id().GetType()), NS, string(d.Id().GetPhase()))
+	list := objects.List(string(d.Id().GetType()), o.GetNamespace(), string(d.Id().GetPhase()))
 	if len(list) == 0 {
 		return false
 	}
@@ -141,6 +198,9 @@ func Random[E any](list []E) E {
 }
 
 var follow = map[model.Status][]model.Status{
+	model.Status("Ready"):  []model.Status{model.Status("Locked")},
+	model.Status("Locked"): []model.Status{model.Status("Ready")},
+
 	model.Status("Initial"): []model.Status{model.STATUS_INVALID, model.STATUS_PROCESSING, model.STATUS_BLOCKED},
 	model.STATUS_INITIAL:    []model.Status{model.STATUS_INVALID, model.STATUS_PROCESSING, model.STATUS_BLOCKED},
 	model.STATUS_INVALID:    []model.Status{model.STATUS_PROCESSING, model.STATUS_BLOCKED},

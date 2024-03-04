@@ -34,6 +34,15 @@ func main() {
 	log.Info("starting")
 
 	objects := NewObjectSpace()
+	objects.Set(&elemwatch.Event{
+		Node: elemwatch.Id{
+			Kind:      mm.NamespaceType(),
+			Namespace: "",
+			Name:      NS,
+			Phase:     "",
+		},
+		Status: "Ready",
+	})
 	server := elemwatch.NewServer(port, pattern, objects)
 
 	ready, _, err := server.Start(context.Background())
