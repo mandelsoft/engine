@@ -11,6 +11,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
+	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 var NS = "testspace"
@@ -35,6 +36,8 @@ func CreateEvents(objects *ObjectSpace) {
 			mod = CreateObject(objects)
 		case i < 100:
 			mod = DeleteObject(objects)
+		case i < 300:
+			mod = LockGraph(objects)
 		case i < 800:
 			mod = Progress(objects)
 		case i < 900:
@@ -128,7 +131,7 @@ func DeleteObject(objects *ObjectSpace) bool {
 	if o == nil || o.Node.Phase == "" {
 		return false
 	}
-	if objects.IsUsed(o.Node) {
+	if o.Lock != "" || objects.IsUsed(o.Node) {
 		return false
 	}
 	log.Debug("{{id}} delete", "id", o.Node)
@@ -141,9 +144,25 @@ func Progress(objects *ObjectSpace) bool {
 	if o == nil {
 		return false
 	}
+
+	cur := model.Status(o.Status)
+
+	if o.Lock == "" {
+		return false
+	}
+	for _, l := range o.Links {
+		if objects.Get(l).Lock != "" {
+			return false
+		}
+	}
+
 	s := Random(follow[model.Status(o.Status)])
 	log.Debug("{{id}} change status", "id", o.Node, "status", s)
 	o.Status = string(s)
+	if cur == model.STATUS_COMPLETED || cur == model.STATUS_FAILED || cur == model.STATUS_INVALID {
+		log.Debug("    -> unlock")
+		o.Lock = ""
+	}
 	objects.Set(o)
 	return true
 }
@@ -186,11 +205,55 @@ func AddLink(objects *ObjectSpace) bool {
 	if len(list) == 0 {
 		return false
 	}
+
 	l := Random(list)
+	if objects.IsCycle(o, objects.Get(l)) {
+		return false
+	}
+
 	o.Links = append(o.Links, l)
 	log.Debug("{{id}} adding link {{link}}", "id", o.Node, "link", l)
 	objects.Set(o)
 	return true
+}
+
+func LockGraph(objects *ObjectSpace) bool {
+	o := objects.ChooseRandomObject()
+	if o == nil {
+		return false
+	}
+	t := mm.GetInternalType(o.GetType())
+	if t == nil {
+		return false
+	}
+
+	if o.Lock != "" {
+		return false
+	}
+	runid := mmids.NewRunId()
+
+	g := objects.GetGraph(o)
+	log.Debug("  graph {{elements}}", "elements", utils.TransformSlice(g, NodeId))
+	for _, e := range g {
+		if e.Lock != "" {
+			log.Debug("  {{id}} already locked", "id", e.Node)
+			return false
+		}
+	}
+	log.Debug("{{id}} locking graph {{elements}}",
+		"id", o.Node,
+		"elements", utils.TransformSlice(g, NodeId),
+	)
+
+	for _, e := range g {
+		e.Lock = string(runid)
+		objects.Set(e)
+	}
+	return true
+}
+
+func NodeId(e *elemwatch.Event) elemwatch.Id {
+	return e.Node
 }
 
 func Random[E any](list []E) E {

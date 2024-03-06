@@ -95,7 +95,7 @@ func NewRegistry(l events.ObjectLister[Event]) Registry {
 }
 
 func (r *registry) RegisterWatchHandler(req Request, h EventHandler) {
-	r.reg.RegisterHandler(h, false, req.Kind, req.Namespace)
+	r.reg.RegisterHandler(h, true, req.Kind, req.Namespace)
 }
 
 func (r *registry) UnregisterWatchHandler(req Request, h EventHandler) {

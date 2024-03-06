@@ -82,6 +82,33 @@ func (s *ObjectSpace) IsUsed(id elemwatch.Id) bool {
 	return false
 }
 
+func (s *ObjectSpace) IsCycle(a, b *elemwatch.Event) bool {
+	return slices.Contains(s.GetGraph(b), a)
+}
+
+func (s *ObjectSpace) GetGraph(o *elemwatch.Event) []*elemwatch.Event {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	graph := []*elemwatch.Event{o}
+
+	for i := 0; i < len(graph); i++ {
+		graph = append(graph, s.getGraph(graph[i], graph)...)
+	}
+	return graph
+}
+
+func (s *ObjectSpace) getGraph(c *elemwatch.Event, cur []*elemwatch.Event) []*elemwatch.Event {
+	var r []*elemwatch.Event
+
+	for _, e := range s.objects {
+		if slices.Contains(e.Links, c.Node) {
+			r = append(r, e)
+		}
+	}
+	return r
+}
+
 func (s *ObjectSpace) Has(id elemwatch.Id) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
