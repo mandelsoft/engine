@@ -78,6 +78,12 @@ func (d *Database[O]) ListObjectIds(typ, ns string, atomic ...func()) ([]databas
 }
 
 func (d *Database[O]) listObjectIds(typ, ns string, closure bool) ([]database.ObjectId, error) {
+	if typ != "" && !CheckType(typ) {
+		return nil, fmt.Errorf("invalid type %q", typ)
+	}
+	if !CheckNamespace(ns) {
+		return nil, fmt.Errorf("invalid type %q", typ)
+	}
 	if ns == "" {
 		return d.list(typ, ns, true, closure)
 	} else {
@@ -136,6 +142,11 @@ func (d *Database[O]) list(typ, ns string, dir, closure bool) ([]database.Object
 }
 
 func (d *Database[O]) GetObject(id database.ObjectId) (O, error) {
+	var _nil O
+	if !CheckId(id) {
+		return _nil, fmt.Errorf("invalid id %q", id)
+	}
+
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	return d.get(id)
@@ -165,6 +176,10 @@ func (d *Database[O]) get(id database.ObjectId) (O, error) {
 }
 
 func (d *Database[O]) SetObject(o O) error {
+	if !CheckId(o) {
+		return fmt.Errorf("invalid id %q", database.NewObjectIdFor(o))
+	}
+
 	path := d.OPath(o)
 
 	log := logging.DefaultContext().Logger(REALM)
@@ -234,7 +249,9 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 
 func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 	var err error
-
+	if !CheckId(id) {
+		return fmt.Errorf("invalid id %q", id)
+	}
 	path := d.OPath(id)
 	log := logging.DefaultContext().Logger(REALM)
 
