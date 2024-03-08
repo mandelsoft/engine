@@ -55,23 +55,11 @@ func CreateNamespace(objects *ObjectSpace) bool {
 	ns := objects.ChooseRandomNamespace()
 	name := generator.Generate()
 
-	var id elemwatch.Id
-
-	if ns.Node.Name == NS {
-		if rand.Intn(100) < 10 {
-			id = elemwatch.Id{
-				Kind:  mm.NamespaceType(),
-				Name:  name,
-				Phase: "",
-			}
-		} else {
-			id = elemwatch.Id{
-				Kind:      mm.NamespaceType(),
-				Namespace: NamespaceName(ns.Node),
-				Name:      name,
-				Phase:     "",
-			}
-		}
+	id := elemwatch.Id{
+		Kind:      mm.NamespaceType(),
+		Namespace: NamespaceName(ns.Node),
+		Name:      name,
+		Phase:     "",
 	}
 
 	if objects.Has(id) {
@@ -81,7 +69,7 @@ func CreateNamespace(objects *ObjectSpace) bool {
 		Node:   id,
 		Status: "Ready",
 	}
-	log.Debug("{{id}} create namespace", "id", id)
+	log.Debug("create namespace {{id}}", "id", id)
 	objects.Set(node)
 	return true
 }
@@ -89,13 +77,13 @@ func CreateNamespace(objects *ObjectSpace) bool {
 func DeleteNamespace(objects *ObjectSpace) bool {
 	ns := objects.ChooseRandomNamespace()
 
-	if ns.Node.Namespace == "" && ns.Node.Name == NS {
+	if ns.Node.Namespace == "" && (ns.Node.Name == NS || ns.Node.Name == "") {
 		return false
 	}
 	if objects.IsUsed(ns.Node) {
 		return false
 	}
-	log.Debug("{{id}} delete namespace", "id", ns.Node)
+	log.Debug("delete namespace {{id}}", "id", ns.Node)
 	objects.Delete(ns.Node)
 	return true
 }
@@ -125,7 +113,7 @@ func CreateObject(objects *ObjectSpace) bool {
 		Node:   id,
 		Status: "Initial",
 	}
-	log.Debug("{{id}} create", "id", id)
+	log.Debug("create object {{id}}", "id", id)
 	objects.Set(node)
 	return true
 }
@@ -138,7 +126,7 @@ func DeleteObject(objects *ObjectSpace) bool {
 	if o.Lock != "" || objects.IsUsed(o.Node) {
 		return false
 	}
-	log.Debug("{{id}} delete", "id", o.Node)
+	log.Debug("delete object {{id}}", "id", o.Node)
 	objects.Delete(o.Node)
 	return true
 }
@@ -161,7 +149,7 @@ func Progress(objects *ObjectSpace) bool {
 	}
 
 	s := Random(follow[model.Status(o.Status)])
-	log.Debug("{{id}} change status", "id", o.Node, "status", s)
+	log.Debug("change status {{id}}", "id", o.Node, "status", s)
 	o.Status = string(s)
 	if cur == model.STATUS_COMPLETED || cur == model.STATUS_FAILED || cur == model.STATUS_INVALID {
 		log.Debug("    -> unlock")
@@ -181,7 +169,7 @@ func RemoveLink(objects *ObjectSpace) bool {
 	}
 
 	i := rand.Intn(len(o.Links))
-	log.Debug("{{id}} removing link {{link}}", "id", o.Node, "link", o.Links[i])
+	log.Debug("remove link {{id}} -> {{link}}", "id", o.Node, "link", o.Links[i])
 	o.Links = slices.Delete(o.Links, i, i+1)
 	objects.Set(o)
 	return true
@@ -216,7 +204,7 @@ func AddLink(objects *ObjectSpace) bool {
 	}
 
 	o.Links = append(o.Links, l)
-	log.Debug("{{id}} adding link {{link}}", "id", o.Node, "link", l)
+	log.Debug("add link {{id}} -> {{link}}", "id", o.Node, "link", l)
 	objects.Set(o)
 	return true
 }
@@ -237,14 +225,13 @@ func LockGraph(objects *ObjectSpace) bool {
 	runid := mmids.NewRunId()
 
 	g := objects.GetGraph(o)
-	log.Debug("  graph {{elements}}", "elements", utils.TransformSlice(g, NodeId))
 	for _, e := range g {
 		if e.Lock != "" {
 			log.Debug("  {{id}} already locked", "id", e.Node)
 			return false
 		}
 	}
-	log.Debug("{{id}} locking graph {{elements}}",
+	log.Debug("lock graph {{id}}: {{elements}}",
 		"id", o.Node,
 		"elements", utils.TransformSlice(g, NodeId),
 	)
