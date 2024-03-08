@@ -1,0 +1,5 @@
+type: B
+namespace: ns1/sub1
+name: o1
+
+b: B-ns1/sub1-o1

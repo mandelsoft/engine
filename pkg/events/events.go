@@ -174,11 +174,13 @@ func (r *registry[I]) getHandlers(id I) []*wrapper[I] {
 	defer r.lock.Unlock()
 
 	var handlers []*wrapper[I]
+	ns := id.GetNamespace()
+	if ns == "" {
+		ns = "/"
+	}
 	nsmap := r.types[""]
 	if len(nsmap) != 0 {
-		if id.GetNamespace() != "" {
-			handlers = append(handlers, nsmap[id.GetNamespace()]...)
-		}
+		handlers = append(handlers, nsmap[ns]...)
 		handlers = append(handlers, nsmap[""]...)
 	}
 
@@ -186,9 +188,7 @@ func (r *registry[I]) getHandlers(id I) []*wrapper[I] {
 	if len(nsmap) == 0 {
 		return handlers
 	}
-	if id.GetNamespace() != "" {
-		handlers = append(handlers, nsmap[id.GetNamespace()]...)
-	}
+	handlers = append(handlers, nsmap[ns]...)
 	return append(handlers, nsmap[""]...)
 }
 

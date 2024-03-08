@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
@@ -43,6 +44,8 @@ type Processor struct {
 
 	events  *EventManager
 	pending PendingCounter
+
+	delay time.Duration
 }
 
 var _ service.Service = (*Processor)(nil)
@@ -89,6 +92,10 @@ func (p *Processor) getNamespace(name string) *namespaceInfo {
 
 func (p *Processor) Wait() error {
 	return p.syncher.Wait()
+}
+
+func (p *Processor) SetDelay(d time.Duration) {
+	p.delay = d
 }
 
 func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {

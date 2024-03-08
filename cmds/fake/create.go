@@ -102,7 +102,11 @@ func DeleteNamespace(objects *ObjectSpace) bool {
 
 func CreateObject(objects *ObjectSpace) bool {
 	ns := objects.ChooseRandomNamespace()
-	name := generator.Generate()
+	name := ""
+
+	for name == "" {
+		name = generator.Generate()
+	}
 
 	t := Random(mm.InternalTypes())
 	p := Random(mm.Phases(t))

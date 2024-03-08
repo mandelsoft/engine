@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
@@ -14,6 +15,9 @@ import (
 )
 
 func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId) pool.Status {
+	if p.delay > 0 {
+		time.Sleep(p.delay)
+	}
 
 	nctx := lctx.WithValues("namespace", id.GetNamespace(), "element", id).WithName(id.String())
 	log := nctx.Logger()
@@ -831,7 +835,7 @@ func (p *Processor) lockGraph(lctx model.Logging, log logging.Logger, elem _Elem
 		}
 	}()
 
-	elems := map[ElementId]_Element{}
+	elems := NewOrderedElementSet()
 	ok, err = p._tryLockGraph(log, ni, elem, elems)
 	if !ok || err != nil {
 		return nil, err
@@ -843,14 +847,14 @@ func (p *Processor) lockGraph(lctx model.Logging, log logging.Logger, elem _Elem
 	return &id, nil
 }
 
-func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, elem _Element, elems map[ElementId]_Element) (bool, error) {
-	if elems[elem.Id()] == nil {
+func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, elem _Element, elems OrderedElementSet) (bool, error) {
+	if !elems.Has(elem.Id()) {
 		cur := elem.GetLock()
 		if cur != "" {
 			log.Info("element {{candidate}} already locked for {{lock}}", "candidate", elem.Id(), "lock", cur)
 			return false, nil
 		}
-		elems[elem.Id()] = elem
+		elems.Add(elem)
 
 		for _, d := range ni.getChildren(elem.Id()) {
 			ok, err := p._tryLockGraph(log, ni, d.(_Element), elems)
@@ -862,14 +866,14 @@ func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, elem _E
 	return true, nil
 }
 
-func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems map[ElementId]_Element, id RunId) (bool, error) {
+func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems OrderedElementSet, id RunId) (bool, error) {
 	var ok bool
 	var err error
 
 	ns.pendingElements = map[ElementId]_Element{}
 
-	log.Debug("found {{amount}} elements in graph", "amount", len(elems))
-	for _, elem := range elems {
+	log.Debug("found {{amount}} elements in graph", "amount", elems.Size())
+	for _, elem := range elems.Order() {
 		log.Debug("locking {{nestedelem}}", "nestedelem", elem.Id())
 		ok, err = elem.TryLock(p.processingModel.ObjectBase(), id)
 		if !ok || err != nil {

@@ -49,6 +49,7 @@ func (d *Database[O]) SchemeTypes() database.SchemeTypes[O] {
 func (d *Database[O]) ListObjects(typ, ns string) ([]O, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+
 	list, err := d.listObjectIds(typ, ns, ns == "")
 	if err != nil {
 		return nil, err
@@ -87,26 +88,47 @@ func (d *Database[O]) listObjectIds(typ, ns string, closure bool) ([]database.Ob
 func (d *Database[O]) list(typ, ns string, dir, closure bool) ([]database.ObjectId, error) {
 	var result []database.ObjectId
 
-	list, err := vfs.ReadDir(d.fs, d.Path(filepath.Join(typ, ns)))
-	if err != nil {
-		if errors.Is(err, vfs.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	for _, e := range list {
-		if e.IsDir() {
-			if dir || closure {
-				r, err := d.list(typ, filepath.Join(ns, e.Name()), false, closure)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, r...)
+	var types []string
+
+	if typ == "" {
+		list, err := vfs.ReadDir(d.fs, d.path)
+		if err != nil {
+			if errors.Is(err, vfs.ErrNotExist) {
+				return nil, nil
 			}
-		} else {
-			if !dir && strings.HasSuffix(e.Name(), ".yaml") {
-				id := database.NewObjectId(typ, ns, e.Name()[:len(e.Name())-5])
-				result = append(result, id)
+			return nil, err
+		}
+		for _, n := range list {
+			if n.IsDir() {
+				types = append(types, n.Name())
+			}
+		}
+	} else {
+		types = []string{typ}
+	}
+
+	for _, typ := range types {
+		list, err := vfs.ReadDir(d.fs, d.Path(filepath.Join(typ, ns)))
+		if err != nil {
+			if errors.Is(err, vfs.ErrNotExist) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		for _, e := range list {
+			if e.IsDir() {
+				if dir || closure {
+					r, err := d.list(typ, filepath.Join(ns, e.Name()), false, closure)
+					if err != nil {
+						return nil, err
+					}
+					result = append(result, r...)
+				}
+			} else {
+				if !dir && strings.HasSuffix(e.Name(), ".yaml") {
+					id := database.NewObjectId(typ, ns, e.Name()[:len(e.Name())-5])
+					result = append(result, id)
+				}
 			}
 		}
 	}

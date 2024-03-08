@@ -38,6 +38,15 @@ func main() {
 		Node: elemwatch.Id{
 			Kind:      mm.NamespaceType(),
 			Namespace: "",
+			Name:      "",
+			Phase:     "",
+		},
+		Status: "Ready",
+	})
+	objects.Set(&elemwatch.Event{
+		Node: elemwatch.Id{
+			Kind:      mm.NamespaceType(),
+			Namespace: "",
 			Name:      NS,
 			Phase:     "",
 		},
