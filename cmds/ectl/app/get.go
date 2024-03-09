@@ -12,6 +12,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/yaml"
 )
 
 type Get struct {
@@ -24,10 +25,10 @@ type Get struct {
 
 func NewGet(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:              "get <type> {<object>} <options>",
-		Short:            "get objects from database",
-		TraverseChildren: true,
+		Use:   "get <type> {<object>} <options>",
+		Short: "get objects from database",
 	}
+	TweakCommand(cmd)
 
 	c := &Get{
 		cmd:      cmd,
@@ -139,7 +140,7 @@ func (c *Get) Run(args []string) error {
 		}
 		fmt.Fprintf(c.cmd.OutOrStdout(), "%s", string(data))
 	case "yaml":
-		data, err := json.Marshal(elems)
+		data, err := yaml.Marshal(elems)
 		if err != nil {
 			return err
 		}

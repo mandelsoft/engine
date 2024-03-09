@@ -45,9 +45,9 @@ func New(fss ...vfs.FileSystem) *cobra.Command {
 This command can be used to manipulate the object base used by
 the processing engine.
 `,
-		Run:              nil,
-		TraverseChildren: true,
+		Run: nil,
 	}
+	TweakCommand(maincmd)
 
 	flags := maincmd.Flags()
 

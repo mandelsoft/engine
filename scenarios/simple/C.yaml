@@ -1,0 +1,15 @@
+type: Operator
+namespace: demo
+name: C
+spec:
+  operands:
+    iA: A
+    iB: B
+  operations:
+    oA: 
+      operator: add
+      operands:
+      - iA
+      - iB
+  outputs:
+    C-A: oA

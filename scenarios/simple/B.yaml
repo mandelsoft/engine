@@ -1,0 +1,5 @@
+type: Value
+namespace: demo
+name: B
+spec:
+  value: 6

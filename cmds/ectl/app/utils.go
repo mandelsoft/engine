@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/mandelsoft/engine/pkg/database/service"
+	"github.com/spf13/cobra"
 )
 
 func ResponseData(r *http.Response) ([]byte, error) {
@@ -28,4 +29,9 @@ func ResponseData(r *http.Response) ([]byte, error) {
 		return nil, fmt.Errorf("request failed with status %s", r.Status)
 	}
 	return nil, fmt.Errorf("%s", msg.Error)
+}
+
+func TweakCommand(cmd *cobra.Command) {
+	cmd.SilenceUsage = true
+	cmd.TraverseChildren = true
 }

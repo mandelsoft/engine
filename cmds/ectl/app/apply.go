@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/glob"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/spf13/cobra"
@@ -24,10 +25,10 @@ type Apply struct {
 
 func NewApply(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:              "apply <options>",
-		Short:            "apply objects to database",
-		TraverseChildren: true,
+		Use:   "apply <options>",
+		Short: "apply objects to database",
 	}
+	TweakCommand(cmd)
 
 	c := &Apply{
 		cmd:      cmd,
@@ -36,6 +37,7 @@ func NewApply(opts *Options) *cobra.Command {
 	c.cmd.RunE = func(cmd *cobra.Command, args []string) error { return c.Run(args) }
 	flags := cmd.Flags()
 	flags.StringSliceVarP(&c.files, "file", "f", nil, "resource file")
+
 	return cmd
 }
 
@@ -46,95 +48,102 @@ func (c *Apply) Run(args []string) error {
 		return fmt.Errorf("no arguments expected")
 	}
 
-	for _, f := range c.files {
-		var data []byte
-		var err error
-		multi := true
-
-		if f == "-" {
-			data, err = io.ReadAll(c.cmd.InOrStdin())
-		} else {
-			data, err = vfs.ReadFile(c.mainopts.fs, f)
-		}
+	for _, fp := range c.files {
+		files, err := glob.Glob(c.mainopts.fs, fp)
 		if err != nil {
-			fmt.Fprintf(c.cmd.ErrOrStderr(), "cannot read file %q: %s\n", f, err.Error())
+			fmt.Fprintf(c.cmd.ErrOrStderr(), "%q: %s\n", fp, err.Error())
 			cmderr = fmt.Errorf("apply failed for some resources")
 			continue
 		}
-
-		var list = &List{}
-
-		var m map[string]interface{}
-		err = yaml.Unmarshal(data, &m)
-		if err != nil {
-			fmt.Fprintf(c.cmd.ErrOrStderr(), "cannot unmarshal file %q: %s\n", f, err.Error())
-			cmderr = fmt.Errorf("apply failed for some resources")
-			continue
-		}
-
-		if !isList(m) {
-			list.Items = []Object{Object(m)}
-			multi = false
-		} else {
-			for _, o := range m["items"].([]interface{}) {
-				list.Items = append(list.Items, o.(Object))
-			}
-		}
-
-		for i, o := range list.Items {
+		for _, f := range files {
+			var data []byte
 			var err error
-			switch {
-			case !filesystem.CheckType(o.GetType()):
-				err = fmt.Errorf("invalid resource type %q", o.GetType())
-			case !filesystem.CheckNamespace(o.GetNamespace()):
-				err = fmt.Errorf("invalid namespace %q", o.GetNamespace())
-			case !filesystem.CheckName(o.GetName()):
-				err = fmt.Errorf("invalid resource name %q", o.GetName())
+			multi := true
+
+			if f == "-" {
+				data, err = io.ReadAll(c.cmd.InOrStdin())
+			} else {
+				data, err = vfs.ReadFile(c.mainopts.fs, f)
 			}
 			if err != nil {
-				cmderr = IndexError(c.cmd, multi, i, f, "invalid resource meta", err)
+				fmt.Fprintf(c.cmd.ErrOrStderr(), "cannot read file %q: %s\n", f, err.Error())
+				cmderr = fmt.Errorf("apply failed for some resources")
 				continue
 			}
 
-			cur, err := GetObject(c.mainopts, o)
-			if err == nil {
-				if cur["status"] != nil {
-					o["status"] = cur["status"]
-				} else {
-					delete(o, "status")
+			var list = &List{}
+
+			var m map[string]interface{}
+			err = yaml.Unmarshal(data, &m)
+			if err != nil {
+				fmt.Fprintf(c.cmd.ErrOrStderr(), "cannot unmarshal file %q: %s\n", f, err.Error())
+				cmderr = fmt.Errorf("apply failed for some resources")
+				continue
+			}
+
+			if !isList(m) {
+				list.Items = []Object{Object(m)}
+				multi = false
+			} else {
+				for _, o := range m["items"].([]interface{}) {
+					list.Items = append(list.Items, o.(Object))
+				}
+			}
+
+			for i, o := range list.Items {
+				var err error
+				switch {
+				case !filesystem.CheckType(o.GetType()):
+					err = fmt.Errorf("invalid resource type %q", o.GetType())
+				case !filesystem.CheckNamespace(o.GetNamespace()):
+					err = fmt.Errorf("invalid namespace %q", o.GetNamespace())
+				case !filesystem.CheckName(o.GetName()):
+					err = fmt.Errorf("invalid resource name %q", o.GetName())
+				}
+				if err != nil {
+					cmderr = IndexError(c.cmd, multi, i, f, "invalid resource meta", err)
+					continue
 				}
 
-				if cur["generation"] != nil {
-					o["generation"] = cur["generation"]
-				} else {
-					delete(o, "generation")
+				cur, err := GetObject(c.mainopts, o)
+				if err == nil {
+					if cur["status"] != nil {
+						o["status"] = cur["status"]
+					} else {
+						delete(o, "status")
+					}
+
+					if cur["generation"] != nil {
+						o["generation"] = cur["generation"]
+					} else {
+						delete(o, "generation")
+					}
 				}
-			}
 
-			data, err := json.Marshal(o)
-			if err != nil {
-				cmderr = IndexError(c.cmd, multi, i, f, "cannot marshal manifest", err)
-				continue
-			}
+				data, err := json.Marshal(o)
+				if err != nil {
+					cmderr = IndexError(c.cmd, multi, i, f, "cannot marshal manifest", err)
+					continue
+				}
 
-			post, err := http.Post(c.mainopts.GetURL()+path.Join(o.GetType(), o.GetNamespace(), o.GetName()), "application/json", bytes.NewReader(data))
-			if err != nil {
-				cmderr = IndexError(c.cmd, multi, i, f, fmt.Sprintf("%s: post failed", database.NewObjectRefFor(o)), err)
-				continue
+				post, err := http.Post(c.mainopts.GetURL()+path.Join(o.GetType(), o.GetNamespace(), o.GetName()), "application/json", bytes.NewReader(data))
+				if err != nil {
+					cmderr = IndexError(c.cmd, multi, i, f, fmt.Sprintf("%s: post failed", database.NewObjectRefFor(o)), err)
+					continue
+				}
+				_, err = ResponseData(post)
+				if err != nil {
+					cmderr = IndexError(c.cmd, multi, i, f, fmt.Sprintf("%s: cannot apply ", database.NewObjectRefFor(o)), err)
+					continue
+				}
+				s := "updated"
+				if post.StatusCode == http.StatusCreated {
+					s = "created"
+				}
+				fmt.Fprintf(c.cmd.OutOrStdout(), "%s: %s\n", database.NewObjectRefFor(o), s)
 			}
-			_, err = ResponseData(post)
-			if err != nil {
-				cmderr = IndexError(c.cmd, multi, i, f, fmt.Sprintf("%s: cannot apply ", database.NewObjectRefFor(o)), err)
-				continue
-			}
-			s := "updated"
-			if post.StatusCode == http.StatusCreated {
-				s = "created"
-			}
-			fmt.Fprintf(c.cmd.OutOrStdout(), "%s: %s\n", database.NewObjectRefFor(o), s)
 		}
 	}
-
 	return cmderr
 }
 
