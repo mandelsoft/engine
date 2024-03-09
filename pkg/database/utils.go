@@ -27,8 +27,6 @@ func SetObjectName[O Object](ns string, n string) runtime.Initializer[O] {
 
 func CompareObjectId(a, b ObjectId) int {
 	switch {
-	case a == b:
-		return 0
 	case a == nil:
 		return -1
 	case b == nil:
@@ -43,4 +41,8 @@ func CompareObjectId(a, b ObjectId) int {
 		}
 		return d
 	}
+}
+
+func CompareObject[O ObjectId](a, b O) int {
+	return CompareObjectId(a, b)
 }

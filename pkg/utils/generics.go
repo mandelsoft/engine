@@ -37,17 +37,6 @@ func TypeOf[T any]() reflect.Type {
 	return reflect.TypeOf(&t).Elem()
 }
 
-func ConvertSlice[D, S any](in []S) []D {
-	if TypeOf[D]() == TypeOf[S]() {
-		return Cast[[]D](in)
-	}
-	var r []D
-	for _, e := range in {
-		r = append(r, Cast[D](e))
-	}
-	return r
-}
-
 func MapKeys[K comparable, V any](m map[K]V, cmp ...func(a, b K) int) []K {
 	r := []K{}
 
@@ -220,4 +209,18 @@ func CastPointerSlice[T any, S ~[]P, E any, P PointerType[E]](s S) []T {
 		}
 	}
 	return t
+}
+
+func ConvertSlice[T, S any](a []S) []T {
+	if a == nil {
+		return nil
+	}
+	if TypeOf[S]() == TypeOf[T]() {
+		return Cast[[]T](a)
+	}
+	r := make([]T, len(a), len(a))
+	for i, e := range a {
+		r[i] = Cast[T](e)
+	}
+	return r
 }
