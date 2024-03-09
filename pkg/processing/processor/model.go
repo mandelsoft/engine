@@ -34,7 +34,7 @@ func newProcessingModel(m model.Model) *processingModel {
 		m:          m,
 		mm:         m.MetaModel(),
 		ob:         m.Objectbase(),
-		namespaces: map[string]*namespaceInfo{},
+		namespaces: map[string]*namespaceInfo{"": newNamespaceInfo(model.NewRootNamespace(m.MetaModel().NamespaceType()))},
 	}
 }
 

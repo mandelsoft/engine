@@ -53,7 +53,7 @@ func (o Operations) String() string {
 type Operation struct {
 	Operator   OperatorName `json:"operator"`
 	Operands   []string     `json:"operands,omitempty"`
-	Expression string       `json:"expression"`
+	Expression string       `json:"expression,omitempty"`
 }
 
 func (o Operation) String() string {

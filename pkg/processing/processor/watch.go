@@ -79,14 +79,15 @@ func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()
 func (l *watchEventLister) listAll(typ string) []elemwatch.Event {
 	var list []elemwatch.Event
 
-	if typ == l.m.mm.NamespaceType() {
+	if typ == "" || typ == l.m.mm.NamespaceType() {
 		list = append(list, *NewWatchEventForNamespace(l.m.namespaces[""]))
 	}
 
 	for _, ni := range l.m.namespaces {
-		if typ == l.m.mm.NamespaceType() {
+		if typ == "" || typ == l.m.mm.NamespaceType() {
 			list = append(list, *NewWatchEventForNamespace(ni))
-		} else {
+		}
+		if typ != l.m.mm.NamespaceType() {
 			for _, id := range ni.list(typ) {
 				e := l.m._GetElement(id)
 				if e != nil {

@@ -178,7 +178,7 @@ var _ = Describe("Processing", func() {
 			}
 		})
 
-		FIt("single node", func() {
+		It("single node", func() {
 
 			n5 := db.NewValueNode(NS, "A", 5)
 

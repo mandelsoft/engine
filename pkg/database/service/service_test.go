@@ -44,7 +44,7 @@ var _ = Describe("Test Environment", func() {
 		db = Must(filesystem.New[Object](Scheme.(database.Encoding[Object]), "testdata", fs)) // Goland
 		srv = server.NewServer(PORT, true, 10*time.Second)
 		access = service.New(db, "/db")
-		access.Register(srv)
+		access.RegisterHandler(srv)
 		ready, d := Must2(srv.Start(ctx))
 		ready.Wait()
 		done = d

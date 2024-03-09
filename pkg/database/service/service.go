@@ -28,7 +28,7 @@ func New[O database.Object](db database.Database[O], prefix string) *DatabaseAcc
 	}
 }
 
-func (a *DatabaseAccess[O]) Register(src *server.Server) {
+func (a *DatabaseAccess[O]) RegisterHandler(src *server.Server) {
 	src.Handle(a.prefix, a)
 }
 func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
