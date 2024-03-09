@@ -76,10 +76,11 @@ func (c *Get) Run(args []string) error {
 			if err != nil {
 				return fmt.Errorf("%s: %w", orig, err)
 			}
-			if get.StatusCode != http.StatusOK {
-				return fmt.Errorf("%s: get failed with status code %s", orig, get.Status)
+			data, err := ResponseData(get)
+			if err != nil {
+				return fmt.Errorf("%s: %w", orig, err)
 			}
-			data, err := io.ReadAll(get.Body)
+
 			var o Object
 			err = json.Unmarshal(data, &o)
 			if err != nil {
@@ -102,10 +103,10 @@ func (c *Get) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-		if r.StatusCode != http.StatusOK {
+		data, err := ResponseData(r)
+		if err != nil {
 			return fmt.Errorf("get failed with status code %s", r.Status)
 		}
-		data, err := io.ReadAll(r.Body)
 		var l List
 		err = json.Unmarshal(data, &l)
 		if err != nil {
@@ -203,7 +204,7 @@ func printLine(w io.Writer, cols []string, msg string) {
 func formatString(max []int) string {
 	msg := ""
 	for _, l := range max {
-		msg += fmt.Sprintf("%%%ds ", l)
+		msg += fmt.Sprintf("%%-%ds ", l)
 	}
 	return msg[:len(msg)-1] + "\n"
 }
@@ -238,4 +239,19 @@ func RequireTypeField(list []Object) bool {
 		}
 	}
 	return false
+}
+
+func GetObject(opts *Options, id database.ObjectId) (Object, error) {
+	get, err := http.Get(opts.GetURL() + path.Join(id.GetType(), id.GetNamespace(), id.GetName()))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", database.NewObjectRefFor(id), err)
+	}
+	data, err := ResponseData(get)
+
+	var o Object
+	err = json.Unmarshal(data, &o)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", database.NewObjectRefFor(id), err)
+	}
+	return o, nil
 }

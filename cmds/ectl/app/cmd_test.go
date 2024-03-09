@@ -39,7 +39,7 @@ var _ = Describe("Test Environment", func() {
 	BeforeEach(func() {
 		ctx = ctxutil.TimeoutContext(context.Background(), 20*time.Second)
 		fs = Must(TestFileSystem("testdata", false))
-		db = Must(filesystem.New[Object](Scheme.(database.Encoding[Object]), "testdata", fs)) // Goland
+		db = Must(filesystem.New[Object](Scheme.(database.Encoding[Object]), "testdata/db", fs)) // Goland
 		srv = server.NewServer(PORT, true, 10*time.Second)
 		access = service.New(db, "/db")
 		access.Register(srv)
@@ -48,7 +48,9 @@ var _ = Describe("Test Environment", func() {
 		done = d
 
 		buf = bytes.NewBuffer(nil)
-		cmd = app.New()
+		cmd = app.New(fs)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
 	})
 
 	AfterEach(func() {
@@ -57,19 +59,30 @@ var _ = Describe("Test Environment", func() {
 	})
 
 	Context("get", func() {
-		It("get type ns", func() {
-			cmd.SetOut(buf)
+		It("get type", func() {
 			cmd.SetArgs([]string{"-n", "ns1", "get", "A"})
 			MustBeSuccessful(cmd.Execute())
 			Expect("\n" + buf.String()).To(Equal(`
 NAMESPACE NAME STATUS
-      ns1   o1       
-      ns1   o2       
+ns1       o1         
+ns1       o2         
+`))
+		})
+		It("get type elem", func() {
+			cmd.SetArgs([]string{"get", "A", "ns1/o1"})
+			MustBeSuccessful(cmd.Execute())
+			Expect("\n" + buf.String()).To(Equal(`
+NAMESPACE NAME STATUS
+ns1       o1         
 `))
 		})
 
+		It("nothing", func() {
+			cmd.SetArgs([]string{"-n", "ns1", "get", "A", "ns1/o1"})
+			ExpectError(cmd.Execute()).To(MatchError("ns1/o1: request failed with status 404 Not Found"))
+		})
+
 		It("yaml", func() {
-			cmd.SetOut(buf)
 			cmd.SetArgs([]string{"-n", "ns1", "get", "A", "-o", "yaml"})
 			MustBeSuccessful(cmd.Execute())
 			Expect("\n" + buf.String()).To(YAMLEqual(`
@@ -86,7 +99,24 @@ NAMESPACE NAME STATUS
     type: A
 `))
 		})
+	})
 
+	Context("apply", func() {
+		It("apply manifest", func() {
+			cmd.SetOut(buf)
+			cmd.SetArgs([]string{"apply", "-f", "testdata/new.yaml"})
+			MustBeSuccessful(cmd.Execute())
+			Expect("\n" + buf.String()).To(Equal(`
+B/ns2/new: created
+`))
+			buf.Reset()
+			cmd.SetArgs([]string{"-n", "ns2", "get", "B", "new"})
+			MustBeSuccessful(cmd.Execute())
+			Expect("\n" + buf.String()).To(Equal(`
+NAMESPACE NAME STATUS
+ns2       new        
+`))
+		})
 	})
 
 })

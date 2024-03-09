@@ -1,0 +1,5 @@
+type: B
+namespace: ns2
+name: new
+
+b: B-ns2-new

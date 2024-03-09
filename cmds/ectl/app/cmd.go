@@ -4,12 +4,16 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/spf13/cobra"
 )
 
 type Options struct {
 	address   string
 	namespace string
+	fs        vfs.FileSystem
 }
 
 func (o *Options) GetURL() string {
@@ -23,8 +27,10 @@ func (o *Options) GetURL() string {
 	return a + "db/"
 }
 
-func New() *cobra.Command {
-	opts := &Options{}
+func New(fss ...vfs.FileSystem) *cobra.Command {
+	opts := &Options{
+		fs: utils.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...),
+	}
 
 	opts.address = os.Getenv("ENGINE_SERVER")
 	if opts.address == "" {
@@ -49,5 +55,6 @@ the processing engine.
 	flags.StringVarP(&opts.address, "server", "s", opts.address, "engine server")
 
 	maincmd.AddCommand(NewGet(opts))
+	maincmd.AddCommand(NewApply(opts))
 	return maincmd
 }

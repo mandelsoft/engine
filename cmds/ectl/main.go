@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/mandelsoft/engine/cmds/ectl/app"
 )
 
 func Error(msg string, args ...any) {
@@ -11,5 +13,11 @@ func Error(msg string, args ...any) {
 }
 
 func main() {
-
+	cmd := app.New()
+	cmd.SetArgs(os.Args[1:])
+	err := cmd.Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+		os.Exit(1)
+	}
 }
