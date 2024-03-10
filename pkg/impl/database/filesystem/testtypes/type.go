@@ -2,6 +2,7 @@ package testtypes
 
 import (
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/runtime"
 )
 
 type Object interface {
@@ -11,7 +12,7 @@ type Object interface {
 	GetData() string
 }
 
-var Scheme = database.NewScheme[Object]()
+var Scheme = database.NewScheme[Object](runtime.ObjectMetaTypeExtractor)
 var scheme = Scheme.(database.TypeScheme[Object]) // Goland
 
 const TYPE_A = "A"

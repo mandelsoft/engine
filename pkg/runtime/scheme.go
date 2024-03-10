@@ -4,6 +4,25 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type TypeExtractor func(data []byte) (string, error)
+
+type accessorPointer[P any] interface {
+	TypeAccessor
+	*P
+}
+
+func TypeExtractorFor[O any, P accessorPointer[O]]() TypeExtractor {
+	return func(data []byte) (string, error) {
+		var meta O
+
+		err := yaml.Unmarshal(data, &meta)
+		if err != nil {
+			return "", err
+		}
+		return P(&meta).GetType(), nil
+	}
+}
+
 // Encoding provides object decoding for scheme types.
 type Encoding[T Object] interface {
 	SchemeTypes[T]
@@ -19,24 +38,24 @@ type Scheme[E Object] interface {
 
 type scheme[E Object] struct {
 	types[E]
+	typeExtractor TypeExtractor
 }
 
 var _ Scheme[Object] = (*scheme[Object])(nil)
 
-func NewYAMLScheme[E Object]() Scheme[E] {
-	return &scheme[E]{*NewTypeScheme[E]()}
+func NewYAMLScheme[E Object](e TypeExtractor) Scheme[E] {
+	return &scheme[E]{*NewTypeScheme[E](), e}
 }
 
 func (s *scheme[E]) Decode(data []byte) (E, error) {
-	var ty ObjectMeta
 	var _nil E
 
-	err := yaml.Unmarshal(data, &ty)
+	ty, err := s.typeExtractor(data)
 	if err != nil {
 		return _nil, err
 	}
 
-	v, err := s.CreateObject(ty.Type)
+	v, err := s.CreateObject(ty)
 	if err != nil {
 		return _nil, err
 	}

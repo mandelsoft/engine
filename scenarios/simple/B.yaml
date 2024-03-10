@@ -1,5 +1,6 @@
-type: Value
-namespace: demo
-name: B
+kind: Value
+metadata:
+  namespace: demo
+  name: B
 spec:
   value: 6

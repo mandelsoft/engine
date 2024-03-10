@@ -1,5 +1,8 @@
-type: B
-namespace: ns2
-name: new
+apiVersion: engine/v1
+kind: B
+metadata:
+  namespace: ns2
+  name: new
 
-b: B-ns2-new
+spec:
+  b: B-ns2-new

@@ -11,6 +11,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/glob"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
+	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -71,7 +72,7 @@ func (c *Apply) Run(args []string) error {
 				continue
 			}
 
-			var list = &List{}
+			var list List
 
 			var m map[string]interface{}
 			err = yaml.Unmarshal(data, &m)
@@ -82,11 +83,20 @@ func (c *Apply) Run(args []string) error {
 			}
 
 			if !isList(m) {
-				list.Items = []Object{Object(m)}
+				u, err := db.UnstructuredFor(m)
+				if err != nil {
+					fmt.Fprintf(c.cmd.ErrOrStderr(), "cannot unmarshal file %q: %s\n", f, err.Error())
+					cmderr = fmt.Errorf("apply failed for some resources")
+					continue
+				}
+				list.Items = []Object{u}
 				multi = false
 			} else {
-				for _, o := range m["items"].([]interface{}) {
-					list.Items = append(list.Items, o.(Object))
+				err := yaml.Unmarshal(data, &list)
+				if err != nil {
+					fmt.Fprintf(c.cmd.ErrOrStderr(), "cannot unmarshal file %q: %s\n", f, err.Error())
+					cmderr = fmt.Errorf("apply failed for some resources")
+					continue
 				}
 			}
 
@@ -107,16 +117,16 @@ func (c *Apply) Run(args []string) error {
 
 				cur, err := GetObject(c.mainopts, o)
 				if err == nil {
-					if cur["status"] != nil {
-						o["status"] = cur["status"]
+					if cur.Status != nil {
+						o.Status = cur.Status
 					} else {
-						delete(o, "status")
+						o.Status = nil
 					}
 
-					if cur["generation"] != nil {
-						o["generation"] = cur["generation"]
+					if cur.GetGeneration() != 0 {
+						o.SetGeneration(cur.GetGeneration())
 					} else {
-						delete(o, "generation")
+						o.SetGeneration(0)
 					}
 				}
 

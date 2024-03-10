@@ -9,7 +9,7 @@ import (
 	"path"
 	"time"
 
-	. "github.com/mandelsoft/engine/pkg/impl/database/filesystem/testtypes"
+	. "github.com/mandelsoft/engine/pkg/database/service/testtypes"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -60,12 +60,14 @@ var _ = Describe("Test Environment", func() {
 			get := Must(http.Get(URL + path.Join(TYPE_A, NS, "o1")))
 			Expect(get.StatusCode).To(Equal(http.StatusOK))
 			Expect(io.ReadAll(get.Body)).To(YAMLEqual(`
-type: A
-namespace: ns1
-name: o1
-generation: 0
-
-a: A-ns1-o1
+apiVersion: engine/v1
+kind: A
+metadata:
+  namespace: ns1
+  name: o1
+  generation: 0
+spec:
+  a: A-ns1-o1
 `))
 		})
 	})
@@ -73,10 +75,13 @@ a: A-ns1-o1
 	Context("create", func() {
 		It("", func() {
 			data := `
-type: A
-namespace: ns1
-name: new
-a: new object
+apiVersion: engine/v1
+kind: A
+metadata:
+  namespace: ns1
+  name: new
+spec:
+  a: new object
 `
 
 			post := Must(http.Post(URL+path.Join(TYPE_A, NS, "new"), "application/json", bytes.NewReader([]byte(data))))
@@ -85,12 +90,14 @@ a: new object
 			get := Must(http.Get(URL + path.Join(TYPE_A, NS, "new")))
 			Expect(get.StatusCode).To(Equal(http.StatusOK))
 			Expect(io.ReadAll(get.Body)).To(YAMLEqual(`
-type: A
-namespace: ns1
-name: new
-generation: 1
-
-a: new object
+apiVersion: engine/v1
+kind: A
+metadata:
+  namespace: ns1
+  name: new
+  generation: 1
+spec:
+  a: new object
 `))
 		})
 
@@ -100,16 +107,22 @@ a: new object
 			Expect(list.StatusCode).To(Equal(http.StatusOK))
 			Expect(io.ReadAll(list.Body)).To(YAMLEqual(`
   items:
-  - a: A-ns1-o1
-    generation: 0
-    name: o1
-    namespace: ns1
-    type: A
-  - a: A-ns1-o2
-    generation: 0
-    name: o2
-    namespace: ns1
-    type: A
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      a: A-ns1-o1
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o2
+      namespace: ns1
+    spec:
+      a: A-ns1-o2
 `))
 		})
 
@@ -119,21 +132,30 @@ a: new object
 			Expect(list.StatusCode).To(Equal(http.StatusOK))
 			Expect(io.ReadAll(list.Body)).To(YAMLEqual(`
   items:
-  - a: A-ns1-o1
-    generation: 0
-    name: o1
-    namespace: ns1
-    type: A
-  - a: A-ns1-o2
-    generation: 0
-    name: o2
-    namespace: ns1
-    type: A
-  - b: B-ns1-o1
-    generation: 0
-    name: o1
-    namespace: ns1
-    type: B
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      a: A-ns1-o1
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o2
+      namespace: ns1
+    spec:
+      a: A-ns1-o2
+  - apiVersion: engine/v1
+    kind: B
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      b: B-ns1-o1
 `))
 		})
 
@@ -143,36 +165,54 @@ a: new object
 			Expect(list.StatusCode).To(Equal(http.StatusOK))
 			Expect(io.ReadAll(list.Body)).To(YAMLEqual(`
   items:
-  - a: A-ns1-o1
-    generation: 0
-    name: o1
-    namespace: ns1
-    type: A
-  - a: A-ns1-o2
-    generation: 0
-    name: o2
-    namespace: ns1
-    type: A
-  - a: A-ns2-o1
-    generation: 0
-    name: o1
-    namespace: ns2
-    type: A
-  - b: B-ns1-o1
-    generation: 0
-    name: o1
-    namespace: ns1
-    type: B
-  - b: B-ns1/sub1-o1
-    generation: 0
-    name: o1
-    namespace: ns1/sub1
-    type: B
-  - b: B-ns2-o2
-    generation: 0
-    name: o2
-    namespace: ns2
-    type: B
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      a: A-ns1-o1
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o2
+      namespace: ns1
+    spec:
+      a: A-ns1-o2
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns2
+    spec:
+      a: A-ns2-o1
+  - apiVersion: engine/v1
+    kind: B
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      b: B-ns1-o1
+  - apiVersion: engine/v1
+    kind: B
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1/sub1
+    spec:
+      b: B-ns1/sub1-o1
+  - apiVersion: engine/v1
+    kind: B
+    metadata:
+      generation: 0
+      name: o2
+      namespace: ns2
+    spec:
+      b: B-ns2-o2
 `))
 		})
 

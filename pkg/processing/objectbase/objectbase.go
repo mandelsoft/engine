@@ -10,7 +10,7 @@ type EventHandler = database.EventHandler
 type Initializer = runtime.Initializer[Object]
 
 func NewScheme() Scheme {
-	return database.NewScheme[Object]()
+	return database.NewScheme[Object](nil)
 }
 
 type pointer[P any] interface {

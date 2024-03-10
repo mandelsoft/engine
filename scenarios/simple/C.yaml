@@ -1,6 +1,7 @@
-type: Operator
-namespace: demo
-name: C
+kind: Operator
+metadata:
+  namespace: demo
+  name: C
 spec:
   operands:
     iA: A

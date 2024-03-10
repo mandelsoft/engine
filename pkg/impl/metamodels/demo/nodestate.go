@@ -185,7 +185,7 @@ func (n *NodeState) commitTargetState(lctx model.Logging, o *db.NodeState, phase
 		log.Info("  output {{output}}", "output", spec.OutputState.(*OutputState).GetState())
 		o.State.Current.Output.Value = spec.OutputState.(*OutputState).GetState()
 	} else {
-		log.Info("  nothing to commit for NodeState {{name}}", "name", o.Name)
+		log.Info("  nothing to commit for NodeState {{name}}", "name", o.GetName())
 	}
 }
 

@@ -20,8 +20,8 @@ type Encoding[O Object] interface {
 	runtime.Encoding[O]
 }
 
-func NewScheme[O Object]() Scheme[O] {
-	return runtime.NewYAMLScheme[O]()
+func NewScheme[O Object](e runtime.TypeExtractor) Scheme[O] {
+	return runtime.NewYAMLScheme[O](e)
 }
 
 type ObjectMetaAccessor interface {
@@ -140,6 +140,35 @@ type StatusSource interface {
 	GetStatusValue() string
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+type Named struct {
+	Namespace string `json:"namespace,omitempty"`
+	Name      string `json:"name"`
+}
+
+func (n Named) GetName() string {
+	return n.Name
+}
+
+func (n Named) GetNamespace() string {
+	return n.Namespace
+}
+
+func (n *Named) SetName(name string) {
+	n.Name = name
+}
+
+func (n *Named) SetNamespace(name string) {
+	n.Namespace = name
+}
+
+func (n Named) String() string {
+	return fmt.Sprintf("%s/%s", n.Namespace, n.Name)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type ObjectId interface {
 	GetNamespace() string
 	GetName() string
@@ -173,38 +202,20 @@ func (r LocalObjectRef) In(ns string) ObjectId {
 
 type ObjectRef struct {
 	runtime.ObjectMeta `json:",inline"`
-	Namespace          string `json:"namespace"`
-	Name               string `json:"name"`
+	Named              `json:",inline"`
 }
 
 var _ ObjectId = (*ObjectRef)(nil)
 
 func NewObjectRef(typ, ns, name string) ObjectRef {
-	return ObjectRef{runtime.ObjectMeta{typ}, ns, name}
+	return ObjectRef{runtime.ObjectMeta{typ}, Named{Name: name, Namespace: ns}}
 }
 
 func NewObjectRefFor(id ObjectId) ObjectRef {
 	return ObjectRef{
 		ObjectMeta: runtime.ObjectMeta{id.GetType()},
-		Namespace:  id.GetNamespace(),
-		Name:       id.GetName(),
+		Named:      Named{id.GetNamespace(), id.GetName()},
 	}
-}
-
-func (o ObjectRef) GetName() string {
-	return o.Name
-}
-
-func (o ObjectRef) GetNamespace() string {
-	return o.Namespace
-}
-
-func (o *ObjectRef) SetName(name string) {
-	o.Name = name
-}
-
-func (o *ObjectRef) SetNamespace(name string) {
-	o.Namespace = name
 }
 
 func (o ObjectRef) String() string {

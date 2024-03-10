@@ -111,7 +111,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 		if m := values.Missing(infos); len(m) > 0 {
 			log.Info("found external expressions {{missing}}", "missing", strings.Join(m, ","))
 			if namespace == "" {
-				namespace = o.Namespace + "/" + o.Name
+				namespace = o.GetNamespace() + "/" + o.GetName()
 				_, err = database.Modify(c.db, &o, func(o *db.Expression) (bool, bool) {
 					mod := support.UpdateField(&o.Status.Generated.Namespace, &namespace)
 					return mod, mod

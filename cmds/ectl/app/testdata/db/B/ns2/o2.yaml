@@ -1,5 +1,7 @@
-type: B
-namespace: ns2
-name: o2
+kind: B
+metadata:
+  namespace: ns2
+  name: o2
 
-b: B-ns2-o2
+spec:
+  b: B-ns2-o2

@@ -199,7 +199,7 @@ func PrintObjectList(w io.Writer, list []Object, typeField bool, sortField strin
 }
 
 func printLine(w io.Writer, cols []string, msg string) {
-	fmt.Fprintf(w, msg, utils.ConvertSlice[any](cols)...)
+	fmt.Fprintf(w, "%s\n", strings.TrimRight(fmt.Sprintf(msg, utils.ConvertSlice[any](cols)...), " "))
 }
 
 func formatString(max []int) string {
@@ -207,7 +207,7 @@ func formatString(max []int) string {
 	for _, l := range max {
 		msg += fmt.Sprintf("%%-%ds ", l)
 	}
-	return msg[:len(msg)-1] + "\n"
+	return msg[:len(msg)-1]
 }
 
 func MapFields(list []Object, typeField bool) [][]string {
@@ -217,11 +217,11 @@ func MapFields(list []Object, typeField bool) [][]string {
 
 		if typeField {
 			l = []string{
-				o.GetNamespace(), o.GetName(), o.GetType(), o.GetStatus(),
+				o.GetNamespace(), o.GetName(), o.GetType(), o.GetStatusValue(),
 			}
 		} else {
 			l = []string{
-				o.GetNamespace(), o.GetName(), o.GetStatus(),
+				o.GetNamespace(), o.GetName(), o.GetStatusValue(),
 			}
 		}
 		r = append(r, l)

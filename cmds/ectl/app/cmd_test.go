@@ -3,13 +3,15 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"time"
 
-	. "github.com/mandelsoft/engine/pkg/impl/database/filesystem/testtypes"
+	. "github.com/mandelsoft/engine/pkg/database/service/testtypes"
 	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/vfs/pkg/vfs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/spf13/cobra"
 
 	"github.com/mandelsoft/engine/cmds/ectl/app"
@@ -62,10 +64,11 @@ var _ = Describe("Test Environment", func() {
 		It("get type", func() {
 			cmd.SetArgs([]string{"-n", "ns1", "get", "A"})
 			MustBeSuccessful(cmd.Execute())
+			fmt.Printf("\n%s\n", buf.String())
 			Expect("\n" + buf.String()).To(Equal(`
 NAMESPACE NAME STATUS
-ns1       o1         
-ns1       o2         
+ns1       o1   Completed
+ns1       o2
 `))
 		})
 		It("get type elem", func() {
@@ -73,7 +76,7 @@ ns1       o2
 			MustBeSuccessful(cmd.Execute())
 			Expect("\n" + buf.String()).To(Equal(`
 NAMESPACE NAME STATUS
-ns1       o1         
+ns1       o1   Completed
 `))
 		})
 
@@ -86,23 +89,31 @@ ns1       o1
 			cmd.SetArgs([]string{"-n", "ns1", "get", "A", "-o", "yaml"})
 			MustBeSuccessful(cmd.Execute())
 			Expect("\n" + buf.String()).To(YAMLEqual(`
-  items:
-  - a: A-ns1-o1
-    generation: 0
-    name: o1
-    namespace: ns1
-    type: A
-  - a: A-ns1-o2
-    generation: 0
-    name: o2
-    namespace: ns1
-    type: A
+ items:
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      a: A-ns1-o1
+    status:
+      status: Completed
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o2
+      namespace: ns1
+    spec:
+      a: A-ns1-o2
 `))
 		})
 	})
 
 	Context("apply", func() {
-		It("apply manifest", func() {
+		It("create", func() {
 			cmd.SetOut(buf)
 			cmd.SetArgs([]string{"apply", "-f", "testdata/new.yaml"})
 			MustBeSuccessful(cmd.Execute())
@@ -114,9 +125,42 @@ B/ns2/new: created
 			MustBeSuccessful(cmd.Execute())
 			Expect("\n" + buf.String()).To(Equal(`
 NAMESPACE NAME STATUS
-ns2       new        
+ns2       new
 `))
 		})
+
+		It("update", func() {
+			cmd.SetOut(buf)
+			cmd.SetArgs([]string{"apply", "-f", "testdata/update.yaml"})
+			MustBeSuccessful(cmd.Execute())
+			Expect("\n" + buf.String()).To(Equal(`
+A/ns1/o1: updated
+`))
+			buf.Reset()
+			cmd.SetArgs([]string{"-n", "ns1", "get", "A", "o1"})
+			MustBeSuccessful(cmd.Execute())
+			Expect("\n" + buf.String()).To(Equal(`
+NAMESPACE NAME STATUS
+ns1       o1   Completed
+`))
+			buf.Reset()
+			cmd.SetArgs([]string{"-n", "ns1", "get", "A", "o1", "-o", "yaml"})
+			MustBeSuccessful(cmd.Execute())
+			Expect("\n" + buf.String()).To(YAMLEqual(`
+    apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 1
+      name: o1
+      namespace: ns1
+    spec:
+      a: modified
+    status:
+      status: Completed
+`))
+
+		})
+
 	})
 
 })

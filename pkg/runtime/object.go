@@ -22,3 +22,5 @@ func (o *ObjectMeta) GetType() string {
 func (o *ObjectMeta) SetType(t string) {
 	o.Type = t
 }
+
+var ObjectMetaTypeExtractor = TypeExtractorFor[ObjectMeta]()
