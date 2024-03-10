@@ -1,22 +1,22 @@
 package db
 
 import (
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/mmids"
 )
 
 type Namespace struct {
 	ObjectMeta `json:",inline"`
 
-	RunLock RunId `json:"runLock"`
+	RunLock mmids.RunId `json:"runLock"`
 }
 
 var _ DBNamespace = (*Namespace)(nil)
 
-func (n *Namespace) GetRunLock() RunId {
+func (n *Namespace) GetRunLock() mmids.RunId {
 	return n.RunLock
 }
 
-func (n *Namespace) SetRunLock(id RunId) {
+func (n *Namespace) SetRunLock(id mmids.RunId) {
 	n.RunLock = id
 }
 

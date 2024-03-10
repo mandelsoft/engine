@@ -3,8 +3,6 @@ package db
 import (
 	"fmt"
 
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -67,8 +65,8 @@ func (o Operands) String() string {
 }
 
 type Operand struct {
-	Origin ObjectId `json:"origin,omitempty"`
-	Value  int      `json:"value"`
+	Origin db.ObjectId `json:"origin,omitempty"`
+	Value  int         `json:"value"`
 }
 
 func (o Operand) String() string {

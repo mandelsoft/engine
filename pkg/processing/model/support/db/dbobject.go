@@ -1,6 +1,8 @@
 package db
 
 import (
+	"encoding/json"
+
 	"github.com/mandelsoft/engine/pkg/database"
 )
 
@@ -84,6 +86,23 @@ func (o *ObjectMeta) GetGeneration() int64 {
 
 func (o *ObjectMeta) SetGeneration(i int64) {
 	o.MetaData.SetGeneration(i)
+}
+
+func (o *ObjectMeta) addTo(m map[string]interface{}) error {
+	var meta map[string]interface{}
+
+	data, err := json.Marshal(o)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, &meta)
+	if err != nil {
+		return err
+	}
+	for k, v := range meta {
+		m[k] = v
+	}
+	return nil
 }
 
 type MetaData struct {

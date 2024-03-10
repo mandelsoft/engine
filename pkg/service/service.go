@@ -32,7 +32,7 @@ type services struct {
 
 func New(ctx context.Context) Services {
 	return &services{
-		ctx:      ctx,
+		ctx:      ctxutil.CancelContext(ctx),
 		services: map[Service]Syncher{},
 		wg:       &sync.WaitGroup{},
 	}
@@ -104,8 +104,10 @@ func (t *services) start(s Service) (Syncher, error) {
 	ready, done, err := s.Start(t.ctx)
 	if err != nil || done == nil {
 		ctxutil.Cancel(t.ctx)
-		if done == nil {
-			err = fmt.Errorf("no service does not return a done syncher")
+		if err == nil && done == nil {
+			err = fmt.Errorf("service %T does not return a done syncher", s)
+		} else {
+			err = fmt.Errorf("service %T: %w", s, err)
 		}
 		return nil, err
 	}

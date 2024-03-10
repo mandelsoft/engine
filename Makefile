@@ -4,4 +4,8 @@ install:
 	go install ./cmds/ectl
 
 run:
-	engine -d local/db
+	go run ./cmds/engine -L debug -d local/db
+
+test:
+	go test ./...
+

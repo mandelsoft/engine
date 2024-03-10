@@ -1,8 +1,6 @@
 package db
 
 import (
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -58,8 +56,8 @@ type GatherOutput struct {
 }
 
 type Operand struct {
-	Origin ObjectId `json:"origin,omitempty"`
-	Value  int      `json:"value"`
+	Origin db.ObjectId `json:"origin,omitempty"`
+	Value  int         `json:"value"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////

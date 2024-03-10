@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/logging"
 
@@ -118,7 +119,7 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		for n, src := range t.GetOperands() {
 			if iid.GetName() == src {
 				operands[n] = db.Operand{
-					Origin: iid.ObjectId(),
+					Origin: db2.NewObjectIdFor(iid),
 					Value:  s.Value,
 				}
 				log.Info("found operand {{name}} from {{link}}: {{value}}", "name", n, "link", iid, "value", s.Value)
@@ -131,7 +132,7 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		v, err := strconv.Atoi(src)
 		if err == nil {
 			operands[n] = db.Operand{
-				Origin: req.Element.Id().ObjectId(),
+				Origin: db2.NewObjectIdFor(req.Element),
 				Value:  v,
 			}
 			log.Info("found inline operand {{name}}: {{value}}", "name", n, "value", v)

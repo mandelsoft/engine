@@ -103,7 +103,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 				if iid == oid {
 					if v, ok := s[n.GetName()]; ok {
 						out.Value = v
-						out.Origin = utils.Pointer(iid.ObjectId())
+						out.Origin = utils.Pointer(db2.NewObjectIdFor(iid))
 						log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", out.Value)
 					}
 					break
@@ -112,7 +112,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		}
 	} else {
 		out.Value = n.GetTargetState(req.Element.GetPhase()).(*TargetValueState).GetValue()
-		out.Origin = utils.Pointer(req.Element.Id().ObjectId())
+		out.Origin = utils.Pointer(db2.NewObjectIdFor(req.Element))
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
 
@@ -142,7 +142,7 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 
 	extid := database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName())
 	log = log.WithValues("extid", extid)
-	if *out.Origin != NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
+	if *out.Origin != db2.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
 		log.Info("checking slave value object {{extid}}")
 		_, err := ob.GetObject(extid)
 		if errors.Is(err, database.ErrNotExist) {

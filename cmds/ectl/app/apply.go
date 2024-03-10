@@ -117,10 +117,10 @@ func (c *Apply) Run(args []string) error {
 
 				cur, err := GetObject(c.mainopts, o)
 				if err == nil {
-					if cur.Status != nil {
-						o.Status = cur.Status
+					if cur.GetStatus() != nil {
+						o.SetStatus(cur.GetStatus())
 					} else {
-						o.Status = nil
+						o.SetStatus(nil)
 					}
 
 					if cur.GetGeneration() != 0 {

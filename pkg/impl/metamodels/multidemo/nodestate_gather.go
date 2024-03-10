@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/logging"
 
@@ -103,7 +104,7 @@ func (p GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model
 		for i, oid := range links {
 			if iid == oid {
 				operands[i] = db.Operand{
-					Origin: iid.ObjectId(),
+					Origin: db2.NewObjectIdFor(iid),
 					Value:  s,
 				}
 				log.Info("found operand {{index}} from {{link}}: {{value}}", "index", i, "link", iid, "value", operands[i].Value)
@@ -115,7 +116,7 @@ func (p GatherPhase) Process(o *NodeState, phase Phase, req model.Request) model
 	if len(links) == 0 {
 		operands = []db.Operand{
 			{
-				Origin: NewObjectIdFor(req.Element.GetObject()),
+				Origin: db2.NewObjectIdFor(req.Element),
 				Value:  *(NewTargetGatherState(o)).GetValue(),
 			},
 		}

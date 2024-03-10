@@ -1,8 +1,6 @@
 package db
 
 import (
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -45,8 +43,8 @@ type ValueCurrentState struct {
 }
 
 type ValueOutput struct {
-	Origin ObjectId `json:"origin,omitempty"`
-	Value  int      `json:"value"`
+	Origin db.ObjectId `json:"origin,omitempty"`
+	Value  int         `json:"value"`
 }
 
 type ValueTargetState struct {

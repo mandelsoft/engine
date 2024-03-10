@@ -69,7 +69,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 			for _, oid := range links {
 				if iid == oid {
 					out.Value = s
-					out.Origin = iid.ObjectId()
+					out.Origin = db2.NewObjectIdFor(iid)
 					log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", out.Value)
 				}
 				break
@@ -77,7 +77,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		}
 	} else {
 		out.Value = n.GetTargetState(req.Element.GetPhase()).(*TargetValueState).GetValue()
-		out.Origin = req.Element.Id().ObjectId()
+		out.Origin = db2.NewObjectIdFor(req.Element)
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
 	return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out))

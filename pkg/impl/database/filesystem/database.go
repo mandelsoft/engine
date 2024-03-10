@@ -166,7 +166,7 @@ func (d *Database[O]) get(id database.ObjectId) (O, error) {
 	o, err := d.encoding.Decode(data)
 
 	if err != nil {
-		return _nil, err
+		return _nil, fmt.Errorf("object %s: %w", database.StringId(id), err)
 	}
 
 	if !database.EqualObjectId(o, id) {
