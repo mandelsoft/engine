@@ -140,10 +140,11 @@ func (p *pool) Run() {
 		p.Info("no reconcile period active -> start ticker")
 		period = tick
 	}
+	healthz.Start(p.Key(), period)
+
 	// always run periodic tickCmd to deal with empty workqueue
 	p.workqueue.AddAfter(tickCmd, period)
 
-	healthz.Start(p.Key(), period)
 	for i := 0; i < p.size; i++ {
 		p.startWorker(i, p.ctx.Done())
 	}

@@ -23,6 +23,7 @@ func Start(key string, period time.Duration) {
 	lock.Lock()
 	defer lock.Unlock()
 
+	log.Info("starting check '{{check}}' with period {{period}}", "check", key, "period", period)
 	checks[key] = &check{time.Now(), 3 * period}
 }
 
@@ -45,10 +46,10 @@ var (
 
 func setCheck(key string) {
 	c := checks[key]
-	if c == nil {
-		panic(fmt.Sprintf("check with key %q not configured", key))
+	if c != nil {
+		c.last = time.Now()
 	}
-	c.last = time.Now()
+	// panic(fmt.Sprintf("check with key %q not configured (found %#v)", key, utils.MapKeys(checks)))
 }
 
 func removeCheck(key string) {

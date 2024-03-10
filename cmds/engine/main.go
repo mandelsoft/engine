@@ -33,6 +33,7 @@ func main() {
 	var pattern string
 	var consume bool
 	var database string = "."
+	var files string
 	var level string = "info"
 
 	flags := pflag.NewFlagSet("engine", pflag.ExitOnError)
@@ -42,6 +43,7 @@ func main() {
 	flags.BoolVarP(&consume, "consumer", "c", false, "run consumer")
 	flags.StringVarP(&level, "log-level", "L", level, "log level")
 	flags.StringVarP(&database, "database", "d", database, "database path")
+	flags.StringVarP(&files, "files", "F", database, "file server base directory for /ui")
 
 	err := flags.Parse(os.Args[1:])
 	if err != nil {
@@ -74,6 +76,14 @@ func main() {
 	srv := server.NewServer(port, true, 20*time.Second)
 	proc.RegisterWatchHandler(srv, "/engine/watch")
 	dbservice.New(odb, "/db").RegisterHandler(srv)
+
+	if files != "" {
+		dir, err := server.NewDirectoryHandlerFor(files, "/ui")
+		if err != nil {
+			Error("cannot create file server: %s", err.Error())
+		}
+		dir.RegisterHandler(srv)
+	}
 
 	reg := service.New(context.Background())
 	reg.Add(cntr)
