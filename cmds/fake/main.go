@@ -76,5 +76,9 @@ type handler struct {
 }
 
 func (h *handler) HandleEvent(e elemwatch.Event) {
-	log.Info("got event {{event}}", "event", e)
+	if e.GetType() == "" {
+		log.Error("got event {{event}}", "event", e)
+	} else {
+		log.Trace("got event {{event}}", "event", e)
+	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"slices"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
-	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 var NS = "testspace"
@@ -24,6 +24,7 @@ func init() {
 }
 
 func CreateEvents(objects *ObjectSpace) {
+	cnt := 0
 	for {
 		mod := false
 		i := rand.Intn(1000)
@@ -40,13 +41,20 @@ func CreateEvents(objects *ObjectSpace) {
 			mod = LockGraph(objects)
 		case i < 800:
 			mod = Progress(objects)
-		case i < 900:
+		case i < 950:
 			mod = AddLink(objects)
 		case i < 1000:
 			mod = RemoveLink(objects)
 		}
 		if mod {
+			cnt = 0
 			time.Sleep(time.Second)
+		} else {
+			cnt++
+			if cnt >= 10 {
+				fmt.Printf(".")
+				cnt = 0
+			}
 		}
 	}
 }
@@ -231,10 +239,10 @@ func LockGraph(objects *ObjectSpace) bool {
 			return false
 		}
 	}
-	log.Debug("lock graph {{id}}: {{elements}}",
-		"id", o.Node,
-		"elements", utils.TransformSlice(g, NodeId),
-	)
+	log.Debug("lock graph {{id}}", "id", o.Node)
+	for _, e := range g {
+		log.Debug("  - {{id}}", "id", e.Node)
+	}
 
 	for _, e := range g {
 		e.Lock = string(runid)

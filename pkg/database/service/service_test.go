@@ -163,6 +163,47 @@ spec:
 		})
 
 		It("list all", func() {
+			req := Must(http.NewRequest("LIST", URL+path.Join("*", "ns1*"), nil))
+			list := Must(http.DefaultClient.Do(req))
+			Expect(list.StatusCode).To(Equal(http.StatusOK))
+			Expect(io.ReadAll(list.Body)).To(YAMLEqual(`
+items:
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      a: A-ns1-o1
+  - apiVersion: engine/v1
+    kind: A
+    metadata:
+      generation: 0
+      name: o2
+      namespace: ns1
+    spec:
+      a: A-ns1-o2
+  - apiVersion: engine/v1
+    kind: B
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1
+    spec:
+      b: B-ns1-o1
+  - apiVersion: engine/v1
+    kind: B
+    metadata:
+      generation: 0
+      name: o1
+      namespace: ns1/sub1
+    spec:
+      b: B-ns1/sub1-o1
+`))
+		})
+
+		It("list all", func() {
 			req := Must(http.NewRequest("LIST", URL+path.Join("*", "*"), nil))
 			list := Must(http.DefaultClient.Do(req))
 			Expect(list.StatusCode).To(Equal(http.StatusOK))

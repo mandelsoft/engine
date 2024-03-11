@@ -44,7 +44,7 @@ func (c *ExpressionController) Wait() error {
 func (c *ExpressionController) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
 	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_EXPRESSION), c)
 	h := &Handler{c}
-	c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION)
+	c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION, true, "")
 	return c.pool.Start(ctx)
 }
 

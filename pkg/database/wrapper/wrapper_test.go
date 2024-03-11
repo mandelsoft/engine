@@ -43,20 +43,20 @@ var _ = Describe("wrapper", func() {
 
 		Context("list", func() {
 			It("flat ns", func() {
-				list := Must(db.ListObjects(TYPE_A, "ns1"))
+				list := Must(db.ListObjects(TYPE_A, false, "ns1"))
 				Expect(list).To(ConsistOf(NewA("ns1", "o1", "A-ns1-o1")))
 			})
 
 			It("deep ns", func() {
-				list := Must(db.ListObjects(TYPE_B, "ns11"))
+				list := Must(db.ListObjects(TYPE_B, false, "ns11"))
 				Expect(list).To(BeEmpty())
 
-				list = Must(db.ListObjects(TYPE_B, "ns1/sub1"))
+				list = Must(db.ListObjects(TYPE_B, false, "ns1/sub1"))
 				Expect(list).To(ConsistOf(NewB("ns1/sub1", "o1", "B-ns1/sub1-o1")))
 			})
 
 			It("all", func() {
-				list := Must(db.ListObjects(TYPE_B, ""))
+				list := Must(db.ListObjects(TYPE_B, true, ""))
 				Expect(list).To(ConsistOf(
 					NewB("ns1/sub1", "o1", "B-ns1/sub1-o1"),
 					NewB("ns2", "o2", "B-ns2-o2"),
@@ -70,7 +70,7 @@ var _ = Describe("wrapper", func() {
 				MustBeSuccessful(db.SetObject(a))
 
 				Expect(deep.Equal(Must(db.GetObject(a)), a)).To(BeNil())
-				list := Must(db.ListObjects(TYPE_A, "ns3/sub1"))
+				list := Must(db.ListObjects(TYPE_A, false, "ns3/sub1"))
 				Expect(list).To(ConsistOf(
 					a,
 				))
@@ -81,7 +81,7 @@ var _ = Describe("wrapper", func() {
 		Context("event handler", func() {
 			It("gets events for all objects", func() {
 				h := &Handler{}
-				db.RegisterHandler(h, true, TYPE_A).Wait(context.Background())
+				db.RegisterHandler(h, true, TYPE_A, true, "").Wait(context.Background())
 				Expect(h.ids).To(ConsistOf(
 					database.NewObjectId(TYPE_A, "ns1", "o1"),
 					database.NewObjectId(TYPE_A, "ns2", "o1"),
@@ -92,7 +92,7 @@ var _ = Describe("wrapper", func() {
 				notify := make(chan struct{})
 
 				h := &Handler{}
-				s := reg.RegisterHandlerSync(notify, h, true, TYPE_A)
+				s := reg.RegisterHandlerSync(notify, h, true, TYPE_A, true, "")
 				err := db.SetObject(NewA("ns3/sub1", "o2", "A-ns3/sub1-o2"))
 				notify <- struct{}{}
 				Expect(err).To(Succeed())

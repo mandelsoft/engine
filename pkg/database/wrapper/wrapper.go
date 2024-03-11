@@ -67,7 +67,7 @@ func NewDatabase[O database.Object, W Object[S], S database.Object](db database.
 	}
 	events := database.NewHandlerRegistry(r)
 	r.events = events
-	db.RegisterHandler(&handler[O, W, S]{r}, false, "").Wait(context.Background())
+	db.RegisterHandler(&handler[O, W, S]{r}, false, "", true, "/").Wait(context.Background())
 	return r, nil
 }
 
@@ -90,28 +90,28 @@ func (w *wrappingDatabase[O, W, S]) SchemeTypes() database.SchemeTypes[O] {
 	return w.types
 }
 
-func (w *wrappingDatabase[O, W, S]) RegisterHandler(h database.EventHandler, current bool, kind string, nss ...string) utils.Sync {
-	return w.events.RegisterHandler(h, current, kind, nss...)
+func (w *wrappingDatabase[O, W, S]) RegisterHandler(h database.EventHandler, current bool, kind string, closure bool, ns string) utils.Sync {
+	return w.events.RegisterHandler(h, current, kind, closure, ns)
 }
 
-func (w *wrappingDatabase[O, W, S]) RegisterHandlerSync(t <-chan struct{}, h database.EventHandler, current bool, kind string, nss ...string) utils.Sync {
-	return w.events.(database.HandlerRegistrationTest).RegisterHandlerSync(t, h, current, kind, nss...)
+func (w *wrappingDatabase[O, W, S]) RegisterHandlerSync(t <-chan struct{}, h database.EventHandler, current bool, kind string, closure bool, ns string) utils.Sync {
+	return w.events.(database.HandlerRegistrationTest).RegisterHandlerSync(t, h, current, kind, closure, ns)
 }
 
-func (w *wrappingDatabase[O, W, S]) UnregisterHandler(h database.EventHandler, kind string, nss ...string) {
-	w.events.UnregisterHandler(h, kind, nss...)
+func (w *wrappingDatabase[O, W, S]) UnregisterHandler(h database.EventHandler, kind string, closure bool, ns string) {
+	w.events.UnregisterHandler(h, kind, closure, ns)
 }
 
-func (w *wrappingDatabase[O, W, S]) ListObjectIds(typ string, ns string, atomic ...func()) ([]database.ObjectId, error) {
+func (w *wrappingDatabase[O, W, S]) ListObjectIds(typ string, closure bool, ns string, atomic ...func()) ([]database.ObjectId, error) {
 	basens := w.idmapping.Namespace(ns)
-	list, err := w.db.ListObjectIds(typ, basens, atomic...)
+	list, err := w.db.ListObjectIds(typ, closure, basens, atomic...)
 	if err != nil {
 		return nil, err
 	}
 	r := []database.ObjectId{}
 	for _, sid := range list {
 		id := w.idmapping.Outbound(sid)
-		if ns != "" && id.GetNamespace() != ns {
+		if !database.MatchNamespace(closure, ns, id.GetNamespace()) {
 			continue
 		}
 		r = append(r, id)
@@ -119,16 +119,16 @@ func (w *wrappingDatabase[O, W, S]) ListObjectIds(typ string, ns string, atomic 
 	return r, nil
 }
 
-func (w *wrappingDatabase[O, W, S]) ListObjects(typ string, ns string) ([]O, error) {
+func (w *wrappingDatabase[O, W, S]) ListObjects(typ string, closure bool, ns string) ([]O, error) {
 	basens := w.idmapping.Namespace(ns)
-	list, err := w.db.ListObjects(typ, basens)
+	list, err := w.db.ListObjects(typ, closure, basens)
 	if err != nil {
 		return nil, err
 	}
 	r := []O{}
 	for _, b := range list {
 		id := w.idmapping.OutboundObject(b)
-		if ns != "" && id.GetNamespace() != ns {
+		if !database.MatchNamespace(closure, ns, id.GetNamespace()) {
 			continue
 		}
 		e, err := w.WrapObject(b)

@@ -29,11 +29,11 @@ type handlerRegistry struct {
 }
 
 func (r *handlerRegistry) RegisterWatchHandler(req elemwatch.Request, h EventHandler) {
-	r.RegisterHandler(h, true, req.Kind, req.Namespace)
+	r.RegisterHandler(h, true, req.Kind, !req.Flat, req.Namespace)
 }
 
 func (r *handlerRegistry) UnregisterWatchHandler(req elemwatch.Request, h EventHandler) {
-	r.UnregisterHandler(h, req.Kind, req.Namespace)
+	r.UnregisterHandler(h, req.Kind, !req.Flat, req.Namespace)
 }
 
 func newHandlerRegistry(l ObjectLister) HandlerRegistry {
@@ -94,8 +94,6 @@ func (p *PendingCounter) Wait(ctx context.Context) bool {
 type EventType = model.Status
 type Future = future.Future
 
-var _ ObjectLister = (*watchEventLister)(nil)
-
 type EventManager struct {
 	lock         sync.Mutex
 	statusEvents future.EventManager[ElementId, EventType]
@@ -109,12 +107,12 @@ func newEventManager(proc *processingModel) *EventManager {
 	}
 }
 
-func (p *EventManager) RegisterHandler(handler EventHandler, current bool, kind string, nss ...string) {
-	p.registry.RegisterHandler(handler, current, kind, nss...)
+func (p *EventManager) RegisterHandler(handler EventHandler, current bool, kind string, closure bool, ns string) {
+	p.registry.RegisterHandler(handler, current, kind, closure, ns)
 }
 
-func (p *EventManager) UnregisterHandler(handler EventHandler, kind string, nss ...string) {
-	p.registry.UnregisterHandler(handler, kind, nss...)
+func (p *EventManager) UnregisterHandler(handler EventHandler, kind string, closure bool, ns string) {
+	p.registry.UnregisterHandler(handler, kind, closure, ns)
 }
 
 func (p *EventManager) TriggerElementEvent(e _Element) {

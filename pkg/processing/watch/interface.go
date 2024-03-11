@@ -49,6 +49,8 @@ func (e Event) GetNamespace() string {
 type Request struct {
 	Kind      string `json:"type"`
 	Namespace string `json:"namespace"`
+	// Flat restricts watch to flat namespace
+	Flat bool `json:"flat,omitempty"`
 }
 
 func NewId(id ElementId) Id {
@@ -95,11 +97,11 @@ func NewRegistry(l events.ObjectLister[Event]) Registry {
 }
 
 func (r *registry) RegisterWatchHandler(req Request, h EventHandler) {
-	r.reg.RegisterHandler(h, true, req.Kind, req.Namespace)
+	r.reg.RegisterHandler(h, true, req.Kind, !req.Flat, req.Namespace)
 }
 
 func (r *registry) UnregisterWatchHandler(req Request, h EventHandler) {
-	r.reg.UnregisterHandler(h, req.Kind, req.Namespace)
+	r.reg.UnregisterHandler(h, req.Kind, false, req.Namespace)
 }
 
 func (r *registry) TriggerEvent(event Event) {

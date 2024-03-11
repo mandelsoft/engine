@@ -64,12 +64,12 @@ func (p *Processor) RegisterWatchHandler(s *server.Server, pattern string) {
 	s.Handle(pattern, watch.WatchHttpHandler[elemwatch.Request, elemwatch.Event](p.events.registry))
 }
 
-func (p *Processor) RegisterHandler(handler EventHandler, current bool, kind string, nss ...string) {
-	p.events.RegisterHandler(handler, current, kind, nss...)
+func (p *Processor) RegisterHandler(handler EventHandler, current bool, kind string, closure bool, ns string) {
+	p.events.RegisterHandler(handler, current, kind, closure, ns)
 }
 
-func (p *Processor) UnregisterHandler(handler EventHandler, kind string, nss ...string) {
-	p.events.UnregisterHandler(handler, kind, nss...)
+func (p *Processor) UnregisterHandler(handler EventHandler, kind string, closure bool, ns string) {
+	p.events.UnregisterHandler(handler, kind, closure, ns)
 }
 
 func (p *Processor) Model() ProcessingModel {
@@ -112,17 +112,17 @@ func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher
 
 	act := &action{p}
 	reg := database.NewHandlerRegistry(nil)
-	reg.RegisterHandler(p.handler, false, p.processingModel.MetaModel().NamespaceType())
+	reg.RegisterHandler(p.handler, false, p.processingModel.MetaModel().NamespaceType(), true, "/")
 	for _, t := range p.processingModel.MetaModel().ExternalTypes() {
 		log.Debug("register handler for external type {{exttype}}", "exttype", t)
-		reg.RegisterHandler(p.handler, false, t)
+		reg.RegisterHandler(p.handler, false, t, true, "/")
 		p.pool.AddAction(pool.ObjectType(t), act)
 	}
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_NS+":*"), act)
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_ELEM+":*"), act)
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_EXT+":*"), act)
 
-	p.processingModel.ObjectBase().RegisterHandler(reg, true, "")
+	p.processingModel.ObjectBase().RegisterHandler(reg, true, "", true, "")
 
 	ready, sy, err := p.pool.Start(ctx)
 	if err != nil {
@@ -157,7 +157,7 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 	log.Info("setup internal objects...")
 	for _, t := range p.processingModel.MetaModel().InternalTypes() {
 		log.Debug("  for type {{inttype}}", "inttype", t)
-		objs, err := p.processingModel.ObjectBase().ListObjects(t, "")
+		objs, err := p.processingModel.ObjectBase().ListObjects(t, true, "")
 		if err != nil {
 			return err
 		}

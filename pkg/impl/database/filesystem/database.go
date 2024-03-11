@@ -46,11 +46,11 @@ func (d *Database[O]) SchemeTypes() database.SchemeTypes[O] {
 	return d.encoding
 }
 
-func (d *Database[O]) ListObjects(typ, ns string) ([]O, error) {
+func (d *Database[O]) ListObjects(typ string, closure bool, ns string) ([]O, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	list, err := d.listObjectIds(typ, ns, ns == "")
+	list, err := d.listObjectIds(typ, closure, ns)
 	if err != nil {
 		return nil, err
 	}
@@ -65,10 +65,10 @@ func (d *Database[O]) ListObjects(typ, ns string) ([]O, error) {
 	return result, err
 }
 
-func (d *Database[O]) ListObjectIds(typ, ns string, atomic ...func()) ([]database.ObjectId, error) {
+func (d *Database[O]) ListObjectIds(typ string, closure bool, ns string, atomic ...func()) ([]database.ObjectId, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	list, err := d.listObjectIds(typ, ns, ns == "")
+	list, err := d.listObjectIds(typ, closure, ns)
 	if err == nil {
 		for _, a := range atomic {
 			a()
@@ -77,12 +77,15 @@ func (d *Database[O]) ListObjectIds(typ, ns string, atomic ...func()) ([]databas
 	return list, err
 }
 
-func (d *Database[O]) listObjectIds(typ, ns string, closure bool) ([]database.ObjectId, error) {
+func (d *Database[O]) listObjectIds(typ string, closure bool, ns string) ([]database.ObjectId, error) {
 	if typ != "" && !CheckType(typ) {
 		return nil, fmt.Errorf("invalid type %q", typ)
 	}
+	if ns == "/" {
+		ns = ""
+	}
 	if !CheckNamespace(ns) {
-		return nil, fmt.Errorf("invalid type %q", typ)
+		return nil, fmt.Errorf("invalid namespace %q", typ)
 	}
 	if ns == "" {
 		return d.list(typ, ns, true, closure)

@@ -138,20 +138,20 @@ func (c *Get) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(c.cmd.OutOrStdout(), "%s", string(data))
+		fmt.Fprintf(c.cmd.OutOrStdout(), "%s\n", string(data))
 	case "yaml":
 		data, err := yaml.Marshal(elems)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(c.cmd.OutOrStdout(), "%s", string(data))
+		fmt.Fprintf(c.cmd.OutOrStdout(), "%s\n", string(data))
 	}
 	return nil
 }
 
 func PrintObjectList(w io.Writer, list []Object, typeField bool, sortField string) error {
 	if len(list) == 0 {
-		fmt.Fprintf(w, "no resource found")
+		fmt.Fprintf(w, "no resource found\n")
 		return nil
 	}
 	fieldList := MapFields(list, typeField)

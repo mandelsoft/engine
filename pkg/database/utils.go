@@ -46,3 +46,21 @@ func CompareObjectId(a, b ObjectId) int {
 func CompareObject[O ObjectId](a, b O) int {
 	return CompareObjectId(a, b)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+func MatchNamespace(closure bool, ns string, cand string) bool {
+	if ns == "/" {
+		ns = ""
+	}
+	if cand == ns {
+		return true
+	}
+	if !closure {
+		return false
+	}
+	if ns != "" {
+		return strings.HasPrefix(cand, ns+"/")
+	}
+	return true
+}

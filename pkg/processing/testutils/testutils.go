@@ -95,7 +95,7 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 
 	srvs := service.New(ctx)
 	srvs.Add(proc)
-	db.RegisterHandler(&handler{db, mgr}, false, "")
+	db.RegisterHandler(&handler{db, mgr}, false, "", true, "/")
 	return &TestEnv{
 		services:     srvs,
 		fs:           fs,
@@ -136,8 +136,8 @@ func (t *TestEnv) Start(st ...Startable) error {
 	return t.services.Start(st...)
 }
 
-func (t *TestEnv) List(typ string, ns string) ([]database.ObjectId, error) {
-	return t.db.ListObjectIds(typ, ns)
+func (t *TestEnv) List(typ string, closure bool, ns string) ([]database.ObjectId, error) {
+	return t.db.ListObjectIds(typ, closure, ns)
 }
 
 func (t *TestEnv) GetObject(id database.ObjectId) (db.Object, error) {

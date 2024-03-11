@@ -106,12 +106,12 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			MustBeSuccessful(env.DeleteObject(ooEXPR))
 			env.WaitWithTimeout(feEXPR)
 
-			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_VALUE, path.Join(NS, "EXPR")))).To(BeEmpty())
-			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_OPERATOR, path.Join(NS, "EXPR")))).To(BeEmpty())
-			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_EXPRESSION, path.Join(NS, "EXPR")))).To(BeEmpty())
-			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_VALUE_STATE, path.Join(NS, "EXPR")))).To(BeEmpty())
-			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_OPERATOR_STATE, path.Join(NS, "EXPR")))).To(BeEmpty())
-			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_EXPRESSION_STATE, path.Join(NS, "EXPR")))).To(BeEmpty())
+			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_VALUE, true, path.Join(NS, "EXPR")))).To(BeEmpty())
+			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_OPERATOR, true, path.Join(NS, "EXPR")))).To(BeEmpty())
+			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_EXPRESSION, true, path.Join(NS, "EXPR")))).To(BeEmpty())
+			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_VALUE_STATE, true, path.Join(NS, "EXPR")))).To(BeEmpty())
+			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_OPERATOR_STATE, true, path.Join(NS, "EXPR")))).To(BeEmpty())
+			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_EXPRESSION_STATE, true, path.Join(NS, "EXPR")))).To(BeEmpty())
 		})
 
 		It("handles expression for controller test scenario", func() {

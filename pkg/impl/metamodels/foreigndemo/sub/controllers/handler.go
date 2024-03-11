@@ -25,10 +25,10 @@ func NewHandler(c *ExpressionController) *Handler {
 }
 
 func (h *Handler) Register() {
-	h.c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION)
+	h.c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION, true, "")
 
-	h.c.db.RegisterHandler(h, false, mymetamodel.TYPE_VALUE)
-	h.c.db.RegisterHandler(h, false, mymetamodel.TYPE_OPERATOR)
+	h.c.db.RegisterHandler(h, false, mymetamodel.TYPE_VALUE, true, "")
+	h.c.db.RegisterHandler(h, false, mymetamodel.TYPE_OPERATOR, true, "")
 }
 
 func (h *Handler) HandleEvent(id database.ObjectId) {

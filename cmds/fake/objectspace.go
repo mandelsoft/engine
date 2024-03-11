@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -188,14 +189,14 @@ func NewObjectLister(s *ObjectSpace) *ObjectLister {
 	return &ObjectLister{objects: s}
 }
 
-func (l *ObjectLister) ListObjectIds(typ string, ns string, atomic ...func()) ([]elemwatch.Event, error) {
+func (l *ObjectLister) ListObjectIds(typ string, closure bool, ns string, atomic ...func()) ([]elemwatch.Event, error) {
 	l.objects.lock.RLock()
 	defer l.objects.lock.RUnlock()
 
 	var list []elemwatch.Event
 
 	for id, evt := range l.objects.objects {
-		if ns != "" && id.GetNamespace() != ns {
+		if !database.MatchNamespace(closure, ns, id.GetNamespace()) {
 			continue
 		}
 		if typ != "" && id.GetType() != typ {

@@ -13,7 +13,7 @@ type Database[O Object] interface {
 
 	HandlerRegistration
 	ObjectLister
-	ListObjects(typ string, ns string) ([]O, error)
+	ListObjects(typ string, closure bool, ns string) ([]O, error)
 
 	GetObject(ObjectId) (O, error)
 	SetObject(O) error

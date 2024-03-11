@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
@@ -51,7 +52,9 @@ type watchEventLister struct {
 	m *processingModel
 }
 
-func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()) ([]elemwatch.Event, error) {
+var _ ObjectLister = (*watchEventLister)(nil)
+
+func (l *watchEventLister) ListObjectIds(typ string, closure bool, ns string, atomic ...func()) ([]elemwatch.Event, error) {
 	l.m.lock.Lock()
 	defer l.m.lock.Unlock()
 
@@ -60,12 +63,16 @@ func (l *watchEventLister) ListObjectIds(typ string, ns string, atomic ...func()
 	if ns == "" {
 		list = l.listAll(typ)
 	} else {
-		ni := l.m.namespaces[ns]
-		ids := ni.list(typ)
-		for _, id := range ids {
-			e := l.m._GetElement(id)
-			if e != nil {
-				list = append(list, *NewWatchEvent(e))
+		for name, ni := range l.m.namespaces {
+			if !database.MatchNamespace(closure, ns, name) {
+				continue
+			}
+			ids := ni.list(typ)
+			for _, id := range ids {
+				e := l.m._GetElement(id)
+				if e != nil {
+					list = append(list, *NewWatchEvent(e))
+				}
 			}
 		}
 	}

@@ -121,7 +121,7 @@ func (h *handler[R, E]) unregister() {
 }
 
 func (h *handler[R, E]) HandleEvent(e E) {
-	log.Info("sending event {{event}}", "event", e)
+	log.Trace("sending event {{event}}", "event", e)
 	data, _ := json.Marshal(e)
 	err := wsutil.WriteServerMessage(h.conn, ws.OpText, data)
 	if err != nil {

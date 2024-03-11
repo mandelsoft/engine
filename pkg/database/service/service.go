@@ -132,6 +132,7 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 				}
 			}
 		case "LIST":
+			closure := false
 			if name != "" {
 				if ns == "" {
 					ns = name
@@ -139,17 +140,15 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 					ns = ns + "/" + name
 				}
 			}
-			if ns == "" {
-				ns = "/"
-			}
-			if ns == "*" {
-				ns = ""
+			if strings.HasSuffix(ns, "*") {
+				ns = ns[:len(ns)-1]
+				closure = true
 			}
 			if typ == "*" {
 				typ = ""
 			}
-			fmt.Printf("ns=%s, typ=%s\n", ns, typ)
-			list, err := a.database.ListObjects(typ, ns)
+			fmt.Printf("ns=%s(%t), typ=%s\n", ns, closure, typ)
+			list, err := a.database.ListObjects(typ, closure, ns)
 			if err == nil {
 				data, err = json.Marshal(&Items[O]{Items: list})
 			}

@@ -6,7 +6,10 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/logging"
 )
+
+var log = logging.DefaultContext().Logger(logging.NewRealm("engine"))
 
 type Id interface {
 	GetType() string
@@ -14,7 +17,7 @@ type Id interface {
 }
 
 type ObjectLister[I Id] interface {
-	ListObjectIds(typ string, ns string, atomic ...func()) ([]I, error)
+	ListObjectIds(typ string, closure bool, ns string, atomic ...func()) ([]I, error)
 }
 
 type EventHandler[I Id] interface {
@@ -22,13 +25,13 @@ type EventHandler[I Id] interface {
 }
 
 type HandlerRegistration[I Id] interface {
-	RegisterHandler(h EventHandler[I], current bool, kind string, nss ...string) utils.Sync
-	UnregisterHandler(h EventHandler[I], kind string, nss ...string)
+	RegisterHandler(h EventHandler[I], current bool, kind string, closure bool, ns string) utils.Sync
+	UnregisterHandler(h EventHandler[I], kind string, closure bool, ns string)
 }
 
 type HandlerRegistrationTest[I Id] interface {
 	HandlerRegistration[I]
-	RegisterHandlerSync(t <-chan struct{}, h EventHandler[I], current bool, kind string, nss ...string) utils.Sync
+	RegisterHandlerSync(t <-chan struct{}, h EventHandler[I], current bool, kind string, closure bool, ns string) utils.Sync
 }
 
 type HandlerRegistry[I Id] interface {
@@ -70,29 +73,29 @@ func (r *registry[I]) HandleEvent(id I) {
 	r.TriggerEvent(id)
 }
 
-func (r *registry[I]) RegisterHandler(h EventHandler[I], current bool, kind string, nss ...string) utils.Sync {
+func (r *registry[I]) RegisterHandler(h EventHandler[I], current bool, kind string, closure bool, ns string) utils.Sync {
 	s, d := utils.NewSyncPoint()
 	if current {
 		go func() {
-			r.registerHandler(nil, h, current, kind, nss...)
+			r.registerHandler(nil, h, current, kind, closure, ns)
 			d.Done()
 		}()
 	} else {
-		r.registerHandler(nil, h, current, kind, nss...)
+		r.registerHandler(nil, h, current, kind, closure, ns)
 		d.Done()
 	}
 	return s
 }
 
-func (r *registry[I]) RegisterHandlerSync(t <-chan struct{}, h EventHandler[I], current bool, kind string, nss ...string) utils.Sync {
+func (r *registry[I]) RegisterHandlerSync(t <-chan struct{}, h EventHandler[I], current bool, kind string, closure bool, ns string) utils.Sync {
 	s, d := utils.NewSyncPoint()
 	if current {
 		go func() {
-			r.registerHandler(t, h, current, kind, nss...)
+			r.registerHandler(t, h, current, kind, closure, ns)
 			d.Done()
 		}()
 	} else {
-		r.registerHandler(t, h, current, kind, nss...)
+		r.registerHandler(t, h, current, kind, closure, ns)
 		d.Done()
 	}
 	return s
@@ -107,67 +110,75 @@ func index[I Id](list []*wrapper[I], h EventHandler[I]) int {
 	return -1
 
 }
-func (r *registry[I]) registerHandler(t <-chan struct{}, h EventHandler[I], current bool, kind string, nss ...string) {
-	if len(nss) == 0 {
-		nss = []string{""}
+
+func (r *registry[I]) getReg(closure bool) map[string]namespaces[I] {
+	if closure {
+		return r.closures
+	}
+	return r.types
+}
+
+func (r *registry[I]) registerHandler(t <-chan struct{}, h EventHandler[I], current bool, kind string, closure bool, ns string) {
+	if ns == "" {
+		ns = "/"
 	}
 
-	for _, ns := range nss {
-		r.lock.Lock()
-		nsmap := assure(r.types, kind)
-		handlers := assure(nsmap, ns)
-		if index[I](handlers, h) < 0 {
-			w := newHandler(h)
-			atomic := func() {
-				r.lock.Lock()
-				nsmap := assure(r.types, kind)
-				handlers := assure(nsmap, ns)
-				if index(handlers, h) < 0 {
-					nsmap[ns] = append(handlers, w)
-				}
-				r.lock.Unlock()
+	r.lock.Lock()
+
+	m := r.getReg(closure)
+	nsmap := assure(m, kind)
+	handlers := assure(nsmap, ns)
+	if index[I](handlers, h) < 0 {
+		w := newHandler(h)
+		atomic := func() {
+			r.lock.Lock()
+			nsmap := assure(m, kind)
+			handlers := assure(nsmap, ns)
+			if index(handlers, h) < 0 {
+				nsmap[ns] = append(handlers, w)
 			}
-			r.lock.Unlock()
-			var list []I
-			if current {
-				list, _ = r.lister.ListObjectIds(kind, ns, atomic)
-			} else {
-				atomic()
-			}
-			if t != nil {
-				<-t
-			}
-			w.Rampup(list)
-		} else {
 			r.lock.Unlock()
 		}
+		r.lock.Unlock()
+		var list []I
+		if current {
+			list, _ = r.lister.ListObjectIds(kind, closure, ns, atomic)
+		} else {
+			atomic()
+		}
+		if t != nil {
+			<-t
+		}
+		w.Rampup(list)
+	} else {
+		r.lock.Unlock()
 	}
 }
 
-func (r *registry[I]) UnregisterHandler(h EventHandler[I], kind string, nss ...string) {
-	if len(nss) == 0 {
-		nss = []string{""}
+func (r *registry[I]) UnregisterHandler(h EventHandler[I], kind string, closure bool, ns string) {
+	if ns == "" {
+		ns = "/"
 	}
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	for _, ns := range nss {
-		nsmap := r.types[kind]
-		if nsmap != nil {
-			handlers := nsmap[ns]
-			if handlers != nil {
-				if i := index(handlers, h); i >= 0 {
-					handlers = append(handlers[:i], handlers[i+1:]...)
-				}
-				if len(handlers) > 0 {
-					nsmap[ns] = handlers
-				} else {
-					delete(nsmap, ns)
-				}
+	m := r.getReg(closure)
+	nsmap := m[kind]
+	if nsmap != nil {
+		handlers := nsmap[ns]
+		if handlers != nil {
+			if i := index(handlers, h); i >= 0 {
+				handlers = append(handlers[:i], handlers[i+1:]...)
 			}
-			if len(nsmap) == 0 {
-				delete(r.types, kind)
+			if len(handlers) > 0 {
+				nsmap[ns] = handlers
+			} else {
+				delete(nsmap, ns)
 			}
+		}
+		if len(nsmap) == 0 {
+			delete(m, kind)
 		}
 	}
 }
@@ -202,20 +213,19 @@ func (r *registry[I]) getHandlersFrom(reg map[string]namespaces[I], typ string, 
 	nsmap := reg[""]
 	if len(nsmap) != 0 {
 		handlers = append(handlers, nsmap[ns]...)
-		handlers = append(handlers, nsmap[""]...)
 	}
 
 	nsmap = reg[typ]
 	if len(nsmap) == 0 {
 		return handlers
 	}
-	handlers = append(handlers, nsmap[ns]...)
-	return append(handlers, nsmap[""]...)
+	return append(handlers, nsmap[ns]...)
 }
 
 func (r *registry[I]) TriggerEvent(id I) {
 	id = r.key(id)
 	for _, h := range r.getHandlers(id) {
+		log.Trace("trigger event for {{id}}", "id", id)
 		h.HandleEvent(id)
 	}
 }
