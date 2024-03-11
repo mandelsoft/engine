@@ -18,7 +18,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/server"
 	"github.com/mandelsoft/engine/pkg/service"
 	"github.com/mandelsoft/engine/pkg/version"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 	"github.com/mandelsoft/logging"
 	"github.com/spf13/pflag"
 )

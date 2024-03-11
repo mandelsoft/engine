@@ -119,7 +119,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	oid := database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName())
 	log.Info("deleting slave value object {{oid}}", "oid", oid)
 
-	err := req.Model.ObjectBase().DeleteObject(oid)
+	_, err := req.Model.ObjectBase().DeleteObject(oid)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return model.StatusCompleted(nil, err)

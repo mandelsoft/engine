@@ -590,7 +590,7 @@ func (p *Processor) phaseDeleted(lctx pool.MessageContext, log logging.Logger, n
 		return err
 	}
 	log.Info("deleting internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))
-	err = p.processingModel.ObjectBase().DeleteObject(elem.GetObject())
+	_, err = p.processingModel.ObjectBase().DeleteObject(elem.GetObject())
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			log.LogError(err, "cannot delete internal object {{oid}}", "oid", NewObjectIdFor(elem.GetObject()))

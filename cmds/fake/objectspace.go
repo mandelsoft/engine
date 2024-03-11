@@ -9,7 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
 	"github.com/mandelsoft/engine/pkg/utils"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 

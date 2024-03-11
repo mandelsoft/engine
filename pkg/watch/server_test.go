@@ -7,17 +7,18 @@ import (
 	"sync"
 	"time"
 
+	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/server"
 	"github.com/mandelsoft/engine/pkg/service"
-	. "github.com/mandelsoft/engine/pkg/testutils"
 	"github.com/mandelsoft/engine/pkg/utils"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
 	"github.com/mandelsoft/logging/logrusr"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 
 	_ "github.com/mandelsoft/engine/pkg/healthz"
 )

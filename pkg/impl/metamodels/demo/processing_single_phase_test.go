@@ -13,7 +13,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/server"
 	"github.com/mandelsoft/engine/pkg/service"
 	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 

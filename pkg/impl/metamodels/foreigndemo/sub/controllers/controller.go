@@ -177,7 +177,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 			if d.IsDeleting() {
 				log.Info("- {{oid}} still deleting", "oid", id)
 			} else {
-				err := c.db.DeleteObject(id)
+				_, err := c.db.DeleteObject(id)
 				if err != nil {
 					return pool.StatusCompleted(err)
 				}

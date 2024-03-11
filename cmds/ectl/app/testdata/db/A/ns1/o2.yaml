@@ -2,6 +2,8 @@ kind: A
 metadata:
   namespace: ns1
   name: o2
+  finalizers:
+    - test
 
 spec:
   a: A-ns1-o2

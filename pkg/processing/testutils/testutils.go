@@ -148,7 +148,7 @@ func (t *TestEnv) SetObject(o db.Object) error {
 	return t.db.SetObject(o)
 }
 
-func (t *TestEnv) DeleteObject(id database.ObjectId) error {
+func (t *TestEnv) DeleteObject(id database.ObjectId) (bool, error) {
 	return t.db.DeleteObject(id)
 }
 

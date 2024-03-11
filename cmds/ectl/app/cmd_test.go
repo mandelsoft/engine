@@ -82,7 +82,7 @@ ns1       o1   Completed
 
 		It("nothing", func() {
 			cmd.SetArgs([]string{"-n", "ns1", "get", "A", "ns1/o1"})
-			ExpectError(cmd.Execute()).To(MatchError("ns1/o1: request failed with status 404 Not Found"))
+			ExpectError(cmd.Execute()).To(MatchError("ns1/o1: object not found"))
 		})
 
 		It("yaml", func() {
@@ -106,6 +106,8 @@ ns1       o1   Completed
       generation: 0
       name: o2
       namespace: ns1
+      finalizers:
+      - test
     spec:
       a: A-ns1-o2
 `))
@@ -158,9 +160,46 @@ ns1       o1   Completed
     status:
       status: Completed
 `))
-
 		})
-
 	})
 
+	Context("delete", func() {
+		It("delete object", func() {
+			cmd.SetOut(buf)
+			cmd.SetArgs([]string{"-n", "ns1", "delete", "A", "o1"})
+			MustBeSuccessful(cmd.Execute())
+			fmt.Printf("\n%s\n", buf.String())
+			Expect("\n" + buf.String()).To(Equal(`
+A/ns1/o1: deleted
+`))
+		})
+
+		It("requests deletion", func() {
+			cmd.SetOut(buf)
+			cmd.SetArgs([]string{"-n", "ns1", "delete", "A", "o2"})
+			MustBeSuccessful(cmd.Execute())
+			fmt.Printf("\n%s\n", buf.String())
+			Expect("\n" + buf.String()).To(Equal(`
+A/ns1/o2: deletion requested
+`))
+		})
+		It("forces deletion", func() {
+			cmd.SetOut(buf)
+			cmd.SetArgs([]string{"-n", "ns1", "delete", "--force", "A", "o2"})
+			MustBeSuccessful(cmd.Execute())
+			fmt.Printf("\n%s\n", buf.String())
+			Expect("\n" + buf.String()).To(Equal(`
+A/ns1/o2: deletion enforced
+`))
+		})
+		It("handles files", func() {
+			cmd.SetOut(buf)
+			cmd.SetArgs([]string{"-n", "ns1", "delete", "-f", "testdata/update.yaml"})
+			MustBeSuccessful(cmd.Execute())
+			fmt.Printf("\n%s\n", buf.String())
+			Expect("\n" + buf.String()).To(Equal(`
+A/ns1/o1: deleted
+`))
+		})
+	})
 })

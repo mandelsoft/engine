@@ -3,6 +3,7 @@ package service_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -100,7 +101,9 @@ spec:
   a: new object
 `))
 		})
+	})
 
+	Context("list", func() {
 		It("list ns", func() {
 			req := Must(http.NewRequest("LIST", URL+path.Join(TYPE_A, NS), nil))
 			list := Must(http.DefaultClient.Do(req))
@@ -215,6 +218,40 @@ spec:
       b: B-ns2-o2
 `))
 		})
+	})
+
+	Context("delete", func() {
+		It("deletes without finalizer", func() {
+			oid := database.NewObjectId(TYPE_A, NS, "o1")
+			req := Must(http.NewRequest("DELETE", URL+path.Join(oid.GetType(), oid.GetNamespace(), oid.GetName()), nil))
+			r := Must(http.DefaultClient.Do(req))
+			Expect(r.StatusCode).To(Equal(http.StatusOK))
+
+			ExpectError(db.GetObject(oid)).To(Equal(database.ErrNotExist))
+		})
+
+		It("request deletion", func() {
+			oid := database.NewObjectId(TYPE_A, NS, "o1")
+
+			o := Must(db.GetObject(oid))
+			o.AddFinalizer("test")
+
+			MustBeSuccessful(db.SetObject(o))
+			req := Must(http.NewRequest("DELETE", URL+path.Join(oid.GetType(), oid.GetNamespace(), oid.GetName()), nil))
+			r := Must(http.DefaultClient.Do(req))
+			Expect(r.StatusCode).To(Equal(http.StatusAccepted))
+
+			ExpectError(db.GetObject(oid)).To(BeNil())
+
+			o.SetFinalizers(nil)
+			o.SetGeneration(o.GetGeneration() + 1)
+			data := Must(json.Marshal(o))
+			post := Must(http.Post(URL+path.Join(oid.GetType(), oid.GetNamespace(), oid.GetName()), "application/json", bytes.NewReader([]byte(data))))
+			Expect(post.StatusCode).To(Equal(http.StatusOK))
+
+			ExpectError(db.GetObject(oid)).To(Equal(database.ErrNotExist))
+		})
 
 	})
+
 })

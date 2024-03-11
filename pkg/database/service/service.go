@@ -68,7 +68,7 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 			}
 
 		case http.MethodDelete:
-			err := a.database.DeleteObject(oid)
+			deleted, err := a.database.DeleteObject(oid)
 			if err != nil {
 				if errors.Is(err, database.ErrNotExist) {
 					status = http.StatusNotFound
@@ -76,6 +76,10 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 					e := &Error{err.Error()}
 					data, _ = json.Marshal(e)
 					status = http.StatusInternalServerError
+				}
+			} else {
+				if !deleted {
+					status = http.StatusAccepted
 				}
 			}
 
@@ -117,7 +121,7 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 							err = a.database.SetObject(obj)
 							if err != nil {
 								msg = err.Error()
-								status = http.StatusInternalServerError
+								status = http.StatusConflict
 							}
 						}
 						if msg != "" {

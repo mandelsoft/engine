@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/database/service"
 	"github.com/spf13/cobra"
 )
@@ -15,8 +16,15 @@ func ResponseData(r *http.Response) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.StatusCode == http.StatusCreated || r.StatusCode == http.StatusOK {
+	if r.StatusCode == http.StatusCreated || r.StatusCode == http.StatusOK || r.StatusCode == http.StatusAccepted {
 		return data, nil
+	}
+
+	if r.StatusCode == http.StatusNotFound {
+		return nil, database.ErrNotExist
+	}
+	if r.StatusCode == http.StatusConflict {
+		return nil, database.ErrModified
 	}
 
 	if len(data) == 0 {

@@ -146,7 +146,7 @@ func RequestSlaveDeletion(log logging.Logger, ob objectbase.Objectbase, id datab
 		log.Debug("external slave object {{extid}} is already deleting", "extid", id)
 		return nil
 	}
-	err = ob.DeleteObject(id)
+	_, err = ob.DeleteObject(id)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return err

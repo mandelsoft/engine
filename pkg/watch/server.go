@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
 	"slices"
 	"sync"
 
@@ -70,7 +71,8 @@ func (h *RequestHandler[R, E]) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		wsutil.WriteServerMessage(conn, op, (&Error{err.Error()}).Data())
 	}
 
-	newHandler[R, E](h, conn, h.registry, registration)
+	rh := newHandler[R, E](h, conn, h.registry)
+	rh.register(registration)
 }
 
 func (h *RequestHandler[R, E]) addHandler(c *handler[R, E]) {
@@ -92,15 +94,30 @@ func (h *RequestHandler[R, E]) removeHandler(c *handler[R, E]) {
 type handler[R, E any] struct {
 	hhandler *RequestHandler[R, E]
 	conn     net.Conn
-	req      R
+	req      []R
 	registry Registry[R, E]
 }
 
-func newHandler[R, E any](hh *RequestHandler[R, E], conn net.Conn, registry Registry[R, E], req R) *handler[R, E] {
-	h := &handler[R, E]{hh, conn, req, registry}
-	registry.RegisterWatchHandler(req, h)
+func newHandler[R, E any](hh *RequestHandler[R, E], conn net.Conn, registry Registry[R, E]) *handler[R, E] {
+	h := &handler[R, E]{hhandler: hh, conn: conn, registry: registry}
 	hh.addHandler(h)
 	return h
+}
+
+func (h *handler[R, E]) register(req R) {
+	for _, r := range h.req {
+		if reflect.DeepEqual(r, req) {
+			return
+		}
+	}
+	h.req = append(h.req, req)
+	h.registry.RegisterWatchHandler(req, h)
+}
+
+func (h *handler[R, E]) unregister() {
+	for _, r := range h.req {
+		h.registry.UnregisterWatchHandler(r, h)
+	}
 }
 
 func (h *handler[R, E]) HandleEvent(e E) {
@@ -109,14 +126,14 @@ func (h *handler[R, E]) HandleEvent(e E) {
 	err := wsutil.WriteServerMessage(h.conn, ws.OpText, data)
 	if err != nil {
 		log.LogError(err, "cannot send event -> closing connection")
+		h.unregister()
 		h.conn.Close()
-		h.registry.UnregisterWatchHandler(h.req, h)
 	}
 }
 func (h *handler[R, E]) Close() error {
 	log.Info("closing connection and unregister handler for {{req}}", "req", h.req)
+	h.unregister()
 	h.conn.Close()
-	h.registry.UnregisterWatchHandler(h.req, h)
 	h.hhandler.removeHandler(h)
 	return nil
 }

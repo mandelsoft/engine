@@ -204,13 +204,14 @@ func (d *Database[O]) SetObject(o O) error {
 }
 
 func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
+	old, err := d.get(o)
+	if err != nil && !errors.Is(err, database.ErrNotExist) {
+		log.LogError(err, "cannot read old file", "path", path)
+		return err
+	}
+
 	if g, ok := utils.TryCast[database.GenerationAccess](o); ok {
 		gen := g.GetGeneration()
-		old, err := d.get(o)
-		if err != nil && !errors.Is(err, database.ErrNotExist) {
-			log.LogError(err, "cannot read old file", "path", path)
-			return err
-		}
 		if err == nil {
 			var ok bool
 			og, ok := utils.TryCast[database.GenerationAccess](old)
@@ -228,8 +229,12 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 	}
 
 	if f, ok := utils.TryCast[database.Finalizable](o); ok {
+		if err == nil {
+			f.PreserveDeletion(utils.Cast[database.Finalizable](old).GetDeletionInfo())
+		}
 		if f.IsDeleting() && len(f.GetFinalizers()) == 0 {
-			return d._doDeleteObject(log, path, o)
+			_, err := d._doDeleteObject(log, path, o)
+			return err
 		}
 	}
 
@@ -247,10 +252,10 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 	return nil
 }
 
-func (d *Database[O]) DeleteObject(id database.ObjectId) error {
+func (d *Database[O]) DeleteObject(id database.ObjectId) (bool, error) {
 	var err error
 	if !CheckId(id) {
-		return fmt.Errorf("invalid id %q", id)
+		return false, fmt.Errorf("invalid id %q", id)
 	}
 	path := d.OPath(id)
 	log := logging.DefaultContext().Logger(REALM)
@@ -263,32 +268,31 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) error {
 	}()
 	defer d.lock.Unlock()
 	if ok, err := vfs.Exists(d.fs, path); !ok && err == nil {
-		return database.ErrNotExist
+		return false, database.ErrNotExist
 	}
 	o, err := d.get(id)
 	if err != nil {
-		return err
+		return false, err
 	}
-	err = d._doDeleteObject(log, path, o)
-	return err
+	return d._doDeleteObject(log, path, o)
 }
 
-func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, o O) error {
+func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, o O) (bool, error) {
 	if f, ok := utils.TryCast[database.Finalizable](o); ok {
 		f.RequestDeletion()
 		finalizers := f.GetFinalizers()
 		log.Debug("found finalizers for {{path}}: {{finalizers}}", "finalizers", finalizers, "path", path)
 		if len(finalizers) != 0 {
-			return d._doSetObject(log, path, o)
+			return false, d._doSetObject(log, path, o)
 		}
 	}
 	err := d.fs.Remove(path)
 	if err != nil {
 		log.LogError(err, "cannot delete file", "path", path)
-		return err
+		return false, err
 	}
 	log.Debug("deleted object {{path}}", "path", path)
-	return nil
+	return true, nil
 }
 
 func (d *Database[O]) Path(path string) string {

@@ -55,6 +55,8 @@ type Finalizable interface {
 
 	RequestDeletion()
 	IsDeleting() bool
+	GetDeletionInfo() DeletionInfo
+	PreserveDeletion(DeletionInfo)
 }
 
 var ErrModified = fmt.Errorf("object modified")
@@ -83,6 +85,8 @@ func GetGeneration(o Object) int64 {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type DeletionInfo any
+
 type FinalizedMeta struct {
 	Finalizers   []string         `json:"finalizers,omitempty"`
 	DeletionTime *utils.Timestamp `json:"deletionTime,omitempty"`
@@ -92,6 +96,16 @@ var _ Finalizable = (*FinalizedMeta)(nil)
 
 func (g *FinalizedMeta) IsDeleting() bool {
 	return g.DeletionTime != nil
+}
+
+func (g *FinalizedMeta) GetDeletionInfo() DeletionInfo {
+	return g.DeletionTime
+}
+
+func (g *FinalizedMeta) PreserveDeletion(info DeletionInfo) {
+	if g.DeletionTime == nil && info != nil {
+		g.DeletionTime = info.(*utils.Timestamp)
+	}
 }
 
 func (g *FinalizedMeta) RequestDeletion() {

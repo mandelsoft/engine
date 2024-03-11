@@ -2,6 +2,7 @@ package events
 
 import (
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -47,19 +48,21 @@ type namespaces[I Id] map[string]eventhandlers[I]
 type KeyFunc[I Id] func(id I) I
 
 type registry[I Id] struct {
-	lock   sync.Mutex
-	key    KeyFunc[I]
-	types  map[string]namespaces[I]
-	lister ObjectLister[I]
+	lock     sync.Mutex
+	key      KeyFunc[I]
+	types    map[string]namespaces[I]
+	closures map[string]namespaces[I]
+	lister   ObjectLister[I]
 }
 
 var _ HandlerRegistrationTest[Id] = (*registry[Id])(nil)
 
 func NewHandlerRegistry[I Id](l ObjectLister[I], k ...KeyFunc[I]) HandlerRegistry[I] {
 	return &registry[I]{
-		key:    utils.OptionalDefaulted[KeyFunc[I]](func(id I) I { return id }, k...),
-		types:  map[string]namespaces[I]{},
-		lister: l,
+		key:      utils.OptionalDefaulted[KeyFunc[I]](func(id I) I { return id }, k...),
+		types:    map[string]namespaces[I]{},
+		closures: map[string]namespaces[I]{},
+		lister:   l,
 	}
 }
 
@@ -173,18 +176,36 @@ func (r *registry[I]) getHandlers(id I) []*wrapper[I] {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	var handlers []*wrapper[I]
 	ns := id.GetNamespace()
 	if ns == "" {
 		ns = "/"
 	}
-	nsmap := r.types[""]
+	handlers := r.getHandlersFrom(r.types, id.GetType(), ns)
+	for {
+		handlers = append(handlers, r.getHandlersFrom(r.closures, id.GetType(), ns)...)
+		if ns == "/" {
+			break
+		}
+		i := strings.LastIndex(ns, "/")
+		if i < 0 {
+			ns = "/"
+		} else {
+			ns = ns[:i]
+		}
+	}
+	return handlers
+}
+
+func (r *registry[I]) getHandlersFrom(reg map[string]namespaces[I], typ string, ns string) []*wrapper[I] {
+	var handlers []*wrapper[I]
+
+	nsmap := reg[""]
 	if len(nsmap) != 0 {
 		handlers = append(handlers, nsmap[ns]...)
 		handlers = append(handlers, nsmap[""]...)
 	}
 
-	nsmap = r.types[id.GetType()]
+	nsmap = reg[typ]
 	if len(nsmap) == 0 {
 		return handlers
 	}
@@ -200,8 +221,8 @@ func (r *registry[I]) TriggerEvent(id I) {
 }
 
 func assure[T any, K comparable](m map[K]T, k K) T {
-	e := m[k]
-	if reflect.ValueOf(e).IsZero() {
+	e, ok := m[k]
+	if !ok {
 		var v reflect.Value
 		t := utils.TypeOf[T]()
 		if t.Kind() == reflect.Map {

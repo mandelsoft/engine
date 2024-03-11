@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/mandelsoft/engine/pkg/server"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 )
 
 func NewServer(port int, pattern string, reg watch.Registry[Request, Event]) *server.Server {

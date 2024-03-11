@@ -5,7 +5,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/events"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 )
 
 type Id struct {

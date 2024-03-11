@@ -6,7 +6,7 @@ import (
 	"os"
 
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
-	"github.com/mandelsoft/engine/watch"
+	"github.com/mandelsoft/engine/pkg/watch"
 	"github.com/spf13/pflag"
 )
 

@@ -55,6 +55,14 @@ func (o *ObjectMeta) IsDeleting() bool {
 	return o.MetaData.IsDeleting()
 }
 
+func (o *ObjectMeta) GetDeletionInfo() database.DeletionInfo {
+	return o.MetaData.GetDeletionInfo()
+}
+
+func (g *ObjectMeta) PreserveDeletion(info database.DeletionInfo) {
+	g.MetaData.PreserveDeletion(info)
+}
+
 func (o *ObjectMeta) SetName(s string) {
 	o.MetaData.SetName(s)
 }

@@ -179,7 +179,7 @@ func (w *wrappingDatabase[O, W, S]) SetObject(o O) error {
 	return w.db.SetObject(i.GetBase())
 }
 
-func (w *wrappingDatabase[O, W, S]) DeleteObject(id database.ObjectId) error {
+func (w *wrappingDatabase[O, W, S]) DeleteObject(id database.ObjectId) (bool, error) {
 	sid := w.idmapping.Inbound(id)
 	return w.db.DeleteObject(sid)
 }
