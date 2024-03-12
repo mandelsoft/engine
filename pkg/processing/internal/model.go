@@ -49,7 +49,7 @@ type InternalObject interface {
 
 	AcceptExternalState(lctx Logging, ob Objectbase, ph Phase, ext ExternalState) (AcceptStatus, error)
 	Process(Request) ProcessingResult
-	PrepareDeletion(lctx Logging, ob Objectbase, phase Phase) error
+	PrepareDeletion(lctx Logging, mgmt SlaveManagement, phase Phase) error
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,6 +122,9 @@ type SlaveUpdateFunction func(ob Objectbase, eid ElementId, i InternalObject) (c
 
 type SlaveManagement interface {
 	AssureSlaves(check SlaveCheckFunction, update SlaveUpdateFunction, eids ...ElementId) error
+	MarkForDeletion(eids ...ElementId) error
+
+	ObjectBase() Objectbase
 }
 
 type Request struct {

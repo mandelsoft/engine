@@ -107,7 +107,7 @@ func (n *InternalObjectSupport[I]) GetStatus(phase mmids.Phase) model.Status {
 	return n.GetPhaseState(phase).GetStatus()
 }
 
-func (n *InternalObjectSupport[I]) SetStatus(ob internal.Objectbase, phase mmids.Phase, status internal.Status) (bool, error) {
+func (n *InternalObjectSupport[I]) SetStatus(ob objectbase.Objectbase, phase mmids.Phase, status model.Status) (bool, error) {
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
@@ -253,7 +253,7 @@ func (n *InternalObjectSupport[I]) HandleCommit(lctx model.Logging, ob objectbas
 	return wrapped.Modify(ob, n, mod)
 }
 
-func (n *InternalObjectSupport[I]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {
+func (n *InternalObjectSupport[I]) PrepareDeletion(lctx internal.Logging, mgmt internal.SlaveManagement, phase mmids.Phase) error {
 	return nil
 }
 

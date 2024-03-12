@@ -61,6 +61,10 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 	target := n.GetTargetState(req.Element.GetPhase())
 
+	if req.Delete {
+		return support.HandleExternalObjectDeletionRequest(log, req.Model.ObjectBase(), mymetamodel.TYPE_VALUE, req.Element.Id())
+	}
+
 	var out db.ValueOutput
 	if len(req.Inputs) > 0 {
 		links := target.GetLinks()

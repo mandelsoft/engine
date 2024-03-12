@@ -3,6 +3,7 @@ package support
 import (
 	"fmt"
 
+	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -27,7 +28,7 @@ type Phase[I InternalObject, T db.InternalDBObject] interface {
 	GetTargetState(o I, phase mmids.Phase) model.TargetState
 
 	Process(o I, phase mmids.Phase, req model.Request) model.ProcessingResult
-	PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o I, phase mmids.Phase) error
+	PrepareDeletion(log logging.Logger, mgmt model.SlaveManagement, o I, phase mmids.Phase) error
 }
 
 type Phases[I InternalObject, T db.InternalDBObject] interface {
@@ -42,7 +43,7 @@ type Phases[I InternalObject, T db.InternalDBObject] interface {
 	GetCurrentState(o InternalObject, phase mmids.Phase) model.CurrentState
 	GetTargetState(o InternalObject, phase mmids.Phase) model.TargetState
 
-	PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, o InternalObject, phase mmids.Phase) error
+	PrepareDeletion(lctx model.Logging, mgmt model.SlaveManagement, o InternalObject, phase mmids.Phase) error
 	Process(o InternalObject, req model.Request) model.ProcessingResult
 }
 
@@ -56,7 +57,7 @@ func (_ DefaultPhase[I, T]) GetExternalState(o I, ext model.ExternalObject, phas
 	return ext.GetState()
 }
 
-func (_ DefaultPhase[I, T]) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o I, phase mmids.Phase) error {
+func (_ DefaultPhase[I, T]) PrepareDeletion(log logging.Logger, mgmt model.SlaveManagement, o I, phase mmids.Phase) error {
 	return nil
 }
 
@@ -164,11 +165,11 @@ func (p *phases[I, T]) Process(o InternalObject, req model.Request) model.Proces
 	}
 }
 
-func (p *phases[I, T]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, o InternalObject, phase mmids.Phase) error {
+func (p *phases[I, T]) PrepareDeletion(lctx model.Logging, mgmt model.SlaveManagement, o InternalObject, phase mmids.Phase) error {
 	ph := p.phases[phase]
 	if ph != nil {
 		log := lctx.Logger(p.realm).WithValues("name", o.GetName(), "phase", phase)
-		return ph.PrepareDeletion(log, ob, o.(I), phase)
+		return ph.PrepareDeletion(log, mgmt, o.(I), phase)
 	}
 	return nil
 }
@@ -239,8 +240,8 @@ func (n *InternalPhaseObjectSupport[I, T]) AcceptExternalState(lctx model.Loggin
 	return status, err
 }
 
-func (n *InternalPhaseObjectSupport[I, T]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {
-	return n.phases.PrepareDeletion(lctx, ob, n.self, phase)
+func (n *InternalPhaseObjectSupport[I, T]) PrepareDeletion(lctx internal.Logging, mgmt internal.SlaveManagement, phase mmids.Phase) error {
+	return n.phases.PrepareDeletion(lctx, mgmt, n.self, phase)
 }
 
 func (n *InternalPhaseObjectSupport[I, T]) Process(request model.Request) model.ProcessingResult {

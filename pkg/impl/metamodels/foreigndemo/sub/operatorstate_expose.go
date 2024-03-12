@@ -7,10 +7,8 @@ import (
 
 	"github.com/mandelsoft/logging"
 
-	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
@@ -103,17 +101,14 @@ func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	return model.StatusCompleted(NewExposeOutputState(req.FormalVersion, out))
 }
 
-func (_ ExposePhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase Phase) error {
+func (_ ExposePhase) PrepareDeletion(log logging.Logger, mgmt model.SlaveManagement, o *OperatorState, phase Phase) error {
 	s := NewCurrentExposeState(o)
 
+	var eids []ElementId
 	for k := range s.GetOutput().(*ExposeOutputState).GetState() {
-		oid := database.NewObjectId(mymetamodel.TYPE_VALUE, o.GetNamespace(), k)
-		err := support.RequestSlaveDeletion(log, ob, oid)
-		if err != nil {
-			return err
-		}
+		eids = append(eids, NewElementId(mymetamodel.TYPE_VALUE_STATE, o.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE))
 	}
-	return nil
+	return mgmt.MarkForDeletion(eids...)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

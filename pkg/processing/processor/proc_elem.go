@@ -156,6 +156,11 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		log.Info("state of {{extid}} changed from {{current}} to {{target}}", "current", cur, "target", v)
 	}
 
+	if changed == nil && !deleting {
+		log.Info("no external object state change found for {{element}}")
+		return pool.StatusCompleted()
+	}
+
 	var leafs []Phase
 	var phases []Phase
 	if deleting {
@@ -170,11 +175,6 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		if ok {
 			log.Info("marked dependent phases ({{phases}}) of {{element}} as deleting", "phases", phases)
 		}
-	}
-
-	if changed == nil && !deleting {
-		log.Info("no external object state change found for {{element}}")
-		return pool.StatusCompleted()
 	}
 
 	if changed != nil && p.isReTriggerable(e, *changed) {
@@ -251,7 +251,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 	curlinks := e.GetCurrentState().GetLinks()
 	deletion := false
 	if e.IsMarkedForDeletion() {
-		err := e.GetObject().PrepareDeletion(lctx, p.processingModel.ObjectBase(), e.GetPhase())
+		err := e.GetObject().PrepareDeletion(lctx, newSlaveManagement(log, p, ni, e), e.GetPhase())
 		if err != nil {
 			return pool.StatusCompleted(err)
 		}

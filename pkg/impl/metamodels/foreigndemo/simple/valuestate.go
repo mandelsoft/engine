@@ -88,8 +88,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	log := req.Logging.Logger(REALM)
 
 	if req.Delete {
-		log.Info("deleting successful")
-		return model.StatusDeleted()
+		return support.HandleExternalObjectDeletionRequest(log, req.Model.ObjectBase(), mymetamodel.TYPE_VALUE, req.Element.Id())
 	}
 
 	target := n.GetTargetState(req.Element.GetPhase())

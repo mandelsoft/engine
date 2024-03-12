@@ -10,12 +10,10 @@ import (
 
 	"github.com/mandelsoft/logging"
 
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -164,9 +162,9 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 	return model.StatusCompleted(NewGatherOutputState(req.FormalVersion, out))
 }
 
-func (_ GatherPhase) PrepareDeletion(log logging.Logger, ob objectbase.Objectbase, o *OperatorState, phase Phase) error {
-	oid := model.SlaveObjectId(o, mymetamodel.TYPE_EXPRESSION)
-	return support.RequestSlaveDeletion(log, ob, oid)
+func (_ GatherPhase) PrepareDeletion(log logging.Logger, mgmt model.SlaveManagement, o *OperatorState, phase Phase) error {
+	eid := model.SlaveId(o, mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE)
+	return mgmt.MarkForDeletion(eid)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

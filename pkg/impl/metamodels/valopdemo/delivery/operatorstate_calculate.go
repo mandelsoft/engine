@@ -109,6 +109,16 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 	return model.StatusCompleted(NewCalcOutputState(req.FormalVersion, r))
 }
 
+func (_ CalculatePhase) PrepareDeletion(log logging.Logger, mgmt model.SlaveManagement, o *OperatorState, phase Phase) error {
+	s := NewCurrentCalcState(o)
+
+	var eids []ElementId
+	for k := range s.GetOutput().(*CalcOutputState).GetState() {
+		eids = append(eids, NewElementId(mymetamodel.TYPE_VALUE_STATE, o.GetNamespace(), k, mymetamodel.PHASE_PROPAGATE))
+	}
+	return mgmt.MarkForDeletion(eids...)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type CalcOutputState = support.OutputState[db.CalculationOutput]
