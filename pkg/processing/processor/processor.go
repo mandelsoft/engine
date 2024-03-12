@@ -2,7 +2,6 @@ package processor
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -193,7 +192,7 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 		for _, e := range ns.elements {
 			for _, l := range e.GetCurrentState().GetLinks() {
 				if ns.elements[l] == nil {
-					return fmt.Errorf("%s: unknown linked element %q", e.Id(), l)
+					log.Warn("element {{element}} has unknown linked element {{link}}", "element", e.Id(), "link", l)
 				}
 			}
 			// target state must not already be linked

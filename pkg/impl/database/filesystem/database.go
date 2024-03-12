@@ -87,11 +87,7 @@ func (d *Database[O]) listObjectIds(typ string, closure bool, ns string) ([]data
 	if !CheckNamespace(ns) {
 		return nil, fmt.Errorf("invalid namespace %q", typ)
 	}
-	if ns == "" {
-		return d.list(typ, ns, true, closure)
-	} else {
-		return d.list(typ, ns, false, closure)
-	}
+	return d.list(typ, ns, false, closure)
 }
 
 func (d *Database[O]) list(typ, ns string, dir, closure bool) ([]database.ObjectId, error) {

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"os"
 	"strings"
 
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -32,12 +31,16 @@ func New(fss ...vfs.FileSystem) *cobra.Command {
 		fs: utils.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...),
 	}
 
-	opts.address = os.Getenv("ENGINE_SERVER")
-	if opts.address == "" {
-		opts.address = "http://localhost:8080"
-	}
-	opts.namespace = os.Getenv("ENGINE_NAMESPACE")
+	cfg := GetConfig()
 
+	if cfg.Server != nil {
+		opts.address = *cfg.Server
+	}
+	if cfg.Namespace != nil {
+		opts.namespace = *cfg.Namespace
+	}
+
+	// fmt.Printf("server %s\nnamepace %s\n", opts.address, opts.namespace)
 	maincmd := &cobra.Command{
 		Use:   "ectl <options> <cmd> <args>",
 		Short: "execute engine command",

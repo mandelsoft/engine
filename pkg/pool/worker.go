@@ -8,6 +8,7 @@ package pool
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -62,7 +63,8 @@ func catch(f func() Status) (result Status) {
 			if res, ok := r.(Status); ok {
 				result = res
 			} else {
-				panic(r)
+				debug.PrintStack()
+				result = StatusFailed(fmt.Errorf("crashed"))
 			}
 		}
 	}()

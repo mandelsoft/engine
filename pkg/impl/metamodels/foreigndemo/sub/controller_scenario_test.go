@@ -76,7 +76,7 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			Expect(ovE.(*db.Value).Status.FormalVersion).To(Equal(g.FormalVersion(graph.GraphIdForPhase(ovE, mymetamodel.FINAL_VALUE_PHASE))))
 		})
 
-		It("handles expression for controller test scenario", func() {
+		FIt("handles expression for controller test scenario", func() {
 			env.AddService(me.NewExpressionController(env.Logging(), 1, env.Database()))
 			env.Start()
 
@@ -104,7 +104,7 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			// delete the enchilada
 			feEXPR = env.FutureForObjectStatus(model.STATUS_DELETED, ooEXPR)
 			MustBeSuccessful(env.DeleteObject(ooEXPR))
-			env.WaitWithTimeout(feEXPR)
+			Expect(env.WaitWithTimeout(feEXPR)).To(BeTrue())
 
 			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_VALUE, true, path.Join(NS, "EXPR")))).To(BeEmpty())
 			Expect(Must(env.Database().ListObjectIds(mymetamodel.TYPE_OPERATOR, true, path.Join(NS, "EXPR")))).To(BeEmpty())

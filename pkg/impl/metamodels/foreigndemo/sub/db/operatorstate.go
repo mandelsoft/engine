@@ -44,7 +44,7 @@ type GatherCurrentState struct {
 	db.StandardCurrentState
 	ObservedOperands map[string]string `json:"observedOperands,omitempty"`
 
-	Output GatherOutput `json:"output"`
+	Output GatherOutput `json:"output,omitempty"`
 }
 
 type GatherTargetState struct {
@@ -53,9 +53,9 @@ type GatherTargetState struct {
 }
 
 type GatherOutput struct {
-	Operands   Operands          `json:"operands"`
-	Operations Operations        `json:"operations"`
-	Outputs    map[string]string `json:"outputs"`
+	Operands   Operands          `json:"operands,omitempty"`
+	Operations Operations        `json:"operations,omitempty"`
+	Outputs    map[string]string `json:"outputs,omitempty"`
 }
 
 type Operands map[string]Operand

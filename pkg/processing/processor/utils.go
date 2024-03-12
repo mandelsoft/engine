@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
 )
 
 func ParentNamespace(ns string) string {
@@ -95,4 +96,45 @@ func (s *orderedElementSet) Add(e _Element) bool {
 
 func (s *orderedElementSet) Order() []_Element {
 	return slices.Clone(s.order)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ReadyState struct {
+	Missing []ElementId
+	Problem []ElementId
+	Waiting []ElementId
+	Inputs  model.Inputs
+}
+
+func NewReadyState() *ReadyState {
+	return &ReadyState{Inputs: model.Inputs{}}
+}
+
+func (s *ReadyState) Ready() bool {
+	return len(s.Waiting) == 0 && s.ReadyForTrigger()
+}
+
+func (s *ReadyState) ReadyForTrigger() bool {
+	return len(s.Missing) == 0 && len(s.Problem) == 0
+}
+
+func (s *ReadyState) BlockingElements() []ElementId {
+	return append(slices.Clone(s.Missing), s.Problem...)
+}
+
+func (s *ReadyState) AddMissing(e ElementId) {
+	s.Missing = append(s.Missing, e)
+}
+
+func (s *ReadyState) AddProblem(e ElementId) {
+	s.Problem = append(s.Problem, e)
+}
+
+func (s *ReadyState) AddWaiting(e ElementId) {
+	s.Waiting = append(s.Waiting, e)
+}
+
+func (s *ReadyState) AddInput(e ElementId, o model.OutputState) {
+	s.Inputs[e] = o
 }

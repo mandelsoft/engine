@@ -240,3 +240,14 @@ func (ni *namespaceInfo) setupElements(log logging.Logger, p *Processor, i model
 	}
 	return elem
 }
+
+func (ni *namespaceInfo) RemoveInternal(log logging.Logger, m *processingModel, oid ObjectId) {
+	// ni.lock.Lock()
+	// defer ni.lock.Unlock()
+
+	for _, ph := range m.MetaModel().Phases(oid.GetType()) {
+		log.Info(" - deleting phase {{phase}}", "phase", ph)
+		delete(ni.elements, NewElementIdForPhase(oid, ph))
+	}
+	// delete(ni.internal, oid)
+}

@@ -1,0 +1,20 @@
+kind: Operator
+metadata:
+  namespace: demosub
+  name: C
+spec:
+  operands:
+    iA: A
+    iB: B
+  operations:
+    oA: 
+      operator: add
+      operands:
+      - iA
+      - iB
+    oE:
+      operator: expr
+      expression: iA+oA-iB
+  outputs:
+    C-A: oA
+    C-E: oE

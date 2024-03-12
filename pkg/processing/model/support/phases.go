@@ -227,7 +227,7 @@ func (n *InternalPhaseObjectSupport[I, T]) AcceptExternalState(lctx model.Loggin
 	defer n.Lock.Unlock()
 
 	status, err := n.phases.AcceptExternalState(lctx, n.self, phase, state)
-	if status != model.ACCEPT_OK || err != nil {
+	if err != nil {
 		return status, err
 	}
 	mod := func(_o db.Object) (bool, bool) {
@@ -236,7 +236,7 @@ func (n *InternalPhaseObjectSupport[I, T]) AcceptExternalState(lctx model.Loggin
 		return mod, mod
 	}
 	_, err = wrapped.Modify(ob, n, mod)
-	return model.ACCEPT_OK, err
+	return status, err
 }
 
 func (n *InternalPhaseObjectSupport[I, T]) PrepareDeletion(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase) error {

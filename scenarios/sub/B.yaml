@@ -1,0 +1,6 @@
+kind: Value
+metadata:
+  namespace: demosub
+  name: B
+spec:
+  value: 6

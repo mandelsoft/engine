@@ -21,7 +21,7 @@ type Apply struct {
 	cmd *cobra.Command
 
 	mainopts *Options
-	files    []string
+	filemode bool
 }
 
 func NewApply(opts *Options) *cobra.Command {
@@ -37,15 +37,12 @@ func NewApply(opts *Options) *cobra.Command {
 	}
 	c.cmd.RunE = func(cmd *cobra.Command, args []string) error { return c.Run(args) }
 	flags := cmd.Flags()
-	flags.StringSliceVarP(&c.files, "file", "f", nil, "manifest file")
+	flags.BoolVarP(&c.filemode, "file", "f", false, "manifest files")
 
 	return cmd
 }
 
 func (c *Apply) Run(args []string) error {
-	if len(args) != 0 {
-		return fmt.Errorf("no arguments expected")
-	}
 
 	handler := func(f string, items ...Object) error {
 		var cmderr error
@@ -104,7 +101,7 @@ func (c *Apply) Run(args []string) error {
 		}
 		return cmderr
 	}
-	return HandleObjects(c.cmd, c.mainopts, c.files, handler)
+	return HandleObjects(c.cmd, c.mainopts, args, handler)
 }
 
 func isList(m map[string]interface{}) bool {

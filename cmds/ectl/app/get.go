@@ -21,6 +21,7 @@ type Get struct {
 	mainopts *Options
 	sort     string
 	output   string
+	closure  bool
 }
 
 func NewGet(opts *Options) *cobra.Command {
@@ -38,13 +39,14 @@ func NewGet(opts *Options) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&c.sort, "sort", "s", "", "sort field")
 	flags.StringVarP(&c.output, "output", "o", "", "output format")
+	flags.BoolVarP(&c.closure, "closure", "c", false, "namespace closure")
 	return cmd
 }
 
 func (c *Get) Run(args []string) error {
 
-	if len(args) < 1 {
-		return fmt.Errorf("object type required")
+	if len(args) == 0 {
+		args = []string{"*"}
 	}
 	typ := args[0]
 	if typ == "" {
@@ -52,7 +54,6 @@ func (c *Get) Run(args []string) error {
 	}
 
 	var list []Object
-	typeField := false
 	useList := len(args) > 2
 
 	if len(args) > 1 {
@@ -92,8 +93,8 @@ func (c *Get) Run(args []string) error {
 	} else {
 		useList = true
 		ns := c.mainopts.namespace
-		if ns == "" {
-			ns = "*"
+		if c.closure {
+			ns += "*"
 		}
 
 		req, err := http.NewRequest("LIST", c.mainopts.GetURL()+path.Join(typ, ns), nil)
@@ -132,7 +133,7 @@ func (c *Get) Run(args []string) error {
 
 	switch strings.ToLower(strings.TrimSpace(c.output)) {
 	case "":
-		return PrintObjectList(c.cmd.OutOrStdout(), list, typeField, c.sort)
+		return PrintObjectList(c.cmd.OutOrStdout(), list, RequireTypeField(list), c.sort)
 	case "json":
 		data, err := json.Marshal(elems)
 		if err != nil {

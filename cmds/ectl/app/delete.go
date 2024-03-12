@@ -20,7 +20,7 @@ type Delete struct {
 	mainopts *Options
 	force    bool
 	all      bool
-	files    []string
+	filemode bool
 }
 
 func NewDelete(opts *Options) *cobra.Command {
@@ -38,18 +38,15 @@ func NewDelete(opts *Options) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&c.force, "force", "F", false, "force mode")
 	flags.BoolVarP(&c.all, "all", "A", false, "all objects")
-	flags.StringSliceVarP(&c.files, "file", "f", nil, "manifest file")
+	flags.BoolVarP(&c.filemode, "file", "f", false, "manifest files")
 	return cmd
 }
 
 func (c *Delete) Run(args []string) error {
 	var cmderr error
 
-	if len(args) < 1 && len(c.files) == 0 {
+	if len(args) < 1 && !c.filemode {
 		return fmt.Errorf("object type required")
-	}
-	if len(args) != 0 && len(c.files) != 0 {
-		return fmt.Errorf("only files or names")
 	}
 
 	handler := func(f string, list ...database.ObjectId) error {
@@ -104,7 +101,7 @@ func (c *Delete) Run(args []string) error {
 		return cmderr
 	}
 
-	if len(args) > 0 {
+	if !c.filemode {
 		typ := args[0]
 		if typ == "" {
 			return fmt.Errorf("non-empty type required")
@@ -167,8 +164,8 @@ func (c *Delete) Run(args []string) error {
 		}
 	}
 
-	if len(c.files) > 0 {
-		HandleObjects(c.cmd, c.mainopts, c.files, func(f string, items ...Object) error {
+	if c.filemode {
+		HandleObjects(c.cmd, c.mainopts, args, func(f string, items ...Object) error {
 			list := utils.TransformSlice(items, ObjectIdFor)
 			return handler(f, list...)
 		})

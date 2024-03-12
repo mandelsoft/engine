@@ -31,29 +31,33 @@ func New[O database.Object](db database.Database[O], prefix string) *DatabaseAcc
 func (a *DatabaseAccess[O]) RegisterHandler(src *server.Server) {
 	src.Handle(a.prefix, a)
 }
+
 func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var data []byte
 	status := http.StatusOK
 
 	path := req.URL.Path[len(a.prefix):]
-
+	fmt.Printf("%s: path %s\n", req.Method, path)
 	comps := strings.Split(path, "/")
 
 	typ := comps[0]
-	name := comps[len(comps)-1]
-	ns := strings.Join(comps[1:len(comps)-1], "/")
-	if len(comps) < 2 {
+	if path == "" {
 		e := &Error{"invalid path"}
 		data, _ = json.Marshal(e)
 		status = http.StatusInternalServerError
 	} else {
-		oid := database.NewObjectId(typ, ns, name)
-
-		fmt.Printf("%s  %s : %s / %s\n", req.Method, typ, ns, name)
-		fmt.Printf("    %#v\n", req.Header)
 
 		switch req.Method {
 		case http.MethodGet:
+			if len(comps) < 2 {
+				e := &Error{"invalid path"}
+				data, _ = json.Marshal(e)
+				status = http.StatusInternalServerError
+			}
+			name := comps[len(comps)-1]
+			ns := strings.Join(comps[1:len(comps)-1], "/")
+			oid := database.NewObjectId(typ, ns, name)
+
 			obj, err := a.database.GetObject(oid)
 			if err != nil {
 				if errors.Is(err, database.ErrNotExist) {
@@ -68,6 +72,15 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 			}
 
 		case http.MethodDelete:
+			if len(comps) < 2 {
+				e := &Error{"invalid path"}
+				data, _ = json.Marshal(e)
+				status = http.StatusInternalServerError
+			}
+			name := comps[len(comps)-1]
+			ns := strings.Join(comps[1:len(comps)-1], "/")
+			oid := database.NewObjectId(typ, ns, name)
+
 			deleted, err := a.database.DeleteObject(oid)
 			if err != nil {
 				if errors.Is(err, database.ErrNotExist) {
@@ -84,6 +97,15 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 			}
 
 		case http.MethodPost:
+			if len(comps) < 2 {
+				e := &Error{"invalid path"}
+				data, _ = json.Marshal(e)
+				status = http.StatusInternalServerError
+			}
+			name := comps[len(comps)-1]
+			ns := strings.Join(comps[1:len(comps)-1], "/")
+			oid := database.NewObjectId(typ, ns, name)
+
 			data, err := io.ReadAll(req.Body)
 			if err != nil {
 				e := &Error{err.Error()}
@@ -133,12 +155,9 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 			}
 		case "LIST":
 			closure := false
-			if name != "" {
-				if ns == "" {
-					ns = name
-				} else {
-					ns = ns + "/" + name
-				}
+			ns := ""
+			if len(comps) > 1 {
+				ns = strings.Join(comps[1:], "/")
 			}
 			if strings.HasSuffix(ns, "*") {
 				ns = ns[:len(ns)-1]
