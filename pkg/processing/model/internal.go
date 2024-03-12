@@ -64,6 +64,13 @@ func StatusCompleted(result OutputState, err ...error) ProcessingResult {
 	}
 }
 
+func StatusDeleting(err ...error) ProcessingResult {
+	return ProcessingResult{
+		Status: STATUS_DELETING,
+		Error:  utils.Optional(err...),
+	}
+}
+
 func StatusDeleted() ProcessingResult {
 	return ProcessingResult{
 		Status: STATUS_DELETED,

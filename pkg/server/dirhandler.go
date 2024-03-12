@@ -49,8 +49,10 @@ func (d *DirectoryHandler) ServeHTTP(writer http.ResponseWriter, request *http.R
 
 	file, err := d.fs.Open(path)
 	if err != nil {
+		log.Info("{{method}} not found {{url}}", "url", request.Method, request.URL)
 		writer.WriteHeader(http.StatusNotFound)
 	} else {
+		log.Info("{{method}} serving {{url}}", "method", request.Method, "url", request.URL)
 		io.Copy(writer, file)
 		file.Close()
 	}

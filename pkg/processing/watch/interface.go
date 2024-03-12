@@ -23,6 +23,14 @@ func (i Id) GetNamespace() string {
 	return i.Namespace
 }
 
+func (i Id) GetName() string {
+	return i.Name
+}
+
+func (i Id) GetPhase() string {
+	return i.Phase
+}
+
 func (i Id) String() string {
 	return fmt.Sprintf("%s/%s/%s:%s", i.Kind, i.Namespace, i.Name, i.Phase)
 }

@@ -158,6 +158,39 @@ func RequestSlaveDeletion(log logging.Logger, ob objectbase.Objectbase, id datab
 	return nil
 }
 
+func HandleExternalObjectDeletionRequest(log logging.Logger, ob objectbase.Objectbase, typ string, elem mmids.ElementId) model.ProcessingResult {
+	extid := database.NewObjectId(typ, elem.GetNamespace(), elem.GetName())
+	log.Info("checking external object {{extid}} to be deleted", "extid", extid)
+
+	o, err := ob.GetObject(extid)
+	if err != nil {
+		if errors.Is(err, database.ErrNotExist) {
+			log.Info("object deleted -> deleting successful")
+			return model.StatusDeleted()
+		}
+		return model.StatusDeleting(err)
+	}
+
+	if !o.IsDeleting() {
+		log.Info("request deletion of external object {{extid}}", "extid", extid)
+		ok, err := ob.DeleteObject(extid)
+		if ok || errors.Is(err, database.ErrNotExist) {
+			log.Info("object deleted -> deleting successful")
+			return model.StatusDeleted()
+		}
+		if err != nil {
+			return model.StatusDeleting(nil, err)
+		}
+	} else {
+		if len(o.GetFinalizers()) <= 1 {
+			log.Info("all foreign finalizers removed -> deleting successful")
+			return model.StatusDeleted()
+		}
+		log.Info("external object {{extid}} is still deleting (found finalizers {{finalizers}})", "extid", extid, "finalizers", o.GetFinalizers())
+	}
+	return model.StatusDeleting(nil)
+}
+
 func AssureElement[I db.InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, typ mmids.TypeId, name string, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
 	var _nil R
 

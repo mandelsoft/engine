@@ -92,6 +92,7 @@ func (h *RequestHandler[R, E]) removeHandler(c *handler[R, E]) {
 ////////////////////////////////////////////////////////////////////////////////
 
 type handler[R, E any] struct {
+	lock     sync.Mutex
 	hhandler *RequestHandler[R, E]
 	conn     net.Conn
 	req      []R
@@ -121,13 +122,19 @@ func (h *handler[R, E]) unregister() {
 }
 
 func (h *handler[R, E]) HandleEvent(e E) {
-	log.Trace("sending event {{event}}", "event", e)
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if h.conn == nil {
+		return
+	}
+	log.Debug("sending event {{event}}", "event", e)
 	data, _ := json.Marshal(e)
 	err := wsutil.WriteServerMessage(h.conn, ws.OpText, data)
 	if err != nil {
 		log.LogError(err, "cannot send event -> closing connection")
 		h.unregister()
 		h.conn.Close()
+		h.conn = nil
 	}
 }
 func (h *handler[R, E]) Close() error {

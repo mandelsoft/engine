@@ -58,19 +58,24 @@ func (p *Processor) processElement(lctx model.Logging, cmd string, id ElementId)
 
 func (p *Processor) handleNew(lctx model.Logging, id ElementId) (_Element, pool.Status) {
 	log := lctx.Logger()
-	log.Info("processing new element {{element}}")
+	log.Info("processing unknown element {{element}}")
 
 	_i, err := p.processingModel.ObjectBase().GetObject(id)
 	if err != nil {
 		if !errors.Is(err, database.ErrNotExist) {
 			return nil, pool.StatusCompleted(err)
 		}
+		log.Info("internal object not found for {{element}}")
 
 		_, ext, err := p.getTriggeringExternalObject(id)
 		if err != nil {
 			return nil, pool.StatusCompleted(err)
 		}
 
+		if ext == nil {
+			log.Info("no triggering object found -> obsolete event -> don't create new element")
+			return nil, pool.StatusCompleted()
+		}
 		if p.isDeleting(ext) {
 			log.Info("external object is deleting -> don't create new element")
 			return nil, pool.StatusCompleted()
@@ -182,7 +187,7 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 		return p.initiateNewRun(lctx, log, e)
 	}
 
-	log.Info("triggering phases {{phases}} for deletion", "phases", phases)
+	log.Info("triggering leaf phases {{phases}} for deletion", "phases", leafs)
 	for _, phase := range leafs {
 		id := NewElementIdForPhase(e, phase)
 		log.Debug(" - triggering {{leaf}}", "leaf", id)
@@ -234,7 +239,11 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 	var ready *ReadyState
 
 	log = log.WithValues("status", e.GetStatus())
-	log.Info("processing element {{element}} with status {{status}} (finalizers {{finalizers}}) (marked for deletion: {{deletion}})", "finalizers", e.GetObject().GetFinalizers(), "deletion", e.IsMarkedForDeletion())
+	mode := "process"
+	if e.IsMarkedForDeletion() {
+		mode = "delete"
+	}
+	log.Info("processing element ({{mode}}) {{element}} with status {{status}} (finalizers {{finalizers}})", "finalizers", e.GetObject().GetFinalizers(), "mode", mode)
 
 	var links []ElementId
 	var formalVersion string

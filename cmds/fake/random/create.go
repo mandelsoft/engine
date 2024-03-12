@@ -1,4 +1,4 @@
-package main
+package random
 
 import (
 	"fmt"
@@ -7,23 +7,15 @@ import (
 	"time"
 
 	"github.com/goombaio/namegenerator"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
-	"github.com/mandelsoft/engine/pkg/processing/metamodel"
+	"github.com/mandelsoft/engine/cmds/fake/objectspace"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
 )
 
-var NS = "testspace"
-
 var generator = namegenerator.NewNameGenerator(time.Now().UnixNano())
-var mm metamodel.MetaModel
 
-func init() {
-	mm, _ = mymetamodel.NewMetaModel("demo")
-}
-
-func CreateEvents(objects *ObjectSpace) {
+func Scenario(objects *objectspace.ObjectSpace) {
 	cnt := 0
 	for {
 		mod := false
@@ -59,13 +51,13 @@ func CreateEvents(objects *ObjectSpace) {
 	}
 }
 
-func CreateNamespace(objects *ObjectSpace) bool {
+func CreateNamespace(objects *objectspace.ObjectSpace) bool {
 	ns := objects.ChooseRandomNamespace()
 	name := generator.Generate()
 
 	id := elemwatch.Id{
-		Kind:      mm.NamespaceType(),
-		Namespace: NamespaceName(ns.Node),
+		Kind:      objectspace.MetaModel.NamespaceType(),
+		Namespace: objectspace.NamespaceName(ns.Node),
 		Name:      name,
 		Phase:     "",
 	}
@@ -77,39 +69,42 @@ func CreateNamespace(objects *ObjectSpace) bool {
 		Node:   id,
 		Status: "Ready",
 	}
-	log.Debug("create namespace {{id}}", "id", id)
+	objectspace.Log.Debug("create namespace {{id}}", "id", id)
 	objects.Set(node)
 	return true
 }
 
-func DeleteNamespace(objects *ObjectSpace) bool {
+func DeleteNamespace(objects *objectspace.ObjectSpace) bool {
 	ns := objects.ChooseRandomNamespace()
 
-	if ns.Node.Namespace == "" && (ns.Node.Name == NS || ns.Node.Name == "") {
+	if ns.Node.Namespace == "" && (ns.Node.Name == objectspace.NS || ns.Node.Name == "") {
 		return false
 	}
 	if objects.IsUsed(ns.Node) {
 		return false
 	}
-	log.Debug("delete namespace {{id}}", "id", ns.Node)
+	objectspace.Log.Debug("delete namespace {{id}}", "id", ns.Node)
 	objects.Delete(ns.Node)
 	return true
 }
 
-func CreateObject(objects *ObjectSpace) bool {
+func CreateObject(objects *objectspace.ObjectSpace) bool {
 	ns := objects.ChooseRandomNamespace()
+	if ns.Node.Name == "" {
+		return false
+	}
 	name := ""
 
 	for name == "" {
 		name = generator.Generate()
 	}
 
-	t := Random(mm.InternalTypes())
-	p := Random(mm.Phases(t))
+	t := objectspace.Random(objectspace.MetaModel.InternalTypes())
+	p := objectspace.Random(objectspace.MetaModel.Phases(t))
 
 	id := elemwatch.Id{
 		Kind:      t,
-		Namespace: NamespaceName(ns.Node),
+		Namespace: objectspace.NamespaceName(ns.Node),
 		Name:      name,
 		Phase:     string(p),
 	}
@@ -121,12 +116,12 @@ func CreateObject(objects *ObjectSpace) bool {
 		Node:   id,
 		Status: "Initial",
 	}
-	log.Debug("create object {{id}}", "id", id)
+	objectspace.Log.Debug("create object {{id}}", "id", id)
 	objects.Set(node)
 	return true
 }
 
-func DeleteObject(objects *ObjectSpace) bool {
+func DeleteObject(objects *objectspace.ObjectSpace) bool {
 	o := objects.ChooseRandomObject()
 	if o == nil || o.Node.Phase == "" {
 		return false
@@ -134,12 +129,12 @@ func DeleteObject(objects *ObjectSpace) bool {
 	if o.Lock != "" || objects.IsUsed(o.Node) {
 		return false
 	}
-	log.Debug("delete object {{id}}", "id", o.Node)
+	objectspace.Log.Debug("delete object {{id}}", "id", o.Node)
 	objects.Delete(o.Node)
 	return true
 }
 
-func Progress(objects *ObjectSpace) bool {
+func Progress(objects *objectspace.ObjectSpace) bool {
 	o := objects.ChooseRandomObject()
 	if o == nil {
 		return false
@@ -156,18 +151,18 @@ func Progress(objects *ObjectSpace) bool {
 		}
 	}
 
-	s := Random(follow[model.Status(o.Status)])
-	log.Debug("change status {{id}}", "id", o.Node, "status", s)
+	s := objectspace.Random(follow[model.Status(o.Status)])
+	objectspace.Log.Debug("change status {{id}}", "id", o.Node, "status", s)
 	o.Status = string(s)
 	if cur == model.STATUS_COMPLETED || cur == model.STATUS_FAILED || cur == model.STATUS_INVALID {
-		log.Debug("    -> unlock")
+		objectspace.Log.Debug("    -> unlock")
 		o.Lock = ""
 	}
 	objects.Set(o)
 	return true
 }
 
-func RemoveLink(objects *ObjectSpace) bool {
+func RemoveLink(objects *objectspace.ObjectSpace) bool {
 	o := objects.ChooseRandomObject()
 	if o == nil {
 		return false
@@ -177,18 +172,18 @@ func RemoveLink(objects *ObjectSpace) bool {
 	}
 
 	i := rand.Intn(len(o.Links))
-	log.Debug("remove link {{id}} -> {{link}}", "id", o.Node, "link", o.Links[i])
+	objectspace.Log.Debug("remove link {{id}} -> {{link}}", "id", o.Node, "link", o.Links[i])
 	o.Links = slices.Delete(o.Links, i, i+1)
 	objects.Set(o)
 	return true
 }
 
-func AddLink(objects *ObjectSpace) bool {
+func AddLink(objects *objectspace.ObjectSpace) bool {
 	o := objects.ChooseRandomObject()
 	if o == nil {
 		return false
 	}
-	t := mm.GetInternalType(o.GetType())
+	t := objectspace.MetaModel.GetInternalType(o.GetType())
 	if t == nil {
 		return false
 	}
@@ -199,30 +194,30 @@ func AddLink(objects *ObjectSpace) bool {
 		return false
 	}
 
-	d := Random(deps)
+	d := objectspace.Random(deps)
 
 	list := objects.List(string(d.Id().GetType()), o.GetNamespace(), string(d.Id().GetPhase()))
 	if len(list) == 0 {
 		return false
 	}
 
-	l := Random(list)
+	l := objectspace.Random(list)
 	if objects.IsCycle(o, objects.Get(l)) {
 		return false
 	}
 
 	o.Links = append(o.Links, l)
-	log.Debug("add link {{id}} -> {{link}}", "id", o.Node, "link", l)
+	objectspace.Log.Debug("add link {{id}} -> {{link}}", "id", o.Node, "link", l)
 	objects.Set(o)
 	return true
 }
 
-func LockGraph(objects *ObjectSpace) bool {
+func LockGraph(objects *objectspace.ObjectSpace) bool {
 	o := objects.ChooseRandomObject()
 	if o == nil {
 		return false
 	}
-	t := mm.GetInternalType(o.GetType())
+	t := objectspace.MetaModel.GetInternalType(o.GetType())
 	if t == nil {
 		return false
 	}
@@ -235,13 +230,13 @@ func LockGraph(objects *ObjectSpace) bool {
 	g := objects.GetGraph(o)
 	for _, e := range g {
 		if e.Lock != "" {
-			log.Debug("  {{id}} already locked", "id", e.Node)
+			objectspace.Log.Debug("  {{id}} already locked", "id", e.Node)
 			return false
 		}
 	}
-	log.Debug("lock graph {{id}}", "id", o.Node)
+	objectspace.Log.Debug("lock graph {{id}}", "id", o.Node)
 	for _, e := range g {
-		log.Debug("  - {{id}}", "id", e.Node)
+		objectspace.Log.Debug("  - {{id}}", "id", e.Node)
 	}
 
 	for _, e := range g {
@@ -255,10 +250,6 @@ func NodeId(e *elemwatch.Event) elemwatch.Id {
 	return e.Node
 }
 
-func Random[E any](list []E) E {
-	return list[rand.Intn(len(list))]
-}
-
 var follow = map[model.Status][]model.Status{
 	model.Status("Ready"):  []model.Status{model.Status("Locked")},
 	model.Status("Locked"): []model.Status{model.Status("Ready")},
@@ -269,5 +260,7 @@ var follow = map[model.Status][]model.Status{
 	model.STATUS_FAILED:     []model.Status{model.STATUS_INVALID, model.STATUS_PROCESSING, model.STATUS_BLOCKED},
 	model.STATUS_BLOCKED:    []model.Status{model.STATUS_INVALID, model.STATUS_PROCESSING},
 	model.STATUS_PROCESSING: []model.Status{model.STATUS_FAILED, model.STATUS_COMPLETED},
+	model.STATUS_DELETING:   []model.Status{model.STATUS_DELETED},
 	model.STATUS_COMPLETED:  []model.Status{model.STATUS_INVALID, model.STATUS_PROCESSING, model.STATUS_BLOCKED},
+	model.STATUS_DELETED:    []model.Status{},
 }

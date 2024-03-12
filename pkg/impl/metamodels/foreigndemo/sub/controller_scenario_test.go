@@ -76,7 +76,7 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			Expect(ovE.(*db.Value).Status.FormalVersion).To(Equal(g.FormalVersion(graph.GraphIdForPhase(ovE, mymetamodel.FINAL_VALUE_PHASE))))
 		})
 
-		FIt("handles expression for controller test scenario", func() {
+		It("handles expression for controller test scenario", func() {
 			env.AddService(me.NewExpressionController(env.Logging(), 1, env.Database()))
 			env.Start()
 

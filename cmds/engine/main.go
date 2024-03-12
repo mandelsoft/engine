@@ -30,7 +30,7 @@ func Error(msg string, args ...any) {
 
 func main() {
 	var port int
-	var pattern string
+	var watchPattern string
 	var consume bool
 	var database string = "."
 	var files string
@@ -39,7 +39,7 @@ func main() {
 	flags := pflag.NewFlagSet("engine", pflag.ExitOnError)
 
 	flags.IntVarP(&port, "port", "p", 8080, "server port")
-	flags.StringVarP(&pattern, "pattern", "P", "/watch", "watch path pattern")
+	flags.StringVarP(&watchPattern, "pattern", "P", "/watch", "watch path pattern")
 	flags.BoolVarP(&consume, "consumer", "c", false, "run consumer")
 	flags.StringVarP(&level, "log-level", "L", level, "log level")
 	flags.StringVarP(&database, "database", "d", database, "database path")
@@ -74,7 +74,8 @@ func main() {
 	cntr := controllers.NewExpressionController(lctx, 1, odb)
 
 	srv := server.NewServer(port, true, 20*time.Second)
-	proc.RegisterWatchHandler(srv, "/engine/watch")
+	log.Info("serving watvh on {{path}}", "path", watchPattern)
+	proc.RegisterWatchHandler(srv, watchPattern)
 	dbservice.New(odb, "/db").RegisterHandler(srv)
 
 	if files != "" {
@@ -82,6 +83,7 @@ func main() {
 		if err != nil {
 			Error("cannot create file server: %s", err.Error())
 		}
+		log.Info("serving ui on /ui from {{path}}", "path", files)
 		dir.RegisterHandler(srv)
 	}
 
@@ -93,6 +95,9 @@ func main() {
 	err = reg.Start()
 	if err != nil {
 		Error("cannot start services: %s", err.Error())
+	}
+	if consume {
+		Consume()
 	}
 	reg.Wait()
 }

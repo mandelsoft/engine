@@ -1,4 +1,4 @@
-package main
+package objectspace
 
 import (
 	"github.com/mandelsoft/logging"
@@ -8,7 +8,7 @@ import (
 
 var REALM = logging.NewRealm("fake")
 
-var log logging.Logger
+var Log logging.Logger
 
 func init() {
 	logcfg := logrusl.Human(true)
@@ -18,6 +18,6 @@ func init() {
 	lctx.AddRule(logging.NewConditionRule(logging.DebugLevel, logging.NewRealmPrefix("fake")))
 	lctx.AddRule(logging.NewConditionRule(logging.DebugLevel, logging.NewRealmPrefix("engine")))
 	lctx.AddRule(logging.NewConditionRule(logging.DebugLevel, logging.NewRealmPrefix("database")))
-	log = lctx.Logger(REALM)
-	log.Info("test {{value}}", "value", "value")
+	Log = lctx.Logger(REALM)
+	Log.Info("test {{value}}", "value", "value")
 }

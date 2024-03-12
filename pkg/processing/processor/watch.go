@@ -60,16 +60,23 @@ func (l *watchEventLister) ListObjectIds(typ string, closure bool, ns string, at
 
 	var list []elemwatch.Event
 
-	if ns == "" {
-		list = l.listAll(typ)
-	} else {
-		for name, ni := range l.m.namespaces {
-			if !database.MatchNamespace(closure, ns, name) {
-				continue
+	for name, ni := range l.m.namespaces {
+		if !database.MatchNamespace(closure, ns, name) {
+			continue
+		}
+		if typ == "" || typ == l.m.mm.NamespaceType() {
+			nsname := ni.GetNamespaceName()
+
+			for _, ni := range l.m.namespaces {
+				if ni.namespace.GetNamespace() == nsname {
+					list = append(list, *NewWatchEventForNamespace(ni))
+				}
 			}
+		}
+		if typ != l.m.mm.NamespaceType() {
 			ids := ni.list(typ)
 			for _, id := range ids {
-				e := l.m._GetElement(id)
+				e := ni._GetElement(id)
 				if e != nil {
 					list = append(list, *NewWatchEvent(e))
 				}

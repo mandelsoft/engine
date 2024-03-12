@@ -249,5 +249,5 @@ func (ni *namespaceInfo) RemoveInternal(log logging.Logger, m *processingModel, 
 		log.Info(" - deleting phase {{phase}}", "phase", ph)
 		delete(ni.elements, NewElementIdForPhase(oid, ph))
 	}
-	// delete(ni.internal, oid)
+	delete(ni.internal, oid)
 }

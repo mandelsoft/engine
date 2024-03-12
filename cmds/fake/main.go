@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/mandelsoft/engine/cmds/fake/objectspace"
+	"github.com/mandelsoft/engine/cmds/fake/random"
+	"github.com/mandelsoft/engine/cmds/fake/scenario1"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
 	"github.com/mandelsoft/engine/pkg/watch"
 	"github.com/spf13/pflag"
@@ -18,6 +22,7 @@ func Error(msg string, args ...any) {
 func main() {
 	var port int
 	var pattern string
+	var scenario string
 	var consume bool
 
 	flags := pflag.NewFlagSet("fake", pflag.ExitOnError)
@@ -25,18 +30,19 @@ func main() {
 	flags.IntVarP(&port, "port", "p", 8080, "server port")
 	flags.StringVarP(&pattern, "pattern", "P", "/watch", "watch path pattern")
 	flags.BoolVarP(&consume, "consumer", "c", false, "run consumer")
+	flags.StringVarP(&scenario, "scenario", "s", "random", "scenario")
 
 	err := flags.Parse(os.Args[1:])
 	if err != nil {
 		Error("invalid arguments: %s", err)
 	}
 
-	log.Info("starting")
+	objectspace.Log.Info("starting")
 
-	objects := NewObjectSpace()
+	objects := objectspace.NewObjectSpace()
 	objects.Set(&elemwatch.Event{
 		Node: elemwatch.Id{
-			Kind:      mm.NamespaceType(),
+			Kind:      objectspace.MetaModel.NamespaceType(),
 			Namespace: "",
 			Name:      "",
 			Phase:     "",
@@ -45,9 +51,9 @@ func main() {
 	})
 	objects.Set(&elemwatch.Event{
 		Node: elemwatch.Id{
-			Kind:      mm.NamespaceType(),
+			Kind:      objectspace.MetaModel.NamespaceType(),
 			Namespace: "",
-			Name:      NS,
+			Name:      objectspace.NS,
 			Phase:     "",
 		},
 		Status: "Ready",
@@ -62,7 +68,14 @@ func main() {
 	if consume {
 		Consume()
 	}
-	CreateEvents(objects)
+	switch scenario {
+	case "scenario1":
+		scenario1.Scenario(objects)
+		time.Sleep(time.Hour)
+	default:
+		random.Scenario(objects)
+
+	}
 }
 
 func Consume() (watch.Syncher, error) {
@@ -77,8 +90,8 @@ type handler struct {
 
 func (h *handler) HandleEvent(e elemwatch.Event) {
 	if e.GetType() == "" {
-		log.Error("got event {{event}}", "event", e)
+		objectspace.Log.Error("got event {{event}}", "event", e)
 	} else {
-		log.Trace("got event {{event}}", "event", e)
+		objectspace.Log.Trace("got event {{event}}", "event", e)
 	}
 }

@@ -90,6 +90,11 @@ var _ = Describe("Processing", func() {
 			fmt.Printf("\n%s\n", expected)
 			fmt.Printf("%s\n", o.(*db.Value).Status.FormalVersion)
 			Expect(o.(*db.Value).Status.FormalVersion).To(Equal(expected))
+
+			fmt.Println("************** deleting operator ****************")
+			fuOpC := env.FutureForObjectStatus(model.STATUS_DELETED, opC)
+			MustBeSuccessful(env.DeleteObject(opC))
+			Expect(env.WaitWithTimeout(fuOpC)).To(BeTrue())
 		})
 	})
 })

@@ -1,4 +1,4 @@
-package main
+package objectspace
 
 import (
 	"fmt"
@@ -104,7 +104,9 @@ func (s *ObjectSpace) getGraph(c *elemwatch.Event, cur []*elemwatch.Event) []*el
 
 	for _, e := range s.objects {
 		if slices.Contains(e.Links, c.Node) {
-			r = append(r, e)
+			if !slices.Contains(cur, e) {
+				r = append(r, e)
+			}
 		}
 	}
 	return r
