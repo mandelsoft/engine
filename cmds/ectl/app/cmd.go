@@ -61,5 +61,6 @@ the processing engine.
 	maincmd.AddCommand(NewGet(opts))
 	maincmd.AddCommand(NewApply(opts))
 	maincmd.AddCommand(NewDelete(opts))
+	maincmd.AddCommand(NewWatch(opts))
 	return maincmd
 }
