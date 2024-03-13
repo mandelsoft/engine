@@ -57,10 +57,14 @@ func (h *RequestHandler[R, E]) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.LogError(err, "reading registration request")
 		wsutil.WriteServerMessage(conn, ws.OpText, (&Error{err.Error()}).Data())
+		conn.Close()
+		return
 	}
 	if op != ws.OpText {
 		log.Error("no binary data")
 		wsutil.WriteServerMessage(conn, ws.OpText, (&Error{"binary registration request required"}).Data())
+		conn.Close()
+		return
 	}
 
 	var registration R
@@ -132,15 +136,14 @@ func (h *handler[R, E]) HandleEvent(e E) {
 	err := wsutil.WriteServerMessage(h.conn, ws.OpText, data)
 	if err != nil {
 		log.LogError(err, "cannot send event -> closing connection")
-		h.unregister()
-		h.conn.Close()
-		h.conn = nil
+		h.Close()
 	}
 }
 func (h *handler[R, E]) Close() error {
 	log.Info("closing connection and unregister handler for {{req}}", "req", h.req)
 	h.unregister()
 	h.conn.Close()
+	h.conn = nil
 	h.hhandler.removeHandler(h)
 	return nil
 }

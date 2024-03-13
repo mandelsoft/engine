@@ -1,7 +1,6 @@
 package server
 
 import (
-	"io"
 	"net/http"
 	"strings"
 
@@ -11,8 +10,9 @@ import (
 )
 
 type DirectoryHandler struct {
-	fs     vfs.FileSystem
-	prefix string
+	fs      vfs.FileSystem
+	prefix  string
+	handler http.Handler
 }
 
 var _ http.Handler = (*DirectoryHandler)(nil)
@@ -30,8 +30,9 @@ func NewDirectoryHandler(fs vfs.FileSystem, prefix string) *DirectoryHandler {
 		prefix += "/"
 	}
 	return &DirectoryHandler{
-		fs:     fs,
-		prefix: prefix,
+		fs:      fs,
+		prefix:  prefix,
+		handler: http.StripPrefix(prefix, http.FileServerFS(vfs.AsIoFS(fs))),
 	}
 }
 
@@ -40,20 +41,6 @@ func (d *DirectoryHandler) RegisterHandler(srv *Server) {
 }
 
 func (d *DirectoryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodGet {
-		writer.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	path := request.URL.Path[len(d.prefix):]
-
-	file, err := d.fs.Open(path)
-	if err != nil {
-		log.Info("{{method}} not found {{url}}", "url", request.Method, request.URL)
-		writer.WriteHeader(http.StatusNotFound)
-	} else {
-		log.Info("{{method}} serving {{url}}", "method", request.Method, "url", request.URL)
-		io.Copy(writer, file)
-		file.Close()
-	}
+	log.Info("{{method}} serving {{url}}", "method", request.Method, "url", request.URL)
+	d.handler.ServeHTTP(writer, request)
 }

@@ -22,6 +22,7 @@ type Apply struct {
 
 	mainopts *Options
 	filemode bool
+	setns    bool
 }
 
 func NewApply(opts *Options) *cobra.Command {
@@ -38,6 +39,7 @@ func NewApply(opts *Options) *cobra.Command {
 	c.cmd.RunE = func(cmd *cobra.Command, args []string) error { return c.Run(args) }
 	flags := cmd.Flags()
 	flags.BoolVarP(&c.filemode, "file", "f", false, "manifest files")
+	flags.BoolVarP(&c.setns, "set-namespace", "N", false, "set namespace")
 
 	return cmd
 }
@@ -48,6 +50,9 @@ func (c *Apply) Run(args []string) error {
 		var cmderr error
 		multi := len(items) > 1
 		for i, o := range items {
+			if c.setns && c.mainopts.namespace != "" {
+				o.SetNamespace(c.mainopts.namespace)
+			}
 			var err error
 			switch {
 			case !filesystem.CheckType(o.GetType()):

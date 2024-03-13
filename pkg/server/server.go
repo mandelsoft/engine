@@ -34,7 +34,7 @@ func NewServer(port int, def bool, shutdownTimeout time.Duration) *Server {
 		Handler: mux,
 	}
 	if def {
-		mux.Handle("/", default_mux)
+		mux.Handle("/*", default_mux)
 	}
 	return &Server{
 		server:          server,

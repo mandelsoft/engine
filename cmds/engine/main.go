@@ -35,6 +35,7 @@ func main() {
 	var database string = "."
 	var files string
 	var level string = "info"
+	var delay time.Duration
 
 	flags := pflag.NewFlagSet("engine", pflag.ExitOnError)
 
@@ -44,6 +45,7 @@ func main() {
 	flags.StringVarP(&level, "log-level", "L", level, "log level")
 	flags.StringVarP(&database, "database", "d", database, "database path")
 	flags.StringVarP(&files, "files", "F", database, "file server base directory for /ui")
+	flags.DurationVarP(&delay, "delay", "D", 0, "processing delay (duration)")
 
 	err := flags.Parse(os.Args[1:])
 	if err != nil {
@@ -70,11 +72,14 @@ func main() {
 		Error("cannot create processor: %s", err.Error())
 	}
 
+	if delay > 0 {
+		proc.SetDelay(delay)
+	}
 	odb := objectbase.GetDatabase[db.Object](proc.Model().ObjectBase())
 	cntr := controllers.NewExpressionController(lctx, 1, odb)
 
 	srv := server.NewServer(port, true, 20*time.Second)
-	log.Info("serving watvh on {{path}}", "path", watchPattern)
+	log.Info("serving watch on {{path}}", "path", watchPattern)
 	proc.RegisterWatchHandler(srv, watchPattern)
 	dbservice.New(odb, "/db").RegisterHandler(srv)
 
@@ -97,13 +102,14 @@ func main() {
 		Error("cannot start services: %s", err.Error())
 	}
 	if consume {
-		Consume()
+		log.Info("registering watch")
+		Consume(watchPattern)
 	}
 	reg.Wait()
 }
 
-func Consume() (watch.Syncher, error) {
-	c := watch.NewClient[elemwatch.Request, elemwatch.Event]("ws://localhost:8080/watch")
+func Consume(watchPattern string) (watch.Syncher, error) {
+	c := watch.NewClient[elemwatch.Request, elemwatch.Event]("ws://localhost:8080" + watchPattern)
 
 	registration := elemwatch.Request{}
 	return c.Register(context.Background(), registration, &handler{})
