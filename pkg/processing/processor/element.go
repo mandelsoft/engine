@@ -11,7 +11,7 @@ import (
 type _Element interface {
 	Element
 
-	GetStatus() model.Status
+	model.StatusSource
 	SetStatus(ob objectbase.Objectbase, s model.Status) (bool, error)
 	GetLock() RunId
 	GetExternalState(o model.ExternalObject) model.ExternalState

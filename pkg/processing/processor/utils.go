@@ -32,29 +32,6 @@ func NamespaceId(ns string) (string, string) {
 	return ns[:i], ns[i+1:]
 }
 
-type description interface {
-	Description() string
-}
-type getdescription interface {
-	GetDescription() string
-}
-type getversion interface {
-	GetVersion() string
-}
-
-func DescribeObject(o any) string {
-	if d, ok := o.(getdescription); ok {
-		return d.GetDescription()
-	}
-	if d, ok := o.(description); ok {
-		return d.Description()
-	}
-	if d, ok := o.(getversion); ok {
-		return d.GetVersion()
-	}
-	return "<no description>"
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 // OrderedElementSet is a set of elements used for locking

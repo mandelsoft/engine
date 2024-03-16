@@ -114,6 +114,23 @@ func (m *processingModel) assureNamespace(log logging.Logger, name string, creat
 	return ni, nil
 }
 
+func (m *processingModel) RemoveNamespace(log logging.Logger, ni *namespaceInfo) bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if ni.GetNamespaceName() == "" {
+		return false
+	}
+	if len(ni.internal) != 0 && ni.namespace.GetLock() == "" {
+		return false
+	}
+	// TODO: handle error and repeat for failure
+	// Only relevant for UI
+	m.ob.DeleteObject(ni.namespace)
+	delete(m.namespaces, ni.GetNamespaceName())
+	return true
+}
+
 func (m *processingModel) AssureElementObjectFor(log logging.Logger, e model.ExternalObject) (Element, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()

@@ -81,7 +81,7 @@ type ExposeState struct {
 
 type ExposeCurrentState struct {
 	db.StandardCurrentState
-	Output ExposeOutput `json:"output"`
+	Output ExposeOutput `json:"output,omitempty"`
 }
 
 type ExposeTargetState struct {

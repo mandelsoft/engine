@@ -227,16 +227,19 @@ func (n *InternalPhaseObjectSupport[I, T]) AcceptExternalState(lctx model.Loggin
 	n.Lock.Lock()
 	defer n.Lock.Unlock()
 
-	status, err := n.phases.AcceptExternalState(lctx, n.self, phase, state)
-	if err != nil {
-		return status, err
-	}
 	mod := func(_o db.Object) (bool, bool) {
 		mod := false
 		n.phases.DBSetExternalState(lctx, n, _o.(db.InternalDBObject), phase, state, &mod)
 		return mod, mod
 	}
-	_, err = wrapped.Modify(ob, n, mod)
+	_, err := wrapped.Modify(ob, n, mod)
+	if err != nil {
+		return model.ACCEPT_OK, err
+	}
+	status, err := n.phases.AcceptExternalState(lctx, n.self, phase, state)
+	if err != nil {
+		return status, err
+	}
 	return status, err
 }
 

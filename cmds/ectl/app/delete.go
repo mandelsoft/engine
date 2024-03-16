@@ -21,6 +21,7 @@ type Delete struct {
 	force    bool
 	all      bool
 	filemode bool
+	setns    bool
 }
 
 func NewDelete(opts *Options) *cobra.Command {
@@ -39,6 +40,8 @@ func NewDelete(opts *Options) *cobra.Command {
 	flags.BoolVarP(&c.force, "force", "F", false, "force mode")
 	flags.BoolVarP(&c.all, "all", "A", false, "all objects")
 	flags.BoolVarP(&c.filemode, "file", "f", false, "manifest files")
+	flags.BoolVarP(&c.setns, "set-namespace", "N", false, "set namespace")
+
 	return cmd
 }
 
@@ -53,6 +56,9 @@ func (c *Delete) Run(args []string) error {
 		var cmderr error
 		multi := len(list) > 1
 		for i, o := range list {
+			if c.setns && c.mainopts.namespace != "" {
+				o = database.NewObjectId(o.GetType(), c.mainopts.namespace, o.GetName())
+			}
 			req, err := http.NewRequest("DELETE", c.mainopts.GetURL()+path.Join(o.GetType(), o.GetNamespace(), o.GetName()), nil)
 			if err != nil {
 				cmderr = IndexError(c.cmd, multi, i+1, database.StringId(o), "deletion failed", err)
@@ -173,6 +179,4 @@ func (c *Delete) Run(args []string) error {
 	return cmderr
 }
 
-func ObjectIdFor(o Object) database.ObjectId {
-	return database.NewObjectIdFor(o)
-}
+var ObjectIdFor = database.GetObjectId[Object]

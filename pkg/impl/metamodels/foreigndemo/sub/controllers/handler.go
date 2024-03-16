@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -36,13 +37,16 @@ func (h *Handler) HandleEvent(id database.ObjectId) {
 
 	if id.GetType() == mymetamodel.TYPE_EXPRESSION {
 		h.c.pool.EnqueueKey(id)
+	}
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+	id = database.NewObjectIdFor(id)
+	tgt := h.usage[id]
+	if tgt != nil {
+		h.c.log.Info("trigger master expression {{tid}} for {{oid}}", "tid", tgt, "oid", id)
+		h.c.pool.EnqueueKey(tgt)
 	} else {
-		h.lock.RLock()
-		defer h.lock.RUnlock()
-		tgt := h.usage[id]
-		if tgt != nil {
-			h.c.pool.EnqueueKey(tgt)
-		}
+		h.c.log.Debug("no master expression for {{oid}}", "oid", id)
 	}
 }
 
@@ -65,6 +69,13 @@ func (h *Handler) Unuse(src database.ObjectId) bool {
 	if t := h.usage[src]; t == nil {
 		return false
 	}
-	delete(h.usage, database.NewObjectIdFor(src))
+	delete(h.usage, src)
 	return true
+}
+
+func (h *Handler) GetTriggers() map[database.ObjectId]database.ObjectId {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	return maps.Clone(h.usage)
 }

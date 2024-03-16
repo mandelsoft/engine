@@ -78,7 +78,7 @@ var _ = Describe("Processing", func() {
 			g := Must(graph.NewGraph(version.Composed, fvA, fvB, fopC))
 
 			rid := database.NewObjectId(mymetamodel.TYPE_VALUE, NS, "C-A")
-			expected := g.FormalVersion(graph.MapToPhaseId(rid, env.MetaModel()))
+			expected := g.FormalVersion(g.MapToPhaseId(rid))
 
 			mCA := ValueCompleted(env, "C-A")
 			MustBeSuccessful(env.SetObject(opC))
@@ -95,6 +95,29 @@ var _ = Describe("Processing", func() {
 			fuOpC := env.FutureForObjectStatus(model.STATUS_DELETED, opC)
 			MustBeSuccessful(env.DeleteObject(opC))
 			Expect(env.WaitWithTimeout(fuOpC)).To(BeTrue())
+		})
+	})
+
+	Context("failures", func() {
+		It("reports invalid", func() {
+			env.AddService(controllers.NewExpressionController(env.Logging(), 1, env.Database()))
+			env.Start()
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessful(env.SetObject(vA))
+			vB := db.NewValueNode(NS, "B", 6)
+			MustBeSuccessful(env.SetObject(vB))
+
+			vopC := db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperand("iB", "B").
+				AddOperation("eA", "noop", "iA", "iB").
+				AddOutput("C-A", "eA")
+
+			fopC := env.FutureFor(model.STATUS_INVALID, NewElementIdForTypePhase(mymetamodel.TYPE_OPERATOR_STATE, vopC, mymetamodel.PHASE_GATHER))
+			MustBeSuccessful(env.SetObject(vopC))
+
+			Expect(env.WaitWithTimeout(fopC)).To(BeTrue())
 		})
 	})
 })

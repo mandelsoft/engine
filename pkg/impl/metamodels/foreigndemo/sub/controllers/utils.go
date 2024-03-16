@@ -54,6 +54,19 @@ func NewRefs(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
 	})
 }
 
+func OldResults(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
+	return utils.FilterSlice(o.Status.Generated.Results, func(l database.LocalObjectRef) bool {
+		return !g.HasRootObject(database.NewObjectId(l.GetType(), o.Status.Generated.Namespace, l.Name))
+	})
+}
+
+func NewResults(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
+	n := utils.TransformSlice(g.RootObjects(), database.NewLocalObjectRefFor)
+	return utils.FilterSlice(n, func(l database.LocalObjectRef) bool {
+		return !slices.Contains(o.Status.Generated.Results, l)
+	})
+}
+
 func GenerateGraph(log logging.Logger, e *db.Expression, namespace string) (graph.Graph, error) {
 	infos, order, err := Validate(e)
 	if err != nil {

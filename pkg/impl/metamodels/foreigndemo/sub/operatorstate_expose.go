@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/processing/model"
@@ -93,6 +92,11 @@ func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		support.SlaveCreationFunc(func(o *db.ValueState) (bool, bool) {
 			mod := false
 			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			if mod {
+				log.Info("update provider for {{slaveid}} to {{provider}}", "slaveid", NewElementIdForPhase(o, mymetamodel.PHASE_PROPAGATE), req.Element.GetName())
+			} else {
+				log.Info("preserve provider {{provider}} for {{slaveid}}", "slaveid", NewElementIdForPhase(o, mymetamodel.PHASE_PROPAGATE), req.Element.GetName())
+			}
 			return mod, mod
 		}),
 		slaves...,

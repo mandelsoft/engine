@@ -116,6 +116,12 @@ func SlaveCreationFunc[I db.InternalDBObject](mod func(o I) (bool, bool)) model.
 	}
 }
 
+func ExternalUpdateFunc[I db.ExternalDBObject](mod func(o I) bool) model.ExternalUpdateFunction {
+	return func(ob objectbase.Objectbase, oid database.ObjectId, e model.ExternalObject) (bool, model.ExternalObject, error) {
+		return UpdateExternal(ob, oid, e, mod)
+	}
+}
+
 func UpdateSlave[I db.InternalDBObject, R any](ob objectbase.Objectbase, eid mmids.ElementId, i model.InternalObject, mod func(i I) (R, bool)) (R, InternalObject, error) {
 	var _nil R
 	if i == nil {
@@ -131,6 +137,23 @@ func UpdateSlave[I db.InternalDBObject, R any](ob objectbase.Objectbase, eid mmi
 		return mod(o)
 	})
 	return r, i.(InternalObject), err
+}
+
+func UpdateExternal[E db.ExternalDBObject](ob objectbase.Objectbase, oid database.ObjectId, e model.ExternalObject, mod func(e E) bool) (bool, model.ExternalObject, error) {
+	if e == nil {
+		_e, err := ob.CreateObject(oid)
+		if err != nil {
+			return false, nil, err
+		}
+		e = _e.(model.ExternalObject)
+	}
+
+	r, err := wrapped.Modify(ob, e.(wrapper.Object[db.Object]), func(_o db.Object) (bool, bool) {
+		o := _o.(E)
+		m := mod(o)
+		return m, m
+	})
+	return r, e.(model.ExternalObject), err
 }
 
 func RequestSlaveDeletion(log logging.Logger, ob objectbase.Objectbase, id database.ObjectId) error {
@@ -225,158 +248,18 @@ func AssureElement[I db.InternalDBObject, R any](log logging.Logger, ob objectba
 	return _nil, t.GetObject().(InternalObject), false, nil
 }
 
-type StatusSource interface {
-	GetStatus() model.Status
-}
-
-var statusmerge = map[model.Status]map[model.Status]model.Status{
-	model.STATUS_INITIAL: {
-		model.STATUS_INITIAL:    model.STATUS_INITIAL,
-		model.STATUS_COMPLETED:  model.STATUS_COMPLETED,
-		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
-		model.STATUS_FAILED:     model.STATUS_FAILED,
-		model.STATUS_INVALID:    model.STATUS_INVALID,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_COMPLETED: {
-		model.STATUS_INITIAL:    model.STATUS_COMPLETED,
-		model.STATUS_COMPLETED:  model.STATUS_COMPLETED,
-		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
-		model.STATUS_FAILED:     model.STATUS_FAILED,
-		model.STATUS_INVALID:    model.STATUS_INVALID,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_COMPLETED,
-	},
-	model.STATUS_BLOCKED: {
-		model.STATUS_INITIAL:    model.STATUS_BLOCKED,
-		model.STATUS_COMPLETED:  model.STATUS_BLOCKED,
-		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
-		model.STATUS_FAILED:     model.STATUS_BLOCKED,
-		model.STATUS_INVALID:    model.STATUS_BLOCKED,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_INVALID: {
-		model.STATUS_INITIAL:    model.STATUS_INVALID,
-		model.STATUS_COMPLETED:  model.STATUS_INVALID,
-		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
-		model.STATUS_FAILED:     model.STATUS_INVALID,
-		model.STATUS_INVALID:    model.STATUS_INVALID,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_FAILED: {
-		model.STATUS_INITIAL:    model.STATUS_FAILED,
-		model.STATUS_COMPLETED:  model.STATUS_FAILED,
-		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
-		model.STATUS_FAILED:     model.STATUS_FAILED,
-		model.STATUS_INVALID:    model.STATUS_INVALID,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_PENDING: {
-		model.STATUS_INITIAL:    model.STATUS_PENDING,
-		model.STATUS_COMPLETED:  model.STATUS_PENDING,
-		model.STATUS_BLOCKED:    model.STATUS_PENDING,
-		model.STATUS_FAILED:     model.STATUS_PENDING,
-		model.STATUS_INVALID:    model.STATUS_PENDING,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_PREPARING: {
-		model.STATUS_INITIAL:    model.STATUS_PREPARING,
-		model.STATUS_COMPLETED:  model.STATUS_PREPARING,
-		model.STATUS_BLOCKED:    model.STATUS_PREPARING,
-		model.STATUS_FAILED:     model.STATUS_PREPARING,
-		model.STATUS_INVALID:    model.STATUS_PREPARING,
-		model.STATUS_PENDING:    model.STATUS_PREPARING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_WAITING: {
-		model.STATUS_INITIAL:    model.STATUS_WAITING,
-		model.STATUS_COMPLETED:  model.STATUS_WAITING,
-		model.STATUS_BLOCKED:    model.STATUS_WAITING,
-		model.STATUS_FAILED:     model.STATUS_WAITING,
-		model.STATUS_INVALID:    model.STATUS_WAITING,
-		model.STATUS_PENDING:    model.STATUS_WAITING,
-		model.STATUS_PREPARING:  model.STATUS_WAITING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-	model.STATUS_PROCESSING: {
-		model.STATUS_INITIAL:    model.STATUS_PROCESSING,
-		model.STATUS_COMPLETED:  model.STATUS_PROCESSING,
-		model.STATUS_BLOCKED:    model.STATUS_PROCESSING,
-		model.STATUS_FAILED:     model.STATUS_PROCESSING,
-		model.STATUS_INVALID:    model.STATUS_PROCESSING,
-		model.STATUS_PENDING:    model.STATUS_PROCESSING,
-		model.STATUS_PREPARING:  model.STATUS_PROCESSING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_PROCESSING,
-		model.STATUS_DELETED:    model.STATUS_PROCESSING,
-	},
-	model.STATUS_DELETED: {
-		model.STATUS_INITIAL:    model.STATUS_DELETED,
-		model.STATUS_COMPLETED:  model.STATUS_COMPLETED,
-		model.STATUS_BLOCKED:    model.STATUS_BLOCKED,
-		model.STATUS_FAILED:     model.STATUS_FAILED,
-		model.STATUS_INVALID:    model.STATUS_FAILED,
-		model.STATUS_PENDING:    model.STATUS_PENDING,
-		model.STATUS_PREPARING:  model.STATUS_PREPARING,
-		model.STATUS_PROCESSING: model.STATUS_PROCESSING,
-		model.STATUS_WAITING:    model.STATUS_WAITING,
-		model.STATUS_DELETED:    model.STATUS_DELETED,
-	},
-}
-
-func MergeStatus(a, b model.Status) model.Status {
-	n := statusmerge[a]
-	if n != nil {
-		m, ok := n[b]
-		if ok {
-			return m
-		}
-		return a
-	} else {
-		return b
-	}
-}
-
 func CombinedPhaseStatus[I db.InternalDBObject](access PhaseStateAccess[I], o I) model.Status {
 	status := model.STATUS_INITIAL
 	for _, a := range access {
-		status = MergeStatus(status, a(o).GetStatus())
+		status = model.MergeStatus(status, a(o).GetStatus())
 	}
 	return status
 }
 
-func CombinedStatus(ss ...StatusSource) model.Status {
+func CombinedStatus(ss ...model.StatusSource) model.Status {
 	status := model.STATUS_INITIAL
 	for _, s := range ss {
-		status = MergeStatus(status, s.GetStatus())
+		status = model.MergeStatus(status, s.GetStatus())
 	}
 	return status
 }

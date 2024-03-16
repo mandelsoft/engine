@@ -145,9 +145,11 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 
 	// give the internal object the chance to modify the actual external state
 	ov := o.GetState().GetVersion()
-	v := e.GetExternalState(o).GetVersion()
+	es := e.GetExternalState(o)
+	v := es.GetVersion()
 	if ov != v {
-		log.Debug("state of external object {{extid}} adjusted from {{objectversion}} to {{version}}", "objectversion", ov, "version", v)
+		log.Info("state of external object {{extid}} adjusted from {{objectversion}} to {{version}}", "objectversion", ov, "version", v)
+		log.Debug("external state: {{state}}", "state", utils.DescribeObject(es))
 	}
 	if v == cur {
 		log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
@@ -259,6 +261,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		children := ni.GetChildren(e.Id())
 		if len(children) == 0 {
 			log.Info("element {{element}} is deleting and no children found -> initiate deletion")
+			log.Info("  found links {{links}}", "links", utils.Join(curlinks))
 			links = curlinks
 			deletion = true
 		} else {
@@ -620,7 +623,11 @@ func (p *Processor) phaseDeleted(lctx pool.MessageContext, log logging.Logger, n
 		}
 	}
 
-	ni.RemoveInternal(log, p.processingModel, NewObjectIdFor(elem))
+	if ni.RemoveInternal(log, p.processingModel, NewObjectIdFor(elem)) {
+		if p.processingModel.RemoveNamespace(log, ni) {
+			p.events.TriggerNamespaceEvent(ni)
+		}
+	}
 
 	for _, c := range children {
 		log.Info("  trigger dependent element {{depelem}}", "depelem", c)
@@ -772,14 +779,15 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 		}
 		state := e.GetExternalState(o)
 		v := state.GetVersion()
-		log.Trace("  found effective external state from {{extid}} for phase {{phase}}: {{state}}",
-			"phase", e.GetPhase(), "state", DescribeObject(state))
+		log.Debug("  found effective external state from {{extid}} for phase {{phase}}: {{state}}",
+			"phase", e.GetPhase(), "state", utils.DescribeObject(state))
 		err := o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
 			RunId:           utils.Pointer(e.GetLock()),
 			DetectedVersion: &v,
 			ObservedVersion: nil,
 			Status:          utils.Pointer(model.STATUS_PREPARING),
 			Message:         utils.Pointer("preparing target state"),
+			ExternalState:   state,
 			ResultState:     nil,
 		})
 		if err != nil {

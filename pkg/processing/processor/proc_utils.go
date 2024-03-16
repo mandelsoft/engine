@@ -99,7 +99,7 @@ func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _E
 			keys = append(keys, "runid", update.RunId)
 		case model.OutputState:
 			update.ResultState = opt
-			keys = append(keys, "result", DescribeObject(opt))
+			keys = append(keys, "result", utils.DescribeObject(opt))
 		case FormalVersion:
 			update.FormalVersion = utils.Pointer(string(opt))
 			keys = append(keys, "formal version", opt)

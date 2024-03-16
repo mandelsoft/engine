@@ -17,8 +17,17 @@ func init() {
 	ExpressionPhaseStateAccess.Register(mymetamodel.PHASE_CALCULATE, func(o *ExpressionState) db.PhaseState { return &o.EvaluationState })
 }
 
+// ExpressionState handles a foreign controllerd external Expression object
+// and is a generated object, also.
+// Therefore, it has a dedicated external state type including expression spec and status field
+// to reflect the foreign processing state
+// and it has an own spec reflecting the provider for generated instances.
 type ExpressionState struct {
 	db.InternalDBObjectSupport `json:",inline"`
+
+	// Spec is the part of the object state held exclusively in the state object and not
+	// on the external object.
+	Spec ExpressionStateSpec `json:"spec,omitempty"`
 
 	EvaluationState `json:",inline"`
 }
@@ -29,14 +38,20 @@ func (n *ExpressionState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(ExpressionPhaseStateAccess, n))
 }
 
+type ExpressionStateSpec struct {
+	Provider string `json:"provider,omitempty"`
+}
+
 type EvaluationState struct {
 	db.DefaultPhaseState[EvaluationCurrentState, EvaluationTargetState, *EvaluationCurrentState, *EvaluationTargetState]
 }
 
 type EvaluationCurrentState struct {
 	db.StandardCurrentState
+	ObservedProvider string `json:"observedProvider,omitempty"`
 
-	Output EvaluationOutput `json:"output"`
+	Provider string           `json:"provider,omitempty"`
+	Output   EvaluationOutput `json:"output"`
 }
 
 type EvaluationTargetState struct {
@@ -48,7 +63,11 @@ type EvaluationOutput = ExpressionOutput
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type EffectiveExpressionSpec struct {
+// ExternalExpressionSpec is the formal spec used from the
+// Expression object. Because this object is foreign controlled,
+// it not only consists of the expressions spec field (as usual),
+// but of selected status, also.
+type ExternalExpressionSpec struct {
 	Spec            ExpressionSpec   `json:"spec"`
 	Status          model.Status     `json:"status"`
 	Message         string           `json:"message"`
@@ -56,8 +75,8 @@ type EffectiveExpressionSpec struct {
 	Output          ExpressionOutput `json:"output"`
 }
 
-func NewEffectiveExpressionSpec(e *Expression) *EffectiveExpressionSpec {
-	return &EffectiveExpressionSpec{
+func NewExternalExpressionSpec(e *Expression) *ExternalExpressionSpec {
+	return &ExternalExpressionSpec{
 		Spec:            e.Spec,
 		Status:          e.Status.Status,
 		Message:         e.Status.Message,
@@ -66,10 +85,23 @@ func NewEffectiveExpressionSpec(e *Expression) *EffectiveExpressionSpec {
 	}
 }
 
-func (e *EffectiveExpressionSpec) GetSpecVersion() string {
+func (e *ExternalExpressionSpec) GetSpecVersion() string {
 	return support.NewState(&e.Spec).GetVersion()
 }
 
-func (e *EffectiveExpressionSpec) IsDone() bool {
+func (e *ExternalExpressionSpec) IsDone() bool {
 	return support.NewState(&e.Spec).GetVersion() == e.ObservedVersion
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// EffectiveExpressionSpec bundles the external spec
+// with the internal spec consisting of
+// the provider field.
+// This field is NOT a spec field for the
+// external object and kept for the internal object,
+// only, to describe generated expression objects.
+type EffectiveExpressionSpec struct {
+	*ExternalExpressionSpec `json:",inline"`
+	ExpressionStateSpec     `json:",inline"`
 }

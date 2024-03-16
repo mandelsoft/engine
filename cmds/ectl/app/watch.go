@@ -69,6 +69,7 @@ func Consume(w io.Writer, address string, closure bool, ns string) (watch.Synche
 	c := watch.NewClient[elemwatch.Request, elemwatch.Event](address)
 
 	registration := elemwatch.Request{Flat: !closure, Namespace: ns}
+	fmt.Printf("register %#v\n", registration)
 	return c.Register(context.Background(), registration, &handler{w})
 }
 

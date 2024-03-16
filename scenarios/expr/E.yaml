@@ -1,0 +1,17 @@
+kind: Expression
+metadata:
+  namespace: expr
+  name: E
+spec:
+  operands:
+    A: 5
+    B: 6
+  expressions:
+    oA: 
+      operator: add
+      operands:
+      - A
+      - 1
+    E:
+      operator: expr
+      expression: oA+B+A

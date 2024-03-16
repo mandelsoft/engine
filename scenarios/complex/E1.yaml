@@ -1,0 +1,17 @@
+apiVersion: engine/v1
+kind: Operator
+metadata:
+  name: E1
+  namespace: complex
+spec:
+  operands:
+    iA: A
+    iC: C
+  operations:
+    oE:
+      operands:
+      - iA
+      - iC
+      operator: add
+  outputs:
+    E1: oE

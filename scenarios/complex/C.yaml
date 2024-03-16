@@ -1,0 +1,7 @@
+apiVersion: engine/v1
+kind: Value
+metadata:
+  name: C
+  namespace: complex
+spec:
+  value: 11

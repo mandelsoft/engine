@@ -1,17 +1,21 @@
 package graph
 
 import (
-	"github.com/mandelsoft/logging"
-
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/processing/graph"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
+
+func init() {
+	Scheme.Register(mymetamodel.TYPE_VALUE, &ValueCheck{})
+}
 
 type Value struct {
 	*db.Value
@@ -38,20 +42,7 @@ func (v *Value) DBUpdate(o database.Object) bool {
 	return mod
 }
 
-func (v *Value) DBCheck(log logging.Logger, g Graph, o database.Object) (bool, model.Status, error) {
-	op := o.(*db.Value)
-	exp := g.FormalVersion(GraphIdForPhase(o, mymetamodel.FINAL_VALUE_PHASE))
-	if op.Status.FormalVersion == g.FormalVersion(GraphIdForPhase(o, mymetamodel.FINAL_VALUE_PHASE)) {
-		return true, op.Status.Status, nil
-	}
-	log.Debug("  formal version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.FormalVersion)
-	if op.Status.DetectedVersion == utils.HashData(v.Spec) {
-		return true, op.Status.Status, nil
-	}
-	return false, "", nil
-}
-
-func (v *Value) SubGraph() []version.Node {
+func (v *Value) SubGraph(g Graph) []version.Node {
 	var deps []version.Id
 
 	vers := ""
@@ -60,5 +51,31 @@ func (v *Value) SubGraph() []version.Node {
 	} else {
 		deps = []version.Id{GraphId(mymetamodel.TYPE_OPERATOR, v.input, mymetamodel.PHASE_EXPOSE)}
 	}
-	return []version.Node{version.NewNodeById(GraphIdForPhase(v, mymetamodel.PHASE_PROPAGATE), vers, deps...)}
+	return []version.Node{version.NewNodeById(g.GraphIdForPhase(v, mymetamodel.PHASE_PROPAGATE), vers, deps...)}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ValueCheck struct {
+	graph.DefaultCheckNode[*Value]
+}
+
+func (v *ValueCheck) DBCheck(log logging.Logger, g Graph, o database.Object) (bool, model.Status, error) {
+	op := o.(*db.Value)
+
+	if v.Configured != nil {
+		exp := utils.HashData(v.Configured.Spec)
+		if op.Status.DetectedVersion != exp {
+			log.Debug("  detected version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.DetectedVersion)
+			return false, "", nil
+		}
+	}
+
+	exp := g.FormalVersion(g.GraphIdForPhase(o, mymetamodel.FINAL_VALUE_PHASE))
+	if op.Status.FormalVersion == g.FormalVersion(g.GraphIdForPhase(o, mymetamodel.FINAL_VALUE_PHASE)) {
+		return true, op.Status.Status, nil
+	}
+	log.Debug("  formal version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.FormalVersion)
+
+	return false, "", nil
 }

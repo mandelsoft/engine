@@ -7,7 +7,6 @@ import (
 
 var extTriggerable = sets.Set[model.Status]{}
 var processable = sets.Set[model.Status]{}
-var final = sets.Set[model.Status]{}
 
 func init() {
 	extTriggerable.Insert(
@@ -25,13 +24,6 @@ func init() {
 		model.STATUS_DELETING,
 		model.STATUS_WAITING,
 	)
-
-	final.Insert(
-		model.STATUS_INVALID,
-		model.STATUS_BLOCKED,
-		model.STATUS_COMPLETED,
-		model.STATUS_FAILED,
-	)
 }
 
 func isExtTriggerable(e _Element) bool {
@@ -43,5 +35,5 @@ func isProcessable(e _Element) bool {
 }
 
 func isFinal(e _Element) bool {
-	return processable.Has(e.GetStatus())
+	return model.IsFinalStatus(e.GetStatus())
 }

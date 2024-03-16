@@ -5,8 +5,6 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
-	"github.com/mandelsoft/logging"
-
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -66,6 +64,7 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		}
 		mod = t.SetFormalObjectVersion(fv) || mod
 		support.UpdateField(&t.Spec, s, &mod)
+		lctx.Logger(REALM).Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Provider)
 		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
@@ -92,9 +91,10 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 	}
 
 	target := n.GetTargetState(req.Element.GetPhase())
-
+	slave := false
 	var out db.ValueOutput
 	if len(req.Inputs) > 0 {
+		slave = true
 		links := target.GetLinks()
 		for iid, e := range req.Inputs {
 			s := e.(*ExposeOutputState).GetState()
@@ -115,13 +115,29 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
 
-	if out.Origin != nil {
-		o, err := n.assureSlave(log, req.Model.ObjectBase(), &out)
+	if slave {
+		_, o, err := req.SlaveManagement.AssureExternal(
+			support.ExternalUpdateFunc(func(o *db.Value) bool {
+				mod := false
+				if support.UpdateField(&o.Spec.Value, &out.Value, &mod) {
+					log.Info("- update value {{value}}", "value", out.Value)
+				}
+				if support.UpdateField(&o.Status.Provider, utils.Pointer(out.Origin.GetName()), &mod) {
+					log.Info("- update provider {{provider}}", "provider", out.Origin.GetName())
+				}
+				return mod
+			}),
+			database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()),
+		)
 		if err != nil {
 			return model.StatusCompleted(nil, err)
 		}
 		modifiedObjectVersion := model.ModifiedSlaveObjectVersion(log, req.Element, o)
 		return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out)).ModifyObjectVersion(modifiedObjectVersion)
+	}
+
+	if n.GetCurrentState(req.Element.GetPhase()).(*CurrentValueState).GetProvider() == "" {
+		return model.StatusCompleted(NewValueOutputState(req.FormalVersion, out))
 	}
 
 	log.Info("provider {{provider}} does not feed value anymore", "provider", target.(*TargetValueState).GetProvider())
@@ -134,39 +150,6 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		}
 	}
 	return model.StatusDeleted()
-}
-
-func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, out *db.ValueOutput) (model.ExternalObject, error) {
-	var modobj model.ExternalObject
-
-	extid := database.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName())
-	log = log.WithValues("extid", extid)
-	if *out.Origin != db2.NewObjectId(mymetamodel.TYPE_VALUE, n.GetNamespace(), n.GetName()) {
-		log.Info("checking slave value object {{extid}}")
-		_, err := ob.GetObject(extid)
-		if errors.Is(err, database.ErrNotExist) {
-			log.Info("value object {{extid}} not found")
-			_o, err := ob.CreateObject(extid)
-			o := _o.(*Value)
-			if err == nil {
-				_, err = wrapped.Modify(ob, o, func(_o db2.Object) (bool, bool) {
-					o := _o.(*db.Value)
-					mod := false
-					support.UpdateField(&o.Spec.Value, &out.Value, &mod)
-					support.UpdateField(&o.Status.Provider, utils.Pointer(out.Origin.GetName()), &mod)
-					return mod, mod
-				},
-				)
-			}
-			if err != nil {
-				log.LogError(err, "creation of value object {{exitid}} failed")
-				return nil, err
-			}
-			modobj = _o.(model.ExternalObject)
-			log.Info("slave value object {{extid}} created")
-		}
-	}
-	return modobj, nil
 }
 
 func (n *ValueState) Rollback(lctx model.Logging, ob objectbase.Objectbase, phase Phase, id RunId, tgt model.TargetState, formal *string) (bool, error) {

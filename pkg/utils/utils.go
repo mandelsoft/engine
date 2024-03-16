@@ -63,3 +63,26 @@ func Cycle[T comparable](id T, stack ...T) []T {
 	}
 	return append(slices.Clone(stack[i:]), id)
 }
+
+type description interface {
+	Description() string
+}
+type getdescription interface {
+	GetDescription() string
+}
+type getversion interface {
+	GetVersion() string
+}
+
+func DescribeObject(o any) string {
+	if d, ok := o.(getdescription); ok {
+		return d.GetDescription()
+	}
+	if d, ok := o.(description); ok {
+		return d.Description()
+	}
+	if d, ok := o.(getversion); ok {
+		return d.GetVersion()
+	}
+	return "<no description>"
+}

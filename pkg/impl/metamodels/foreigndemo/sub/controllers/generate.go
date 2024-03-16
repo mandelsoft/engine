@@ -22,7 +22,6 @@ func Generate(log logging.Logger, namespace string, infos map[string]*Expression
 	}
 	return graph.NewGraph(version.Composed, utils.MapElements(nodes)...)
 }
-
 func generate(log logging.Logger, namespace string, values map[string]int, base string, n *expression.Node, nodes map[string]graph.Node, index int) (string, int) {
 	if n.Value != nil {
 		return "", index

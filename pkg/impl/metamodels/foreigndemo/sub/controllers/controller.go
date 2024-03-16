@@ -27,6 +27,7 @@ type ExpressionController struct {
 	pool    pool.Pool
 	db      database.Database[db2.Object]
 	handler *Handler
+	log     logging.Logger
 }
 
 var _ pool.Action = (*ExpressionController)(nil)
@@ -38,6 +39,7 @@ func NewExpressionController(lctx logging.AttributionContextProvider, size int, 
 	c := &ExpressionController{
 		pool: p,
 		db:   db,
+		log:  logging.DynamicLogger(logging.DefaultContext().AttributionContext().WithContext(REALM)),
 	}
 	return c
 }
@@ -51,6 +53,10 @@ func (c *ExpressionController) Start(ctx context.Context) (service.Syncher, serv
 	c.handler = NewHandler(c)
 	c.handler.Register()
 	return c.pool.Start(ctx)
+}
+
+func (c *ExpressionController) GetTriggers() map[database.ObjectId]database.ObjectId {
+	return c.handler.GetTriggers()
 }
 
 func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.MessageContext, id database.ObjectId) pool.Status {
@@ -68,6 +74,10 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 
 	o := (_o).(*db.Expression)
 	log.Info("reconciling {{expression}} (deleting {{deleting}} (finalizers {{finalizers}})", "deleting", _o.IsDeleting(), "finalizers", o.GetFinalizers())
+
+	c.assureTriggers(log, o, o.Status.Generated.Objects...)
+	c.assureTriggers(log, o, o.Status.Generated.Deleting...)
+	c.assureTriggers(log, o, o.Status.Generated.Results...)
 
 	if o.IsDeleting() {
 		if !o.HasFinalizer(FINALIZER) {
@@ -134,20 +144,38 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 
 	d := OldRefs(o, g)
 	n := NewRefs(o, g)
-	if len(d) > 0 || len(n) > 0 {
+
+	dr := OldResults(o, g)
+	nr := NewResults(o, g)
+
+	if len(d) > 0 || len(n) > 0 || len(dr) > 0 || len(nr) > 0 {
 		if len(n) > 0 {
 			log.Info("found new slaves {{new}}", "new", utils.Join(n, ","))
 		}
 		if len(d) > 0 {
 			log.Info("found obsolete slaves {{obsolete}}", "obsolete", utils.Join(d, ","))
 		}
+		if len(nr) > 0 {
+			log.Info("found new result {{new}}", "new", utils.Join(nr, ","))
+		}
+		if len(dr) > 0 {
+			log.Info("found obsolete result {{obsolete}}", "obsolete", utils.Join(dr, ","))
+		}
 		mod := func(o *db.Expression) bool {
 			m := false
+			// add new generated objects and remove obsolete ones
 			support.UpdateField(&o.Status.Generated.Objects, utils.Pointer(
 				utils.FilterSlice(
 					utils.AppendUnique(o.Status.Generated.Objects, n...),
 					utils.NotFilter(utils.ContainsFilter(d...)))), &m)
+			// add obsolete ones to the deletion list
+			// as a result the union of generated and deleted is enriched by the new ones
 			support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.AppendUnique(o.Status.Generated.Deleting, d...)), &m)
+			// update the new result list containing the additional triggers
+			support.UpdateField(&o.Status.Generated.Results, utils.Pointer(
+				utils.FilterSlice(
+					utils.AppendUnique(o.Status.Generated.Results, nr...),
+					utils.NotFilter(utils.ContainsFilter(dr...)))), &m)
 			return m
 		}
 		ok, err := database.DirectModify(c.db, &o, mod)
@@ -156,6 +184,12 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 		}
 		if !ok {
 			return pool.StatusCompleted(fmt.Errorf("object outdated"))
+		}
+		// ok, the result list is updated, now we can update the result triggers
+		for _, id := range dr {
+			if c.handler.Unuse(id.In(namespace)) {
+				log.Info("remove result trigger for {{oid}}", "oid", id)
+			}
 		}
 	}
 
@@ -214,7 +248,12 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 
 	if o.IsDeleting() {
 		if len(o.Status.Generated.Deleting) == 0 && len(o.Status.Generated.Objects) == 0 {
-			log.Info("no more slave objects to be deleted -> removing finalizer")
+			log.Info("no more slave objects to be deleted -> removing triggers and finalizer")
+			for _, id := range o.Status.Generated.Results {
+				if c.handler.Unuse(id.In(o.Status.Generated.Namespace)) {
+					log.Info("remove result trigger for {{oid}}", "oid", id)
+				}
+			}
 			_, err := db2.RemoveFinalizer(c.db, &o, FINALIZER)
 			return pool.StatusCompleted(err)
 		}
@@ -228,6 +267,12 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 				log.Info("establish trigger for {{oid}}", "oid", id)
 			}
 		}
+		for _, id := range g.RootObjects() {
+			if c.handler.Use(id, o) {
+				log.Info("establish result trigger for {{oid}}", "oid", id)
+			}
+		}
+
 		mod, err := g.UpdateDB(log, c.db)
 		if mod || err != nil {
 			if err != nil {
@@ -309,6 +354,14 @@ func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression
 		pool.StatusCompleted(uerr)
 	}
 	return pool.StatusFailed(err)
+}
+
+func (c *ExpressionController) assureTriggers(log logging.Logger, o *db.Expression, list ...database.LocalObjectRef) {
+	for _, id := range list {
+		if c.handler.Use(id.In(o.Status.Generated.Namespace), o) {
+			log.Info("re-establish trigger for {{oid}}", "oid", id)
+		}
+	}
 }
 
 type ExpressionInfo struct {

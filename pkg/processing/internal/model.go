@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 )
 
@@ -120,9 +121,18 @@ type SlaveCheckFunction func(i InternalObject) error
 // target state, it must be able to work with a non-existent external object).
 type SlaveUpdateFunction func(ob Objectbase, eid ElementId, i InternalObject) (created InternalObject, err error)
 
+// ExternalCheckFunction is used to check the validity of an existing
+// external object to be usable as a slave.
+type ExternalCheckFunction func(e ExternalObject) error
+
+// ExternalUpdateFunction is used to create or update a new external slave object
+type ExternalUpdateFunction func(ob Objectbase, oid database.ObjectId, e ExternalObject) (bool, ExternalObject, error)
+
 type SlaveManagement interface {
 	AssureSlaves(check SlaveCheckFunction, update SlaveUpdateFunction, eids ...ElementId) error
 	MarkForDeletion(eids ...ElementId) error
+
+	AssureExternal(update ExternalUpdateFunction, oid database.ObjectId) (bool, ExternalObject, error)
 
 	ObjectBase() Objectbase
 }
@@ -143,7 +153,15 @@ type Creation struct {
 	Phase    Phase
 }
 
+type StatusSource interface {
+	GetStatus() Status
+}
+
 type Status string
+
+func (s Status) GetStatus() Status {
+	return s
+}
 
 type ProcessingResult struct {
 	Status                 Status
@@ -172,6 +190,8 @@ type StatusUpdate struct {
 	Status *Status
 	// Message is an explaining text for the state.
 	Message *string
+	// ExternalState as provided by state object for external object
+	ExternalState ExternalState
 	// ResultState is some state info provided by the internal object.
 	ResultState OutputState
 }

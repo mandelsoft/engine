@@ -124,6 +124,10 @@ func NewElementIdForPhase(oid database.ObjectId, ph Phase) ElementId {
 	return NewElementId(oid.GetType(), oid.GetNamespace(), oid.GetName(), ph)
 }
 
+func NewElementIdForTypePhase(typ string, n NameSource, ph Phase) ElementId {
+	return NewElementId(typ, n.GetNamespace(), n.GetName(), ph)
+}
+
 func NewElementIdForType(typ TypeId, ns, name string) ElementId {
 	return NewElementId(typ.GetType(), ns, name, typ.GetPhase())
 }

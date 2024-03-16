@@ -25,6 +25,13 @@ func SetObjectName[O Object](ns string, n string) runtime.Initializer[O] {
 	}
 }
 
+func SetObjectNameFromId[O Object](id ObjectId) runtime.Initializer[O] {
+	return func(o O) {
+		o.SetName(id.GetName())
+		o.SetNamespace(id.GetNamespace())
+	}
+}
+
 func CompareObjectId(a, b ObjectId) int {
 	switch {
 	case a == nil:
@@ -43,8 +50,18 @@ func CompareObjectId(a, b ObjectId) int {
 	}
 }
 
+func MatchObjectId[O ObjectId](id ObjectId) func(O) bool {
+	return func(c O) bool {
+		return CompareObjectId(id, c) == 0
+	}
+}
+
 func CompareObject[O ObjectId](a, b O) int {
 	return CompareObjectId(a, b)
+}
+
+func GetObjectId[O Object](o O) ObjectId {
+	return NewObjectIdFor(o)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

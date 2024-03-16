@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"path"
 
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
 	. "github.com/mandelsoft/engine/pkg/testutils"
@@ -156,27 +155,27 @@ var _ = Describe("Controller Test", func() {
 
 			ovA := Must(env.GetObject(ivA)).(*db.Value)
 			fvA := "ValueState:Propagating/A[48208f9428d64634bd8e28ff345bf0eab60d53c18fa2fbdb0b9bc1e84df2b5f6]"
-			Expect(g.FormalVersion(graph.GraphIdForPhase(ivA, mymetamodel.PHASE_PROPAGATE))).To(Equal(fvA))
+			Expect(g.FormalVersion(g.GraphIdForPhase(ivA, mymetamodel.PHASE_PROPAGATE))).To(Equal(fvA))
 
 			ovA.Status.Status = model.STATUS_COMPLETED
 			ovA.Status.FormalVersion = fvA
 			MustBeSuccessful(env.SetObject(ovA))
 
 			ovB := Must(env.GetObject(ivB)).(*db.Value)
-			fvB := g.FormalVersion(graph.GraphIdForPhase(ivB, mymetamodel.PHASE_PROPAGATE))
+			fvB := g.FormalVersion(g.GraphIdForPhase(ivB, mymetamodel.PHASE_PROPAGATE))
 			ovB.Status.Status = model.STATUS_COMPLETED
 			ovB.Status.FormalVersion = fvB
 			MustBeSuccessful(env.SetObject(ovB))
 
 			ovoA := Must(env.GetObject(ivoA)).(*db.Value)
-			fvoA := g.FormalVersion(graph.GraphIdForPhase(ivoA, mymetamodel.PHASE_PROPAGATE))
+			fvoA := g.FormalVersion(g.GraphIdForPhase(ivoA, mymetamodel.PHASE_PROPAGATE))
 			ovoA.Status.Status = model.STATUS_COMPLETED
 			ovoA.Status.FormalVersion = fvoA
 			MustBeSuccessful(env.SetObject(ovoA))
 
 			ooE1 := Must(env.GetObject(ioE1)).(*db.Operator)
 			ooE1.AddFinalizer("test")
-			foE1 := g.FormalVersion(graph.GraphIdForPhase(ioE1, mymetamodel.PHASE_EXPOSE))
+			foE1 := g.FormalVersion(g.GraphIdForPhase(ioE1, mymetamodel.PHASE_EXPOSE))
 			doE1 := "2b2606094bcd9738aa2767157571a66de2826185db4d9c7efc03cd6a23018f34"
 			ooE1.Status.Status = model.STATUS_COMPLETED
 			ooE1.Status.Phase = mymetamodel.PHASE_EXPOSE
@@ -189,7 +188,7 @@ var _ = Describe("Controller Test", func() {
 
 			ooE := Must(env.GetObject(ioE)).(*db.Operator)
 			foE := "OperatorState:Exposing/E(ExpressionState:Calculating/E(OperatorState:Gathering/E[3f02065af5c0f868b0679e5d58c89a3395b398213581d06f64d5a4c836060853](ValueState:Propagating/A[48208f9428d64634bd8e28ff345bf0eab60d53c18fa2fbdb0b9bc1e84df2b5f6],ValueState:Propagating/E-1(OperatorState:Exposing/E-1(ExpressionState:Calculating/E-1(OperatorState:Gathering/E-1[2b2606094bcd9738aa2767157571a66de2826185db4d9c7efc03cd6a23018f34](ValueState:Propagating/B[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b],ValueState:Propagating/oA[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b])),OperatorState:Gathering/E-1[2b2606094bcd9738aa2767157571a66de2826185db4d9c7efc03cd6a23018f34](ValueState:Propagating/B[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b],ValueState:Propagating/oA[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b]))))),OperatorState:Gathering/E[3f02065af5c0f868b0679e5d58c89a3395b398213581d06f64d5a4c836060853](ValueState:Propagating/A[48208f9428d64634bd8e28ff345bf0eab60d53c18fa2fbdb0b9bc1e84df2b5f6],ValueState:Propagating/E-1(OperatorState:Exposing/E-1(ExpressionState:Calculating/E-1(OperatorState:Gathering/E-1[2b2606094bcd9738aa2767157571a66de2826185db4d9c7efc03cd6a23018f34](ValueState:Propagating/B[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b],ValueState:Propagating/oA[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b])),OperatorState:Gathering/E-1[2b2606094bcd9738aa2767157571a66de2826185db4d9c7efc03cd6a23018f34](ValueState:Propagating/B[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b],ValueState:Propagating/oA[49c987621f206f09e5fbe23b516b55a36f838cb14867961f1d84a554d3a35b6b])))))"
-			Expect(g.FormalVersion(graph.GraphIdForPhase(ioE, mymetamodel.PHASE_EXPOSE)), foE)
+			Expect(g.FormalVersion(g.GraphIdForPhase(ioE, mymetamodel.PHASE_EXPOSE)), foE)
 			doE := "3f02065af5c0f868b0679e5d58c89a3395b398213581d06f64d5a4c836060853"
 			ooE.Status.Status = model.STATUS_COMPLETED
 			ooE.Status.Phase = mymetamodel.PHASE_EXPOSE

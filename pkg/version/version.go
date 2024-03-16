@@ -138,7 +138,8 @@ func GetVersionedName(n Node) string {
 type GraphView interface {
 	GetNode(id Id) Node
 	Nodes() []Id
-
+	Leaves() []Id
+	Roots() []Id
 	Dump(w io.Writer) error
 }
 
@@ -240,7 +241,7 @@ func (e *evaluatedGraph) getVersion(id Id, stack ...Id) (string, error) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (g *graph) Roots() []Id {
+func (g *graph) Leaves() []Id {
 	var r []Id
 	for id, n := range g.nodes {
 		if len(n.GetLinks()) == 0 {
@@ -250,7 +251,7 @@ func (g *graph) Roots() []Id {
 	return r
 }
 
-func (g *graph) Leaves() []Id {
+func (g *graph) Roots() []Id {
 	var r []Id
 outer:
 	for id, n := range g.nodes {
@@ -263,11 +264,12 @@ outer:
 		}
 		r = append(r, id)
 	}
+	slices.SortFunc(r, CompareId)
 	return r
 }
 
 func (g *graph) Dump(w io.Writer) error {
-	for i, r := range g.Leaves() {
+	for i, r := range g.Roots() {
 		if i > 0 {
 			_, err := fmt.Fprintf(w, "\n")
 			if err != nil {

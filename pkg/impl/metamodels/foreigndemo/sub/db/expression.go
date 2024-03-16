@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"slices"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -50,6 +51,10 @@ type ExpressionDef struct {
 }
 
 type ExpressionStatus struct {
+	// ExpressionStateSpec is the local object state part held in the state object
+	// and propagated as part of the status in the external object.
+	ExpressionStateSpec `json:",inline"`
+
 	Status          model.Status     `json:"status,omitempty"`
 	Message         string           `json:"message,omitempty"`
 	ObservedVersion string           `json:"observedVersion,omitempty"`
@@ -62,6 +67,7 @@ type GeneratedObjects struct {
 	Namespace string                    `json:"namespace,omitempty"`
 	Objects   []database.LocalObjectRef `json:"objects,omitempty"`
 	Deleting  []database.LocalObjectRef `json:"deleting,omitempty"`
+	Results   []database.LocalObjectRef `json:"results,omitempty"`
 }
 
 type ElementName struct {
@@ -70,6 +76,11 @@ type ElementName struct {
 }
 
 type ExpressionOutput map[string]int
+
+func (o ExpressionOutput) Description() string {
+	d, _ := json.Marshal(o)
+	return string(d)
+}
 
 func NewExpression(ns, n string) *Expression {
 	return &Expression{

@@ -145,8 +145,23 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 
 	// check target expression object.
 	err := req.SlaveManagement.AssureSlaves(
-		nil,
-		support.SlaveCreationOnly,
+		func(i model.InternalObject) error {
+			o := i.(support.InternalObject).GetBase().(*db.ExpressionState)
+			if o.Spec.Provider != "" && o.Spec.Provider != req.Element.GetName() {
+				return fmt.Errorf("target expression object %q already served by operatpr %q", i.GetName(), req.Element.GetName())
+			}
+			return nil
+		},
+		support.SlaveCreationFunc(func(o *db.ExpressionState) (bool, bool) {
+			mod := false
+			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			if mod {
+				log.Info("update provider for {{slaveid}} to {{provider}}", "slaveid", NewElementIdForPhase(o, mymetamodel.PHASE_PROPAGATE), req.Element.GetName())
+			} else {
+				log.Info("preserve provider {{provider}} for {{slaveid}}", "slaveid", NewElementIdForPhase(o, mymetamodel.PHASE_PROPAGATE), req.Element.GetName())
+			}
+			return mod, mod
+		}),
 		model.SlaveId(req.Element.Id(), mymetamodel.TYPE_EXPRESSION_STATE, mymetamodel.PHASE_CALCULATE),
 	)
 

@@ -190,10 +190,17 @@ type ObjectId interface {
 	runtime.TypeAccessor
 }
 
+type LocalObjectId interface {
+	runtime.TypeAccessor
+	GetName() string
+}
+
 type LocalObjectRef struct {
 	runtime.ObjectMeta `json:",inline"`
 	Name               string `json:"name"`
 }
+
+var _ LocalObjectId = (*LocalObjectRef)(nil)
 
 func NewLocalObjectRef(typ, name string) LocalObjectRef {
 	return LocalObjectRef{runtime.ObjectMeta{typ}, name}
@@ -204,6 +211,10 @@ func NewLocalObjectRefFor(id ObjectId) LocalObjectRef {
 		ObjectMeta: runtime.ObjectMeta{id.GetType()},
 		Name:       id.GetName(),
 	}
+}
+
+func (r LocalObjectRef) GetName() string {
+	return r.Name
 }
 
 func (r LocalObjectRef) String() string {

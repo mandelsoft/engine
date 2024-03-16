@@ -61,3 +61,11 @@ func MetaModelSpecification() metamodel.MetaModelSpecification {
 func NewMetaModel(name string) (metamodel.MetaModel, error) {
 	return metamodel.NewMetaModel(name, MetaModelSpecification())
 }
+
+func MustMetaModel(name string) metamodel.MetaModel {
+	mm, err := metamodel.NewMetaModel(name, MetaModelSpecification())
+	if err != nil {
+		panic(err)
+	}
+	return mm
+}

@@ -13,6 +13,10 @@ func NewWatchEventForNamespace(ni *namespaceInfo) *elemwatch.Event {
 	status := "Ready"
 	if lock != "" {
 		status = "Locked"
+	} else {
+		if len(ni.elements) == 0 && ni.GetNamespaceName() != "" {
+			status = "Deleted"
+		}
 	}
 	evt := &elemwatch.Event{
 		Node:   id,

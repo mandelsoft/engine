@@ -5,7 +5,7 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	wrapped2.MustRegisterType[Value](scheme)
+	wrapped.MustRegisterType[Value](scheme)
 }
 
 type Value struct {
@@ -30,7 +30,7 @@ func (n *Value) GetState() model.ExternalState {
 
 func (n *Value) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem ElementId, update model.StatusUpdate) error {
 	log := lctx.Logger(REALM).WithValues("name", n.GetName())
-	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
+	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		o := _o.(*db.Value)
 		mod := false
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)

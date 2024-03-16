@@ -13,6 +13,7 @@ type NamespaceObject = internal.NamespaceObject
 type CommitInfo = internal.CommitInfo
 type SlaveCheckFunction = internal.SlaveCheckFunction
 type SlaveUpdateFunction = internal.SlaveUpdateFunction
+type ExternalUpdateFunction = internal.ExternalUpdateFunction
 type SlaveManagement = internal.SlaveManagement
 type Request = internal.Request
 type LinkState = internal.LinkState
@@ -25,13 +26,14 @@ type OutputState = internal.OutputState
 type ProcessingResult = internal.ProcessingResult
 type Creation = internal.Creation
 type StatusUpdate = internal.StatusUpdate
+type StatusSource = internal.StatusSource
 type Status = internal.Status
 type Inputs = internal.Inputs
 
 type Logging = internal.Logging
 
 const (
-	ACCEPT_OK = iota
+	ACCEPT_OK AcceptStatus = iota
 	ACCEPT_INVALID
 )
 
