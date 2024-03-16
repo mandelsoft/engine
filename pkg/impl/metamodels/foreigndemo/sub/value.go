@@ -52,15 +52,17 @@ func (n *Value) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem 
 		if update.ResultState != nil {
 			r := update.ResultState.(*ValueOutputState).GetState()
 			// as slave object, result is stored in spec and not status
-			log.Debug("Update value for Value {{name}} to {{value}}", "value", r.Value)
-			support.UpdateField(&o.Spec.Value, &r.Value, &mod)
+			if support.UpdateField(&o.Spec.Value, &r.Value, &mod) {
+				log.Debug("update value for Value {{name}} to {{value}}", "value", r.Value)
+			}
 
 			provider := ""
 			if r.Origin.GetType() != mymetamodel.TYPE_VALUE_STATE {
 				provider = r.Origin.GetName()
 			}
-			log.Debug("Update provider for Value {{name}} to {{provider}}", "provider", provider)
-			support.UpdateField(&o.Status.Provider, utils.Pointer(provider), &mod)
+			if support.UpdateField(&o.Status.Provider, utils.Pointer(provider), &mod) {
+				log.Debug("update provider for Value {{name}} to {{provider}}", "provider", provider)
+			}
 		}
 		return mod, mod
 	})

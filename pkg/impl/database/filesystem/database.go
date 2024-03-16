@@ -251,8 +251,7 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 	return nil
 }
 
-func (d *Database[O]) DeleteObject(id database.ObjectId) (bool, error) {
-	var err error
+func (d *Database[O]) DeleteObject(id database.ObjectId) (done bool, err error) {
 	if !CheckId(id) {
 		return false, fmt.Errorf("invalid id %q", id)
 	}

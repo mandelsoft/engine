@@ -808,7 +808,7 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 	if extstate == nil {
 		log.Info("no external object states found for {{element}}  -> propagate empty state")
 	} else {
-		log.Info("assigning external state for processing {{element}}", "extstate", extstate)
+		log.Info("assigning external state for processing {{element}}", "extstate", utils.DescribeObject(extstate))
 	}
 	s, err := e.GetObject().AcceptExternalState(lctx, p.processingModel.ObjectBase(), e.GetPhase(), extstate)
 	if s != model.ACCEPT_OK || err != nil {

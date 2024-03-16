@@ -199,7 +199,11 @@ func (h *handler) HandleEvent(id database.ObjectId) {
 	} else {
 		if err == nil {
 			if s, ok := o.(database.StatusSource); ok {
-				h.mgr.Trigger(log, model.Status(s.GetStatusValue()), NewObjectIdFor(id))
+				if s.GetStatusValue() != "Deleted" {
+					h.mgr.Trigger(log, model.Status(s.GetStatusValue()), NewObjectIdFor(id))
+				} else {
+					h.mgr.Trigger(log, model.STATUS_DELETING, NewObjectIdFor(id))
+				}
 			}
 			h.mgr.Trigger(log, STATUS_ANY, NewObjectIdFor(id))
 		}

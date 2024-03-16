@@ -92,8 +92,12 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 
 	target := NewTargetEvaluationState(n).Get()
 
+	var ex *db.ExpressionSpec
+
 	if target.Spec.Provider == "" {
 		log.Info("expression has no provider -> no update")
+		ex = &n.GetTargetState(mymetamodel.PHASE_CALCULATE).(*TargetEvaluationState).GetSpec().Spec
+		log.Info("using spec from external object: {{spec}}", "spec", utils.DescribeObject(ex))
 	} else {
 		var gathered *db.GatherOutput
 		for iid, e := range req.Inputs {
@@ -101,7 +105,7 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 			log.Info("found output from {{link}}", "link", iid)
 		}
 
-		ex := db.NewExpressionSpec()
+		ex = db.NewExpressionSpec()
 		for n, v := range gathered.Operands {
 			log.Info("- using operand {{name}}({{value}}) from {{oid}}", "name", n, "value", v.Value, "oid", v.Origin)
 			ex.AddOperand(n, v.Value)
@@ -138,19 +142,19 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 			log.Info("expression updated -> wait for next status change")
 			return model.StatusWaiting()
 		}
+	}
 
-		log.Info("found expression version {{version}} ", "version", target.Spec.ObservedVersion)
-		required := ex.GetVersion()
-		if required != target.Spec.ObservedVersion {
-			log.Info("required version {{required}} not reached -> wait for next change", "required", required)
-			return model.StatusWaiting()
-		}
-		log.Info("required version {{required}} reached -> propagate expression results", "required", required)
+	log.Info("found expression version {{version}} ", "version", target.Spec.ObservedVersion)
+	required := ex.GetVersion()
+	if required != target.Spec.ObservedVersion {
+		log.Info("required version {{required}} not reached -> wait for next change", "required", required)
+		return model.StatusWaiting()
+	}
+	log.Info("required version {{required}} reached -> propagate expression results", "required", required)
 
-		if target.Spec.Status != model.STATUS_COMPLETED {
-			log.Warn("expression processing failed with status {{status}}[{{message}}]", "status", target.Spec.Status, "message", target.Spec.Message)
-			return model.StatusFailed(fmt.Errorf("expression processing failed with status %q[%s]", target.Spec.Status, target.Spec.Message))
-		}
+	if target.Spec.Status != model.STATUS_COMPLETED {
+		log.Warn("expression processing failed with status {{status}}[{{message}}]", "status", target.Spec.Status, "message", target.Spec.Message)
+		return model.StatusFailed(fmt.Errorf("expression processing failed with status %q[%s]", target.Spec.Status, target.Spec.Message))
 	}
 
 	return model.StatusCompleted(NewEvaluationOutputState(req.FormalVersion, target.Spec.Output))

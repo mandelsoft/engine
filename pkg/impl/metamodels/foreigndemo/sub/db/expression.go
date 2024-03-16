@@ -44,6 +44,11 @@ func (e *ExpressionSpec) GetVersion() string {
 	return support.NewState(e).GetVersion()
 }
 
+func (e *ExpressionSpec) GetDescription() string {
+	d, _ := json.Marshal(e)
+	return string(d)
+}
+
 type ExpressionDef struct {
 	Operands   []string     `json:"operands,omitempty"`
 	Operator   OperatorName `json:"operator,omitempty"`

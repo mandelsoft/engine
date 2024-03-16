@@ -93,12 +93,39 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 				AddOperation("oA", db.OP_ADD, "A", "1").
 				AddExpressionOperation("E", "oA+B-A")
 
-			// caclculate graph versions
+			feEXPR := env.FutureForObjectStatus(model.STATUS_COMPLETED, oeEXPR)
+			MustBeSuccessful(env.SetObject(oeEXPR))
+
+			env.WaitWithTimeout(feEXPR)
+
+			oeEXPR = Must(env.GetObject(oeEXPR)).(*db.Expression)
+			Expect(oeEXPR.Status.Output).To(Equal(db.ExpressionOutput{"E": 3, "oA": 2}))
+
+			// calculate graph versions
 			//  A   = 1
-			//  B   = 2
+			//  B   = 3
 			//  oA  = A + 1      = 2
-			//  E   = E-1 - A    = 3
-			//  E-1 = oA + B     = 4
+			//  E-1 = oA + B     = 5
+			//  E   = E-1 - A    = 4
+			logging.DefaultContext().Logger(controllers.REALM).Info("****************** modify B ******************")
+
+			w := NewExpressionMod(env, oeEXPR, db.ExpressionOutput{"E": 4, "oA": 2})
+			oeEXPR.Spec.Operands["B"] = 3
+			MustBeSuccessful(env.SetObject(oeEXPR))
+
+			Expect(w.Wait()).To(BeTrue())
+		})
+
+		It("modifies expression structure for controller test scenario", func() {
+			cntr := me.NewExpressionController(env.Logging(), 1, env.Database())
+			env.AddService(cntr)
+			env.Start()
+
+			oeEXPR := db.NewExpression(NS, "EXPR").
+				AddOperand("A", 1).
+				AddOperand("B", 2).
+				AddOperation("oA", db.OP_ADD, "A", "1").
+				AddExpressionOperation("E", "oA+B-A")
 
 			feEXPR := env.FutureForObjectStatus(model.STATUS_COMPLETED, oeEXPR)
 			MustBeSuccessful(env.SetObject(oeEXPR))
@@ -108,13 +135,36 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			oeEXPR = Must(env.GetObject(oeEXPR)).(*db.Expression)
 			Expect(oeEXPR.Status.Output).To(Equal(db.ExpressionOutput{"E": 3, "oA": 2}))
 
+			// calculate graph versions
+			//  iA   = 1
+			//  B   = 2
+			//  oA  = iA + 1     = 2
+			//  O-1 = oA + iA    = 3
+			//  O   = O-1 + B    = 5
 			logging.DefaultContext().Logger(controllers.REALM).Info("****************** modify B ******************")
 
-			w := NewExpressionMod(env, oeEXPR, db.ExpressionOutput{"E": 4, "oA": 2})
-			oeEXPR.Spec.Operands["B"] = 3
+			ns := NS + "/" + oeEXPR.GetName()
+			w := NewExpressionMod(env, oeEXPR, db.ExpressionOutput{"O": 5, "oA": 2})
+			delete(oeEXPR.Spec.Operands, "A")
+			delete(oeEXPR.Spec.Expressions, "E")
+			oeEXPR.Spec.Operands["iA"] = 1
+			oeEXPR.AddOperand("iA", 1).
+				AddOperation("oA", db.OP_ADD, "iA", "1").
+				AddExpressionOperation("O", "oA+iA+B")
+			foE1 := env.FutureForObjectStatus(model.STATUS_DELETED, database.NewObjectId(mymetamodel.TYPE_OPERATOR, ns, "E-1"))
+			foE := env.FutureForObjectStatus(model.STATUS_DELETED, database.NewObjectId(mymetamodel.TYPE_OPERATOR, ns, "E"))
 			MustBeSuccessful(env.SetObject(oeEXPR))
 
 			Expect(w.Wait()).To(BeTrue())
+
+			Expect(env.WaitWithTimeout(foE)).To(BeTrue())
+			Expect(env.WaitWithTimeout(foE1)).To(BeTrue())
+
+			ExpectError(env.GetObject(database.NewObjectId(mymetamodel.TYPE_VALUE, ns, "A"))).To(HaveOccurred())
+			ExpectError(env.GetObject(database.NewObjectId(mymetamodel.TYPE_VALUE, ns, "E"))).To(HaveOccurred())
+			ExpectError(env.GetObject(database.NewObjectId(mymetamodel.TYPE_VALUE, ns, "E-1"))).To(HaveOccurred())
+			ExpectError(env.GetObject(database.NewObjectId(mymetamodel.TYPE_OPERATOR, ns, "E"))).To(HaveOccurred())
+			ExpectError(env.GetObject(database.NewObjectId(mymetamodel.TYPE_OPERATOR, ns, "E-1"))).To(HaveOccurred())
 		})
 
 		It("deletes expression for controller test scenario", func() {
