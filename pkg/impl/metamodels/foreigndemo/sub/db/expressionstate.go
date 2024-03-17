@@ -3,7 +3,6 @@ package db
 import (
 	"github.com/mandelsoft/engine/pkg/database"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
-	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 )
@@ -38,9 +37,7 @@ func (n *ExpressionState) GetStatusValue() string {
 	return string(support.CombinedPhaseStatus(ExpressionPhaseStateAccess, n))
 }
 
-type ExpressionStateSpec struct {
-	Provider string `json:"provider,omitempty"`
-}
+type ExpressionStateSpec = db.DefaultSlaveStateSpec
 
 type EvaluationState struct {
 	db.DefaultPhaseState[EvaluationCurrentState, EvaluationTargetState, *EvaluationCurrentState, *EvaluationTargetState]
@@ -67,13 +64,9 @@ type EvaluationOutput = ExpressionOutput
 // Expression object. Because this object is foreign controlled,
 // it not only consists of the expressions spec field (as usual),
 // but of selected status, also.
-type ExternalExpressionSpec struct {
-	Spec            ExpressionSpec   `json:"spec"`
-	Status          model.Status     `json:"status"`
-	Message         string           `json:"message"`
-	ObservedVersion string           `json:"observervedVersion"`
-	Output          ExpressionOutput `json:"output"`
-}
+// This must be outcome of the foreign processing and information
+// requited to detect, whether the actual spec has already been applied.
+type ExternalExpressionSpec = db.DefaultForeignControlledExternalObjectSpec[ExpressionSpec, ExpressionOutput]
 
 func NewExternalExpressionSpec(e *Expression) *ExternalExpressionSpec {
 	return &ExternalExpressionSpec{
@@ -83,14 +76,6 @@ func NewExternalExpressionSpec(e *Expression) *ExternalExpressionSpec {
 		ObservedVersion: e.Status.ObservedVersion,
 		Output:          e.Status.Output,
 	}
-}
-
-func (e *ExternalExpressionSpec) GetSpecVersion() string {
-	return support.NewState(&e.Spec).GetVersion()
-}
-
-func (e *ExternalExpressionSpec) IsDone() bool {
-	return support.NewState(&e.Spec).GetVersion() == e.ObservedVersion
 }
 
 ////////////////////////////////////////////////////////////////////////////////

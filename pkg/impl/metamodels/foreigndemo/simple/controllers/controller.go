@@ -7,6 +7,7 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
+	"github.com/mandelsoft/engine/pkg/processing"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -63,7 +64,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	}
 
 	o := (_o).(*db.Expression)
-	v := support.NewState(&o.Spec).GetVersion()
+	v := processing.NewState(&o.Spec).GetVersion()
 
 	if v == o.Status.ObservedVersion {
 		log.Info("already up to date")

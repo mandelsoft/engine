@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mandelsoft/engine/pkg/processing"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -54,6 +55,7 @@ func (n *ExpressionState) assureTarget(o *db.ExpressionState) *db.EvaluationTarg
 func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase mmids.Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ExpressionState))
+		log := lctx.Logger(REALM)
 
 		mod := false
 		if state == nil {
@@ -64,6 +66,8 @@ func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.
 		if s == nil {
 			s = &db.EffectiveExpressionSpec{}
 		}
+		log.Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Provider)
+		s.ApplyFormalObjectVersion(log, processing.NewState(s.ExternalExpressionSpec), t, &mod)
 		support.UpdateField(&t.Spec, s, &mod)
 		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod

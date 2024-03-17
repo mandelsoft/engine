@@ -3,6 +3,7 @@ package simple
 import (
 	"errors"
 
+	"github.com/mandelsoft/engine/pkg/processing"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/logging"
@@ -62,7 +63,7 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		s := state.(*EffectiveValueState).GetState()
 		fv := "" // if used as slave it does not have an own formal object version, only a formal (graph) version.
 		if s.Provider == "" {
-			fv = support.NewState(s.ValueSpec).GetVersion()
+			fv = processing.NewState(s.ValueSpec).GetVersion()
 		}
 		mod = t.SetFormalObjectVersion(fv) || mod
 		support.UpdateField(&t.Spec, s, &mod)

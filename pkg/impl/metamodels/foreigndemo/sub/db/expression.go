@@ -6,8 +6,8 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/database"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/engine/pkg/processing"
 	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 )
 
@@ -41,7 +41,7 @@ func NewExpressionSpec() *ExpressionSpec {
 }
 
 func (e *ExpressionSpec) GetVersion() string {
-	return support.NewState(e).GetVersion()
+	return processing.NewState(e).GetVersion()
 }
 
 func (e *ExpressionSpec) GetDescription() string {

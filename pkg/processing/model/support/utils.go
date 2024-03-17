@@ -54,52 +54,6 @@ func UpdatePointerField[T any](field **T, value *T, mod ...*bool) bool {
 	return false
 }
 
-func AssureInternalObject[I db.InternalDBObject, R any](log logging.Logger, ob objectbase.Objectbase, i InternalObject, eid mmids.ElementId, req model.Request, mod func(i I) (R, bool)) (R, InternalObject, bool, error) {
-	var _nil R
-
-	typ := eid.TypeId()
-	if !req.Model.MetaModel().HasElementType(typ) {
-		return _nil, nil, false, fmt.Errorf("unknown element type %q", typ)
-	}
-
-	if i == nil {
-		log.Info("checking slave element {{slave}}", "slave", eid)
-		tolock, _ := req.Model.MetaModel().GetDependentTypePhases(typ)
-		i, err := ob.CreateObject(eid)
-		if err != nil {
-			return _nil, nil, false, err
-		}
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.Object]), func(_o db.Object) (R, bool) {
-			o := _o.(I)
-			for _, ph := range tolock {
-				i.(InternalObject).GetPhaseStateFor(o, ph).TryLock(req.Element.GetLock())
-			}
-			r, _ := mod(o)
-			return r, true
-		})
-		if err == nil {
-			log.Info("created required slave object {{slave}}", "slave", eid.ObjectId())
-			return r, i.(InternalObject), true, err
-		}
-		return r, nil, false, err
-	} else {
-		log.Info("required slave element {{slave}} already exists", "slave", eid)
-		var modified bool
-		r, err := wrapped.Modify(ob, i.(wrapper.Object[db.Object]), func(_o db.Object) (R, bool) {
-			o := _o.(I)
-			r, m := mod(o)
-			modified = m
-			return r, m
-		})
-		if err == nil {
-			if modified {
-				log.Info("updated required slave object {{slave}}", "slave", eid.ObjectId())
-			}
-		}
-		return r, i, false, err
-	}
-}
-
 func creationOnly(o db.Object) (bool, bool) {
 	return false, false
 }

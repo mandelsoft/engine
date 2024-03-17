@@ -8,6 +8,7 @@ package pool
 
 import (
 	"fmt"
+	"os"
 	"runtime/debug"
 	"strconv"
 	"time"
@@ -63,6 +64,7 @@ func catch(f func() Status) (result Status) {
 			if res, ok := r.(Status); ok {
 				result = res
 			} else {
+				fmt.Fprintf(os.Stderr, "Reconcile creahed: %s\n", r)
 				debug.PrintStack()
 				result = StatusFailed(fmt.Errorf("crashed"))
 			}

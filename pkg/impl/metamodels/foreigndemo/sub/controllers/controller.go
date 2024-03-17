@@ -12,6 +12,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/pool"
+	"github.com/mandelsoft/engine/pkg/processing"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
@@ -101,7 +102,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	var order []string
 
 	values := Values{}
-	v := support.NewState(&o.Spec).GetVersion()
+	v := processing.NewState(&o.Spec).GetVersion()
 
 	if !o.IsDeleting() {
 		if v == o.Status.ObservedVersion {

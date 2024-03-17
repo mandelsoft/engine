@@ -35,9 +35,7 @@ func (n *ValueState) GetStatusValue() string {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type ValueStateSpec struct {
-	Provider string `json:"provider,omitempty"`
-}
+type ValueStateSpec = db.DefaultSlaveStateSpec
 
 type PropagateState struct {
 	db.DefaultPhaseState[ValueCurrentState, ValueTargetState, *ValueCurrentState, *ValueTargetState]

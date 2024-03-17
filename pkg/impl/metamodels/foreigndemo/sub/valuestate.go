@@ -3,6 +3,7 @@ package sub
 import (
 	"errors"
 
+	"github.com/mandelsoft/engine/pkg/processing"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -51,20 +52,16 @@ func (n *ValueState) assureTarget(o *db.ValueState) *db.ValueTargetState {
 func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objectbase, phase Phase, state model.ExternalState) (model.AcceptStatus, error) {
 	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		t := n.assureTarget(_o.(*db.ValueState))
-
+		log := lctx.Logger(REALM)
 		mod := false
 		if state == nil {
 			// external object not existent
 			state = n.EffectiveTargetSpec(nil)
 		}
 		s := state.(*EffectiveValueState).GetState()
-		fv := "" // if used as slave it does not have an own formal object version, only a formal (graph) version.
-		if s.Provider == "" {
-			fv = support.NewState(s.ValueSpec).GetVersion()
-		}
-		mod = t.SetFormalObjectVersion(fv) || mod
+		log.Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Provider)
+		s.ApplyFormalObjectVersion(log, processing.NewState(s.ValueSpec), t, &mod)
 		support.UpdateField(&t.Spec, s, &mod)
-		lctx.Logger(REALM).Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Provider)
 		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
