@@ -7,9 +7,11 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/goutils/general"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
@@ -19,7 +21,6 @@ import (
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
 
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub"
@@ -174,7 +175,7 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 }
 
 func (m *ValueMon) WaitUntil(env *TestEnv, value int, provider string, omax ...int) bool {
-	max := utils.Optional(omax...)
+	max := general.Optional(omax...)
 	// max==0 means endless
 	for {
 		max--

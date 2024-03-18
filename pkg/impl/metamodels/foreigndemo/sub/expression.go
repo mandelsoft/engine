@@ -36,7 +36,7 @@ func (n *Expression) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, 
 
 		if update.ExternalState != nil {
 			r := update.ExternalState.(*EffectiveExpressionState).GetState()
-			provider := r.Provider
+			provider := r.Extension.Provider
 			log.Debug("Update provider for Expression {{name}} to {{provider}}", "provider", provider)
 			support.UpdateField(&o.Status.Provider, &provider, &mod)
 		}

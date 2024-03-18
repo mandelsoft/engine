@@ -2,16 +2,15 @@ package explicit
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
@@ -50,7 +49,7 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		} else {
 			s := state.(*ExternalValueState).GetState()
 			support.UpdateField(&t.Spec, s, &mod)
-			support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
+			support.UpdateField(&t.ObjectVersion, generics.Pointer(state.GetVersion()), &mod)
 		}
 		return mod, mod
 	})

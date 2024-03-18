@@ -7,9 +7,12 @@ import (
 	"sort"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/sliceutils"
+	"github.com/mandelsoft/goutils/stringutils"
 	"k8s.io/apimachinery/pkg/util/sets"
-
-	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type metaModel struct {
@@ -103,7 +106,7 @@ func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 			}
 			if c := cycle(p); c != nil {
 				return nil, fmt.Errorf("phase cycle for internal type %q: %s",
-					p.id.GetType(), utils.Join(c, "->"))
+					p.id.GetType(), stringutils.Join(c, "->"))
 			}
 			determineExtStates(p)
 		}
@@ -126,7 +129,7 @@ func (m *metaModel) NamespaceType() string {
 }
 
 func (m *metaModel) InternalTypes() []string {
-	return utils.OrderedMapKeys(m.internal)
+	return maputils.OrderedKeys(m.internal)
 }
 
 func (m *metaModel) Phases(objtype string) []Phase {
@@ -134,17 +137,17 @@ func (m *metaModel) Phases(objtype string) []Phase {
 	if i == nil {
 		return nil
 	}
-	return utils.OrderedMapKeys(i.phases)
+	return maputils.OrderedKeys(i.phases)
 }
 
 func (m *metaModel) ExternalTypes() []string {
-	return utils.OrderedMapKeys(m.external)
+	return maputils.OrderedKeys(m.external)
 }
 
 func (m *metaModel) ElementTypes() []TypeId {
-	list := utils.MapKeys(m.elements)
+	list := maputils.Keys(m.elements)
 
-	slices.SortFunc(list, utils.CompareStringable[TypeId])
+	slices.SortFunc(list, stringutils.CompareStringable[TypeId])
 	return list
 }
 
@@ -185,7 +188,7 @@ func (m *metaModel) GetDependentTypePhases(name TypeId) ([]Phase, []Phase) {
 		}
 	}
 
-	return r, utils.OrderedMapKeys(leafs)
+	return r, maputils.OrderedKeys(leafs)
 }
 
 func (m *metaModel) IsInternalType(name string) bool {
@@ -229,7 +232,7 @@ func (m *metaModel) GetPhaseFor(ext string) *TypeId {
 	if i == nil {
 		return nil
 	}
-	return utils.Pointer(i.Trigger().Id())
+	return generics.Pointer(i.Trigger().Id())
 }
 
 func (m *metaModel) checkDep(d DependencyTypeSpecification, typ string) (*elementType, bool, error) {
@@ -338,7 +341,7 @@ func (m *metaModel) Dump(w io.Writer) {
 }
 
 func cycle(p *elementType, stack ...Phase) []Phase {
-	if c := utils.Cycle(p.id.GetPhase(), stack...); c != nil {
+	if c := general.Cycle(p.id.GetPhase(), stack...); c != nil {
 		if c[0] != p.id.GetPhase() {
 			return c
 		}
@@ -371,7 +374,7 @@ func determineExtStates(p *elementType, stack ...Phase) []string {
 			if !d.local {
 				continue
 			}
-			p.states = utils.AppendUnique(p.states, determineExtStates(d.elementType, append(stack, p.id.GetPhase())...)...)
+			p.states = sliceutils.AppendUnique(p.states, determineExtStates(d.elementType, append(stack, p.id.GetPhase())...)...)
 		}
 		sort.Strings(p.states)
 	}

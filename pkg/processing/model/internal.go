@@ -2,7 +2,7 @@ package model
 
 import (
 	"github.com/mandelsoft/engine/pkg/processing/internal"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 )
 
 type Object = internal.Object
@@ -62,14 +62,14 @@ func StatusCompleted(result OutputState, err ...error) ProcessingResult {
 	return ProcessingResult{
 		Status:      STATUS_COMPLETED,
 		ResultState: result,
-		Error:       utils.Optional(err...),
+		Error:       general.Optional(err...),
 	}
 }
 
 func StatusDeleting(err ...error) ProcessingResult {
 	return ProcessingResult{
 		Status: STATUS_DELETING,
-		Error:  utils.Optional(err...),
+		Error:  general.Optional(err...),
 	}
 }
 

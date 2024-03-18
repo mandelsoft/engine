@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/demo"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"

@@ -8,7 +8,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	objectbase2 "github.com/mandelsoft/engine/pkg/processing/objectbase"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type Namespace struct {
@@ -30,7 +30,7 @@ func (n *Namespace) GetDatabase(ob objectbase2.Objectbase) database.Database[db.
 }
 
 func (n *Namespace) GetLock() mmids.RunId {
-	return utils.Cast[db.DBNamespace](n.GetBase()).GetRunLock()
+	return generics.Cast[db.DBNamespace](n.GetBase()).GetRunLock()
 }
 
 func (n *Namespace) ClearLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, error) {
@@ -39,7 +39,7 @@ func (n *Namespace) ClearLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, 
 
 	dbo := n.GetDatabase(ob)
 	mod := func(o db.Object) (bool, bool) {
-		ns := utils.Cast[db.DBNamespace](o)
+		ns := generics.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != id {
 			return false, false
@@ -60,7 +60,7 @@ func (n *Namespace) TryLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, er
 
 	dbo := n.GetDatabase(ob)
 	mod := func(o db.Object) (bool, bool) {
-		ns := utils.Cast[db.DBNamespace](o)
+		ns := generics.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != "" {
 			return false, false

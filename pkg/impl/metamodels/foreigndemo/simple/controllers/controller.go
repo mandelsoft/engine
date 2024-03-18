@@ -12,7 +12,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/service"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
@@ -84,8 +84,8 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	log.Info("operation completed for version {{version}}", "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
-		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_COMPLETED), &mod)
-		support.UpdateField(&o.Status.Message, utils.Pointer(fmt.Sprintf("%d expressions calculated", l)), &mod)
+		support.UpdateField(&o.Status.Status, generics.Pointer(model.STATUS_COMPLETED), &mod)
+		support.UpdateField(&o.Status.Message, generics.Pointer(fmt.Sprintf("%d expressions calculated", l)), &mod)
 		support.UpdateField(&o.Status.ObservedVersion, &v, &mod)
 
 		support.UpdateField(&o.Status.Output, &out, &mod)
@@ -115,8 +115,8 @@ func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression
 	log.LogError(err, "operation failed ({{msg}}) for observed version {{version}}", "message", msg, "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
-		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_FAILED), &mod)
-		support.UpdateField(&o.Status.Message, utils.Pointer(err.Error()), &mod)
+		support.UpdateField(&o.Status.Status, generics.Pointer(model.STATUS_FAILED), &mod)
+		support.UpdateField(&o.Status.Message, generics.Pointer(err.Error()), &mod)
 		support.UpdateField(&o.Status.ObservedVersion, &v, &mod)
 		return mod, mod
 	}

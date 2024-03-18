@@ -1,8 +1,11 @@
 package db
 
 import (
+	"encoding/json"
+
 	"github.com/mandelsoft/engine/pkg/processing"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/goutils/jsonutils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -69,16 +72,44 @@ type SlaveStateSpecPointer[P any] interface {
 // provided by the state object to keep the provider
 // (see DefaultSlaveStateSpec).
 type StandardEffectiveSlaveObjectSpec[S any, E any, P SlaveStateSpecPointer[E]] struct {
-	Spec      *S `json:"spec,omitempty"`
-	Extension E  `json:"state,omitempty"`
+	External  *S `json:",inline"`
+	Extension E  `json:",inline"`
+}
+
+func NewStandardEffectiveSlaveObjectSpec[S any, E any, P SlaveStateSpecPointer[E]](s *S, e E) *StandardEffectiveSlaveObjectSpec[S, E, P] {
+	return &StandardEffectiveSlaveObjectSpec[S, E, P]{
+		Extension: e,
+		External:  s,
+	}
+}
+
+var (
+	_ json.Marshaler   = StandardEffectiveSlaveObjectSpec[any, DefaultSlaveStateSpec, *DefaultSlaveStateSpec]{}
+	_ json.Unmarshaler = (*StandardEffectiveSlaveObjectSpec[any, DefaultSlaveStateSpec, *DefaultSlaveStateSpec])(nil)
+)
+
+type t[S any, E any, P SlaveStateSpecPointer[E]] StandardEffectiveSlaveObjectSpec[S, E, P]
+
+func (s StandardEffectiveSlaveObjectSpec[S, E, P]) MarshalJSON() ([]byte, error) {
+	return jsonutils.MarshalStruct(&s)
+}
+
+func (s *StandardEffectiveSlaveObjectSpec[S, E, P]) UnmarshalJSON(data []byte) error {
+	return jsonutils.UnmarshalStruct(data, s)
 }
 
 func (s *StandardEffectiveSlaveObjectSpec[S, E, P]) ApplyFormalObjectVersion(log logging.Logger, t TargetState, mod *bool) bool {
-	return P(&s.Extension).ApplyFormalObjectVersion(log, processing.NewState(s.Spec), t, mod)
+	return P(&s.Extension).ApplyFormalObjectVersion(log, processing.NewState(s.External), t, mod)
 }
 
 type DefaultEffectiveSlaveObjectSpec[S any] struct {
-	StandardEffectiveSlaveObjectSpec[S, DefaultSlaveStateSpec, *DefaultSlaveStateSpec]
+	StandardEffectiveSlaveObjectSpec[S, DefaultSlaveStateSpec, *DefaultSlaveStateSpec] `json:",inline"`
+}
+
+func NewDefaultEffectiveSlaveObjectSpec[S any](s *S, ext *DefaultSlaveStateSpec) *DefaultEffectiveSlaveObjectSpec[S] {
+	return &DefaultEffectiveSlaveObjectSpec[S]{
+		*NewStandardEffectiveSlaveObjectSpec(s, *ext),
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

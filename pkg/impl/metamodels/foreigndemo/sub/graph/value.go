@@ -5,8 +5,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/graph"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
@@ -27,7 +27,7 @@ var _ Node = (*Value)(nil)
 func NewValue(v *db.Value, input ...string) *Value {
 	return &Value{
 		Value: v,
-		input: utils.Optional(input...),
+		input: general.Optional(input...),
 	}
 }
 
@@ -47,7 +47,7 @@ func (v *Value) SubGraph(g Graph) []version.Node {
 
 	vers := ""
 	if v.input == "" {
-		vers = utils.HashData(v.Spec)
+		vers = general.HashData(v.Spec)
 	} else {
 		deps = []version.Id{GraphId(mymetamodel.TYPE_OPERATOR, v.input, mymetamodel.PHASE_EXPOSE)}
 	}
@@ -64,7 +64,7 @@ func (v *ValueCheck) DBCheck(log logging.Logger, g Graph, o database.Object) (bo
 	op := o.(*db.Value)
 
 	if v.Configured != nil {
-		exp := utils.HashData(v.Configured.Spec)
+		exp := general.HashData(v.Configured.Spec)
 		if op.Status.DetectedVersion != exp {
 			log.Debug("  detected version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.DetectedVersion)
 			return false, "", nil

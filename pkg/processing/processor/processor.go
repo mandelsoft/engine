@@ -15,6 +15,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
 	"github.com/mandelsoft/engine/pkg/watch"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/logging"
 )
 
@@ -53,7 +54,7 @@ func NewProcessor(lctx logging.Context, m model.Model, worker int, cmps ...versi
 		pool:            pool.NewPool(lctx, m.MetaModel().Name(), worker, 0, false),
 		logging:         lctx.WithContext(REALM),
 		processingModel: newProcessingModel(m),
-		composer:        utils.OptionalDefaulted[version.Composer](version.Composed, cmps...),
+		composer:        general.OptionalDefaulted[version.Composer](version.Composed, cmps...),
 	}
 	p.events = newEventManager(p.processingModel)
 	return p, nil
@@ -226,7 +227,7 @@ func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Statu
 	}
 	if ok {
 		log.Info("status updated to {{status}} for {{element}}", "status", status, "element", e.Id())
-		if len(trigger) == 0 || utils.Optional(trigger...) {
+		if len(trigger) == 0 || general.Optional(trigger...) {
 			p.events.TriggerStatusEvent(log, e)
 		}
 	}

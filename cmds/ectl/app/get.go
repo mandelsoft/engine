@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/sliceutils"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
@@ -200,7 +200,7 @@ func PrintObjectList(w io.Writer, list []Object, typeField bool, sortField strin
 }
 
 func printLine(w io.Writer, cols []string, msg string) {
-	fmt.Fprintf(w, "%s\n", strings.TrimRight(fmt.Sprintf(msg, utils.ConvertSlice[any](cols)...), " "))
+	fmt.Fprintf(w, "%s\n", strings.TrimRight(fmt.Sprintf(msg, sliceutils.Convert[any](cols)...), " "))
 }
 
 func formatString(max []int) string {

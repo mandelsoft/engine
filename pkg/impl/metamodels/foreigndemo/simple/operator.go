@@ -2,17 +2,16 @@ package simple
 
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
 )
 
 func init() {
@@ -34,7 +33,7 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		o := _o.(*db.Operator)
 		mod := false
-		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.GetPhase()), &mod)
+		support.UpdateField(&o.Status.Phase, generics.Pointer(elem.GetPhase()), &mod)
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
 		if elem.GetPhase() == mymetamodel.PHASE_EXPOSE {
@@ -47,7 +46,7 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
 			}
 			if update.ResultState != nil {
-				support.UpdateField(&o.Status.Result, utils.Pointer(update.ResultState.(*ExposeOutputState).GetState()), &mod)
+				support.UpdateField(&o.Status.Result, generics.Pointer(update.ResultState.(*ExposeOutputState).GetState()), &mod)
 			}
 		} else {
 			support.UpdateField(&o.Status.Status, update.Status, &mod)

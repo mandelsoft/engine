@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type Initializer[T Object] func(o T)
@@ -86,7 +86,7 @@ func (s *types[E]) CreateObject(typ string, init ...Initializer[E]) (E, error) {
 	v := reflect.New(t)
 	o := v.Interface().(E)
 
-	if i, ok := utils.TryCast[InitializedObject](o); ok {
+	if i, ok := generics.TryCast[InitializedObject](o); ok {
 		err := i.Initialize()
 		if err != nil {
 			return _nil, err
@@ -122,7 +122,7 @@ func Register[T any, P ElementType[T], E Object](s TypeScheme[E], name string) e
 
 	p, ok := (any(&proto)).(E)
 	if !ok {
-		return fmt.Errorf("*%s does not implement scheme interface %s", utils.TypeOf[T](), utils.TypeOf[E]())
+		return fmt.Errorf("*%s does not implement scheme interface %s", generics.TypeOf[T](), generics.TypeOf[E]())
 	}
 	return s.Register(name, p)
 }

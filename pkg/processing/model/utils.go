@@ -4,7 +4,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/logging"
 )
 
@@ -34,7 +34,7 @@ func ModifiedSlaveObjectVersion(log logging.Logger, e internal.Element, o Extern
 	}
 	old := e.GetObject().GetTargetState(e.GetPhase()).GetObjectVersion()
 	s := e.GetObject().GetExternalState(o, e.GetPhase())
-	log.Info("using modified external state {{state}}", "state", utils.DescribeObject(s))
+	log.Info("using modified external state {{state}}", "state", general.DescribeObject(s))
 	mod := s.GetVersion()
 	if mod != old {
 		log.Info("adjust target object version according to updated external object from {{old}} to {{new}}",

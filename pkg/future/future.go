@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -43,7 +43,7 @@ func (f *future) Wait(ctx context.Context) bool {
 func (f *future) wait(ctx context.Context, retrigger ...bool) bool {
 	f.lock.Lock()
 	if len(retrigger) > 0 {
-		f.retrigger = utils.Optional(retrigger...)
+		f.retrigger = general.Optional(retrigger...)
 	}
 	if f.done > 0 {
 		f.done--

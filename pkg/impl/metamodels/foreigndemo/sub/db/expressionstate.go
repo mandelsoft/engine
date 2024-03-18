@@ -86,7 +86,4 @@ func NewExternalExpressionSpec(e *Expression) *ExternalExpressionSpec {
 // This field is NOT a spec field for the
 // external object and kept for the internal object,
 // only, to describe generated expression objects.
-type EffectiveExpressionSpec struct {
-	*ExternalExpressionSpec `json:",inline"`
-	ExpressionStateSpec     `json:",inline"`
-}
+type EffectiveExpressionSpec = db.DefaultEffectiveSlaveObjectSpec[ExternalExpressionSpec]

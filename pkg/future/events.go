@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/logging"
 )
 
@@ -66,7 +66,7 @@ func (p *eventManager[I, E]) Future(e E, id I, retrigger ...bool) Future {
 		p.types[e] = state
 	}
 
-	f := NewFuture(utils.Optional(retrigger...))
+	f := NewFuture(general.Optional(retrigger...))
 	state[id] = append(state[id], f)
 	return f
 }

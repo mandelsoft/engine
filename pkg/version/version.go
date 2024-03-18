@@ -6,7 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/stringutils"
 )
 
 type Id interface {
@@ -166,7 +168,7 @@ func (g *graph) GetNode(id Id) Node {
 }
 
 func (g *graph) Nodes() []Id {
-	return utils.MapKeys(g.nodes, CompareId)
+	return maputils.Keys(g.nodes, CompareId)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +189,7 @@ type evaluatedGraph struct {
 func EvaluateGraph(g GraphView, cmps ...Composer) (EvaluatedGraph, error) {
 	e := &evaluatedGraph{
 		_GraphView: g,
-		compose:    utils.OptionalDefaulted[Composer](Composed, cmps...),
+		compose:    general.OptionalDefaulted[Composer](Composed, cmps...),
 		versions:   map[Id]string{},
 	}
 
@@ -207,8 +209,8 @@ func (e *evaluatedGraph) FormalVersion(id Id) string {
 ////////////////////////////////////////////////////////////////////////////////
 
 func (e *evaluatedGraph) getVersion(id Id, stack ...Id) (string, error) {
-	if c := utils.Cycle(id, stack...); c != nil {
-		return "", fmt.Errorf("dependency cycle %s", utils.JoinFunc(c, "->", GetEffName))
+	if c := general.Cycle(id, stack...); c != nil {
+		return "", fmt.Errorf("dependency cycle %s", stringutils.JoinFunc(c, "->", GetEffName))
 	}
 	n := e.GetNode(id)
 	if n == nil {

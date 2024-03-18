@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 )
@@ -19,7 +19,7 @@ var _ database.Specification[database.Object] = (*Specification[database.Object]
 func NewSpecification[O database.Object](path string, fss ...vfs.FileSystem) *Specification[O] {
 	return &Specification[O]{
 		Path:       path,
-		FileSystem: utils.OptionalDefaulted(osfs.New(), fss...),
+		FileSystem: general.OptionalDefaulted(osfs.New(), fss...),
 	}
 }
 

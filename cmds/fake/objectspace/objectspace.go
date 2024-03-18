@@ -9,8 +9,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/watch"
+	"github.com/mandelsoft/goutils/sliceutils"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
@@ -59,7 +59,7 @@ func (s *ObjectSpace) ChooseRandomNamespace() *elemwatch.Event {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	list := utils.FilterSlice(s.list, func(id elemwatch.Id) bool { return id.Phase == "" })
+	list := sliceutils.Filter(s.list, func(id elemwatch.Id) bool { return id.Phase == "" })
 	return s.Get(Random(list))
 }
 

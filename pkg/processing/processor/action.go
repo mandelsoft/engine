@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -81,5 +81,5 @@ func DecodeCommand(c pool.Command) (string, string, *ElementId) {
 		n = ns[i+1:]
 		ns = ns[:i]
 	}
-	return cmd, "", utils.Pointer(NewElementId(t, ns, n, Phase(p)))
+	return cmd, "", generics.Pointer(NewElementId(t, ns, n, Phase(p)))
 }

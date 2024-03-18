@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 // Modify modifies an object with modifier mod taking race conditions
@@ -16,13 +16,13 @@ func Modify[O Object, R any, DBO Object](db Database[DBO], obj *O, mod func(O) (
 	for {
 		r, modified := mod(o)
 		if modified {
-			err := db.SetObject(utils.Cast[DBO](o))
+			err := db.SetObject(generics.Cast[DBO](o))
 			if err != nil {
 				if errors.Is(err, ErrModified) {
 					_o, err := db.GetObject(o)
 					if err == nil {
 						var ok bool
-						o, ok = utils.TryCast[O](_o)
+						o, ok = generics.TryCast[O](_o)
 						if !ok {
 							return r, fmt.Errorf("non-matching Go type %T for %q", _o, _o.GetType())
 						}
@@ -45,11 +45,11 @@ func CreateOrModify[O Object, DBO Object](db Database[DBO], obj *O, mod func(O) 
 			if !errors.Is(err, ErrNotExist) {
 				return false, err
 			}
-			_o = utils.Cast[DBO](*obj)
+			_o = generics.Cast[DBO](*obj)
 			err = nil
 			m = true
 		}
-		o, ok := utils.TryCast[O](_o)
+		o, ok := generics.TryCast[O](_o)
 		if !ok {
 			return false, fmt.Errorf("non-matching Go type %T for %q", _o, _o.GetType())
 		}

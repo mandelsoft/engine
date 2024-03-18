@@ -10,8 +10,9 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/sliceutils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -134,9 +135,7 @@ func (g *graph) IsEmpty() bool {
 }
 
 func (g *graph) Objects() []database.ObjectId {
-	ids := utils.MapKeys(g.nodes, database.CompareObjectId)
-	slices.SortFunc(ids, database.CompareObjectId)
-	return ids
+	return maputils.Keys(g.nodes, database.CompareObjectId)
 }
 
 func (g *graph) RootObjects() []database.ObjectId {
@@ -144,14 +143,14 @@ func (g *graph) RootObjects() []database.ObjectId {
 }
 
 func (g *graph) CheckObjects() []database.ObjectId {
-	return utils.TransformSlice(g.checks, database.GetObjectId[CheckNode])
+	return sliceutils.Transform(g.checks, database.GetObjectId[CheckNode])
 }
 
 func (g *graph) rootObjects() []database.ObjectId {
 	var ids []database.ObjectId
 	if len(g.nodes) > 0 {
 		leaves := g.EvaluatedGraph.Roots()
-		ns := utils.MapKeys(g.nodes)[0].GetNamespace()
+		ns := maputils.Keys(g.nodes)[0].GetNamespace()
 		for _, l := range leaves {
 			t := l.GetType()
 			i := strings.Index(t, ":")

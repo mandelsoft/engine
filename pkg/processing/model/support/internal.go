@@ -12,6 +12,9 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/matcher"
+	"github.com/mandelsoft/goutils/sliceutils"
 )
 
 // PhaseStateAccessFunc is the replacement for a C++ member pointer.
@@ -64,7 +67,7 @@ type phaser[T db.InternalDBObject] interface {
 }
 
 func SetPhaseStateAccess[T db.InternalDBObject](i InternalObject, phaseInfos PhaseStateAccess[T]) error {
-	o, ok := utils.TryCast[phaser[T]](i)
+	o, ok := generics.TryCast[phaser[T]](i)
 	if !ok {
 		return fmt.Errorf("invalid object type %T", i)
 	}
@@ -393,7 +396,7 @@ func NewDefaultObservedStateForTypePhase(v string, typ string, namespace string,
 
 func LinksForTypePhase(typ string, namespace string, phase mmids.Phase, names ...string) []mmids.ElementId {
 	var links []mmids.ElementId
-	for _, l := range utils.FilterSlice(names, utils.NotInitialFilter[string]) {
+	for _, l := range sliceutils.Filter(names, matcher.NotInitial[string]) {
 		links = append(links, mmids.NewElementId(typ, namespace, l, phase))
 	}
 	return links

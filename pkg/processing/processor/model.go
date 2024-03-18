@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/maputils"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -14,7 +15,6 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	"github.com/mandelsoft/engine/pkg/utils"
 )
 
 type processingModel struct {
@@ -53,7 +53,7 @@ func (p *processingModel) SchemeTypes() objectbase.SchemeTypes {
 func (m *processingModel) Namespaces() []string {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return utils.MapKeys(m.namespaces)
+	return maputils.OrderedKeys(m.namespaces)
 }
 
 func (m *processingModel) GetNamespace(name string) Namespace {

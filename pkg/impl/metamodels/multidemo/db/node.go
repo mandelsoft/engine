@@ -4,13 +4,12 @@ import (
 	"slices"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
 )
 
 func init() {
@@ -62,7 +61,7 @@ func NewOperatorNode(ns, n string, op OperatorName, operands ...string) *Node {
 	return &Node{
 		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_NODE, ns, n),
 		Spec: NodeSpec{
-			Operator: utils.Pointer(op),
+			Operator: generics.Pointer(op),
 			Operands: slices.Clone(operands),
 		},
 	}
@@ -72,7 +71,7 @@ func NewValueNode(ns, n string, value int) *Node {
 	return &Node{
 		ObjectMeta: db.NewObjectMeta(mymetamodel.TYPE_NODE, ns, n),
 		Spec: NodeSpec{
-			Value: utils.Pointer(value),
+			Value: generics.Pointer(value),
 		},
 	}
 }

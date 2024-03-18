@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 )
 
 func Compose(n Node, nested ...string) string {
@@ -27,7 +27,7 @@ func (c ComposeFunc) Compose(n Node, nested ...string) string {
 }
 
 func Hash(n Node, nested ...string) string {
-	return utils.HashData(Compose(n, nested...))
+	return general.HashData(Compose(n, nested...))
 }
 
 var Hashed = ComposeFunc(Hash)

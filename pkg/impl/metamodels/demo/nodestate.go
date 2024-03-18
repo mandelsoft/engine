@@ -5,17 +5,16 @@ import (
 	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/demo/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/demo"
 )
 
 func init() {
@@ -54,7 +53,7 @@ func (n *NodeState) AcceptExternalState(lctx model.Logging, ob objectbase.Object
 		mod := false
 		s := state.(*ExternalNodeState).GetState()
 		support.UpdateField(&t.Spec, s, &mod)
-		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
+		support.UpdateField(&t.ObjectVersion, generics.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err

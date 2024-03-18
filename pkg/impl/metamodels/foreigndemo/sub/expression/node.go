@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type Node struct {
@@ -32,7 +32,7 @@ func (n *Node) String() string {
 
 func NewValueNode(v int) *Node {
 	return &Node{
-		Value: utils.Pointer(v),
+		Value: generics.Pointer(v),
 	}
 }
 

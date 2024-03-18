@@ -7,14 +7,16 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/goutils/matcher"
+	"github.com/mandelsoft/goutils/sliceutils"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/server"
 	"github.com/mandelsoft/engine/pkg/service"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/watch"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
@@ -113,7 +115,7 @@ func (r *Registry) UnregisterWatchHandler(req RegistrationRequest, h Handler) {
 	defer r.lock.Unlock()
 
 	log.Info("unregistering handler for {{key}}", "key", req.Key)
-	r.handlers[req.Key] = utils.FilterSlice(r.handlers[req.Key], utils.NotFilter(utils.EqualsFilter(h)))
+	r.handlers[req.Key] = sliceutils.Filter(r.handlers[req.Key], matcher.Not(matcher.Equals(h)))
 }
 
 func (r *Registry) Trigger(evt Event) {

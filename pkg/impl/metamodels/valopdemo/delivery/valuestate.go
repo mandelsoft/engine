@@ -5,19 +5,18 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
 )
 
 func init() {
@@ -62,7 +61,7 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		}
 		s := state.(*EffectiveValueState).GetState()
 		support.UpdateField(&t.Spec, s, &mod)
-		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
+		support.UpdateField(&t.ObjectVersion, generics.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return model.ACCEPT_OK, err
@@ -97,7 +96,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 				if iid == oid {
 					if v, ok := s[n.GetName()]; ok {
 						out.Value = v
-						out.Origin = utils.Pointer(db2.NewObjectIdFor(iid))
+						out.Origin = generics.Pointer(db2.NewObjectIdFor(iid))
 						log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", out.Value)
 					}
 					break
@@ -106,7 +105,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		}
 	} else {
 		out.Value = n.GetTargetState(req.Element.GetPhase()).(*TargetValueState).GetValue()
-		out.Origin = utils.Pointer(db2.NewObjectIdFor(req.Element))
+		out.Origin = generics.Pointer(db2.NewObjectIdFor(req.Element))
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
 
@@ -155,7 +154,7 @@ func (n *ValueState) assureSlave(log logging.Logger, ob objectbase.Objectbase, o
 				o := _o.(*db.Value)
 				mod := false
 				support.UpdateField(&o.Spec.Value, &out.Value, &mod)
-				support.UpdateField(&o.Status.Provider, utils.Pointer(out.Origin.GetName()), &mod)
+				support.UpdateField(&o.Status.Provider, generics.Pointer(out.Origin.GetName()), &mod)
 				return mod, mod
 			})
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/logging"
 )
 
@@ -193,7 +193,7 @@ type selfer[I InternalObject, T db.InternalDBObject] interface {
 }
 
 func SetSelf[I InternalObject, T db.InternalDBObject](i I, phases Phases[I, T], phaseInfos PhaseStateAccess[T]) error {
-	o, ok := utils.TryCast[selfer[I, T]](i)
+	o, ok := generics.TryCast[selfer[I, T]](i)
 	if !ok {
 		return fmt.Errorf("invalid object type %T", i)
 	}
@@ -208,7 +208,7 @@ func (n *InternalPhaseObjectSupport[I, T]) setSelf(i I, phases Phases[I, T], pi 
 }
 
 func (n *InternalPhaseObjectSupport[I, T]) GetDBObject() T {
-	return utils.Cast[T](n.GetBase())
+	return generics.Cast[T](n.GetBase())
 }
 
 func (n *InternalPhaseObjectSupport[I, T]) GetExternalState(ext model.ExternalObject, phase mmids.Phase) model.ExternalState {

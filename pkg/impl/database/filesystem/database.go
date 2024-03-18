@@ -8,7 +8,8 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
@@ -29,7 +30,7 @@ type Database[O database.Object] struct {
 var _ database.Database[database.Object] = (*Database[database.Object])(nil)
 
 func New[O database.Object](s database.Encoding[O], path string, fss ...vfs.FileSystem) (database.Database[O], error) {
-	fs := utils.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...)
+	fs := general.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...)
 
 	err := fs.MkdirAll(path, 0o0700)
 	if err != nil && !errors.Is(err, vfs.ErrExist) {
@@ -209,11 +210,11 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 		return err
 	}
 
-	if g, ok := utils.TryCast[database.GenerationAccess](o); ok {
+	if g, ok := generics.TryCast[database.GenerationAccess](o); ok {
 		gen := g.GetGeneration()
 		if err == nil {
 			var ok bool
-			og, ok := utils.TryCast[database.GenerationAccess](old)
+			og, ok := generics.TryCast[database.GenerationAccess](old)
 			if !ok {
 				log.Error("inconsistent types for read and write", "path", path)
 				return fmt.Errorf("inconsistent types for read and write")
@@ -227,9 +228,9 @@ func (d *Database[O]) _doSetObject(log logging.Logger, path string, o O) error {
 		g.SetGeneration(gen + 1)
 	}
 
-	if f, ok := utils.TryCast[database.Finalizable](o); ok {
+	if f, ok := generics.TryCast[database.Finalizable](o); ok {
 		if err == nil {
-			f.PreserveDeletion(utils.Cast[database.Finalizable](old).GetDeletionInfo())
+			f.PreserveDeletion(generics.Cast[database.Finalizable](old).GetDeletionInfo())
 		}
 		if f.IsDeleting() && len(f.GetFinalizers()) == 0 {
 			_, err := d._doDeleteObject(log, path, o)
@@ -276,7 +277,7 @@ func (d *Database[O]) DeleteObject(id database.ObjectId) (done bool, err error) 
 }
 
 func (d *Database[O]) _doDeleteObject(log logging.Logger, path string, o O) (bool, error) {
-	if f, ok := utils.TryCast[database.Finalizable](o); ok {
+	if f, ok := generics.TryCast[database.Finalizable](o); ok {
 		f.RequestDeletion()
 		finalizers := f.GetFinalizers()
 		log.Debug("found finalizers for {{path}}: {{finalizers}}", "finalizers", finalizers, "path", path)

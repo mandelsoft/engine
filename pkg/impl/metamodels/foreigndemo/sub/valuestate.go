@@ -5,17 +5,16 @@ import (
 
 	"github.com/mandelsoft/engine/pkg/processing"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 func init() {
@@ -62,7 +61,7 @@ func (n *ValueState) AcceptExternalState(lctx model.Logging, ob objectbase.Objec
 		log.Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Provider)
 		s.ApplyFormalObjectVersion(log, processing.NewState(s.ValueSpec), t, &mod)
 		support.UpdateField(&t.Spec, s, &mod)
-		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
+		support.UpdateField(&t.ObjectVersion, generics.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err
@@ -99,7 +98,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 				if iid == oid {
 					if v, ok := s[n.GetName()]; ok {
 						out.Value = v
-						out.Origin = utils.Pointer(db2.NewObjectIdFor(iid))
+						out.Origin = generics.Pointer(db2.NewObjectIdFor(iid))
 						log.Info("found inbound value from {{link}}: {{value}}", "link", iid, "value", out.Value)
 					}
 					break
@@ -108,7 +107,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 		}
 	} else {
 		out.Value = n.GetTargetState(req.Element.GetPhase()).(*TargetValueState).GetValue()
-		out.Origin = utils.Pointer(db2.NewObjectIdFor(req.Element.Id()))
+		out.Origin = generics.Pointer(db2.NewObjectIdFor(req.Element.Id()))
 		log.Info("found value from target state: {{value}}", "value", out.Value)
 	}
 
@@ -119,7 +118,7 @@ func (n *ValueState) Process(req model.Request) model.ProcessingResult {
 				if support.UpdateField(&o.Spec.Value, &out.Value, &mod) {
 					log.Info("- update value {{value}}", "value", out.Value)
 				}
-				if support.UpdateField(&o.Status.Provider, utils.Pointer(out.Origin.GetName()), &mod) {
+				if support.UpdateField(&o.Status.Provider, generics.Pointer(out.Origin.GetName()), &mod) {
 					log.Info("- update provider {{provider}}", "provider", out.Origin.GetName())
 				}
 				return mod

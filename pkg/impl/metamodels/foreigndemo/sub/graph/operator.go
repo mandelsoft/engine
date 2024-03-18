@@ -7,8 +7,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/graph"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
@@ -57,7 +57,7 @@ func (v *Operator) SubGraph(g Graph) []version.Node {
 	expose := g.GraphIdForPhase(v, mymetamodel.PHASE_EXPOSE)
 
 	r := []version.Node{
-		version.NewNodeById(gather, utils.HashData(v.Spec), deps...),
+		version.NewNodeById(gather, general.HashData(v.Spec), deps...),
 		version.NewNodeById(expression, "", gather),
 		version.NewNodeById(expose, "", gather, expression),
 	}
@@ -79,7 +79,7 @@ func (v *OperatorCheck) DBCheck(log logging.Logger, g Graph, o database.Object) 
 	op := o.(*db.Operator)
 
 	if v.Configured != nil {
-		exp := utils.HashData(v.Configured.Spec)
+		exp := general.HashData(v.Configured.Spec)
 		if op.Status.DetectedVersion != exp {
 			log.Debug("  detected version not yet reached (expected {{expected}}, found {{found}})", "expected", exp, "found", op.Status.DetectedVersion)
 			return false, "", nil

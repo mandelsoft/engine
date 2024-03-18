@@ -7,7 +7,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/sliceutils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -42,27 +42,27 @@ func (v Values) Missing(elems map[string]*ExpressionInfo) []string {
 }
 
 func OldRefs(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
-	return utils.FilterSlice(o.Status.Generated.Objects, func(l database.LocalObjectRef) bool {
+	return sliceutils.Filter(o.Status.Generated.Objects, func(l database.LocalObjectRef) bool {
 		return !g.HasObject(database.NewObjectId(l.GetType(), o.Status.Generated.Namespace, l.Name))
 	})
 }
 
 func NewRefs(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
-	n := utils.TransformSlice(g.Objects(), database.NewLocalObjectRefFor)
-	return utils.FilterSlice(n, func(l database.LocalObjectRef) bool {
+	n := sliceutils.Transform(g.Objects(), database.NewLocalObjectRefFor)
+	return sliceutils.Filter(n, func(l database.LocalObjectRef) bool {
 		return !slices.Contains(o.Status.Generated.Objects, l)
 	})
 }
 
 func OldResults(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
-	return utils.FilterSlice(o.Status.Generated.Results, func(l database.LocalObjectRef) bool {
+	return sliceutils.Filter(o.Status.Generated.Results, func(l database.LocalObjectRef) bool {
 		return !g.HasRootObject(database.NewObjectId(l.GetType(), o.Status.Generated.Namespace, l.Name))
 	})
 }
 
 func NewResults(o *db.Expression, g graph.Graph) []database.LocalObjectRef {
-	n := utils.TransformSlice(g.RootObjects(), database.NewLocalObjectRefFor)
-	return utils.FilterSlice(n, func(l database.LocalObjectRef) bool {
+	n := sliceutils.Transform(g.RootObjects(), database.NewLocalObjectRefFor)
+	return sliceutils.Filter(n, func(l database.LocalObjectRef) bool {
 		return !slices.Contains(o.Status.Generated.Results, l)
 	})
 }

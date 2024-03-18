@@ -7,12 +7,15 @@ import (
 	"runtime"
 	"time"
 
-	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
+
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
 	"github.com/mandelsoft/logging/logrusr"
@@ -21,14 +24,12 @@ import (
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/impl/database/filesystem"
-	"github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/processor"
-	"github.com/mandelsoft/engine/pkg/utils"
-
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
+	"github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/processor"
 )
 
 const NS = "testspace"
@@ -143,7 +144,7 @@ var _ = Describe("Processing", func() {
 			fmt.Printf("*** modify object A ***\n")
 			dbo := (db2.Object)(n5)
 			_ = Must(database.Modify(odb, &dbo, func(o db2.Object) (bool, bool) {
-				o.(*db.Value).Spec.Value = utils.Pointer(6)
+				o.(*db.Value).Spec.Value = generics.Pointer(6)
 				return true, true
 			}))
 

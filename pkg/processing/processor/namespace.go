@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/maputils"
 
 	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -43,7 +43,7 @@ func (ni *namespaceInfo) Elements() []ElementId {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
 
-	return utils.MapKeys(ni.elements)
+	return maputils.Keys(ni.elements)
 }
 
 func (ni *namespaceInfo) GetElement(id ElementId) Element {

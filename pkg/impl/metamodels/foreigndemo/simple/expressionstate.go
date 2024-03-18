@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -13,7 +14,6 @@ import (
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
@@ -60,7 +60,7 @@ func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.
 			s = &db.EffectiveExpressionSpec{}
 		}
 		support.UpdateField(&t.Spec, s, &mod)
-		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
+		support.UpdateField(&t.ObjectVersion, generics.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err

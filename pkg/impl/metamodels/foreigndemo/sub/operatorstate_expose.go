@@ -4,14 +4,13 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/logging"
-
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 type ExposePhase struct{ PhaseBase }
@@ -91,7 +90,7 @@ func (c ExposePhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		},
 		support.SlaveCreationFunc(func(o *db.ValueState) (bool, bool) {
 			mod := false
-			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			support.UpdateField(&o.Spec.Provider, generics.Pointer(req.Element.GetName()), &mod)
 			if mod {
 				log.Info("update provider for {{slaveid}} to {{provider}}", "slaveid", NewElementIdForPhase(o, mymetamodel.PHASE_PROPAGATE), req.Element.GetName())
 			} else {

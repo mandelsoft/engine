@@ -6,15 +6,14 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/goutils/maputils"
 
 	"github.com/mandelsoft/logging"
 
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
-
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +183,7 @@ func (c *CurrentGatherState) GetObservedState() model.ObservedState {
 	if c.GetObjectVersion() == c.GetObservedVersion() {
 		return c
 	}
-	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE, utils.OrderedMapElements(c.Get().ObservedOperands)...)
+	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE, maputils.OrderedValues(c.Get().ObservedOperands)...)
 }
 
 func (c *CurrentGatherState) GetLinks() []ElementId {
@@ -218,7 +217,7 @@ func (c *TargetGatherState) GetLinks() []ElementId {
 		return nil
 	}
 
-	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE, utils.OrderedMapElements(t.Spec.Operands)...)
+	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE, maputils.OrderedValues(t.Spec.Operands)...)
 }
 
 func (c *TargetGatherState) GetOperations() map[string]db.Operation {

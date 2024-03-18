@@ -1,20 +1,21 @@
 package expression_test
 
 import (
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
-	. "github.com/mandelsoft/engine/pkg/testutils"
-	"github.com/mandelsoft/engine/pkg/utils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 var _ = Describe("Expression Parsing", func() {
 	Context("leafs", func() {
 		It("value", func() {
-			Expect(expression.Parse("12")).To(Equal(&expression.Node{Value: utils.Pointer(12)}))
+			Expect(expression.Parse("12")).To(Equal(&expression.Node{Value: generics.Pointer(12)}))
 		})
 		It("negative value", func() {
-			Expect(expression.Parse("---12")).To(Equal(&expression.Node{Value: utils.Pointer(-12)}))
+			Expect(expression.Parse("---12")).To(Equal(&expression.Node{Value: generics.Pointer(-12)}))
 		})
 		It("name", func() {
 			Expect(expression.Parse("varA")).To(Equal(&expression.Node{Name: "varA"}))

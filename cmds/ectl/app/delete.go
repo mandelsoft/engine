@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/sliceutils"
 	"github.com/spf13/cobra"
 )
 
@@ -160,7 +160,7 @@ func (c *Delete) Run(args []string) error {
 			if err != nil {
 				return err
 			}
-			list = append(list, utils.TransformSlice(l.Items, ObjectIdFor)...)
+			list = append(list, sliceutils.Transform(l.Items, ObjectIdFor)...)
 		}
 		for _, o := range list {
 			err := handler("", o)
@@ -172,7 +172,7 @@ func (c *Delete) Run(args []string) error {
 
 	if c.filemode {
 		HandleObjects(c.cmd, c.mainopts, args, func(f string, items ...Object) error {
-			list := utils.TransformSlice(items, ObjectIdFor)
+			list := sliceutils.Transform(items, ObjectIdFor)
 			return handler(f, list...)
 		})
 	}

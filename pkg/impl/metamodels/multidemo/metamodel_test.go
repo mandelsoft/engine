@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/multidemo"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/multidemo"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 )
 
 var _ = Describe("meta model", func() {

@@ -4,15 +4,14 @@ import (
 	"fmt"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/logging"
 
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
-
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 type CalculatePhase struct{ PhaseBase }
@@ -100,7 +99,7 @@ func (c CalculatePhase) Process(o *OperatorState, phase Phase, req model.Request
 		},
 		support.SlaveCreationFunc(func(o *db.ValueState) (bool, bool) {
 			mod := false
-			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			support.UpdateField(&o.Spec.Provider, generics.Pointer(req.Element.GetName()), &mod)
 			return mod, mod
 		}),
 		slaves...,

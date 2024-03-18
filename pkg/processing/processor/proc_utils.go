@@ -5,14 +5,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
-
-	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/version"
 
 	"github.com/mandelsoft/engine/pkg/database"
+	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -22,8 +22,7 @@ type ObservedVersion string
 type DetectedVersion string
 
 func CalcEffectiveVersion(inputs model.Inputs, objvers string) EffectiveVersion {
-	keys := utils.MapKeys(inputs)
-	slices.SortFunc(keys, utils.CompareStringable[ElementId]) // Goland
+	keys := maputils.Keys(inputs, CompareElementId)
 
 	hash := sha256.New()
 	hash.Write([]byte(objvers))
@@ -95,22 +94,22 @@ func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _E
 	for _, a := range args {
 		switch opt := a.(type) {
 		case RunId:
-			update.RunId = utils.Pointer(opt)
+			update.RunId = generics.Pointer(opt)
 			keys = append(keys, "runid", update.RunId)
 		case model.OutputState:
 			update.ResultState = opt
-			keys = append(keys, "result", utils.DescribeObject(opt))
+			keys = append(keys, "result", general.DescribeObject(opt))
 		case FormalVersion:
-			update.FormalVersion = utils.Pointer(string(opt))
+			update.FormalVersion = generics.Pointer(string(opt))
 			keys = append(keys, "formal version", opt)
 		case ObservedVersion:
-			update.ObservedVersion = utils.Pointer(string(opt))
+			update.ObservedVersion = generics.Pointer(string(opt))
 			keys = append(keys, "observed version", opt)
 		case DetectedVersion:
-			update.DetectedVersion = utils.Pointer(string(opt))
+			update.DetectedVersion = generics.Pointer(string(opt))
 			keys = append(keys, "detected version", opt)
 		case EffectiveVersion:
-			update.EffectiveVersion = utils.Pointer(string(opt))
+			update.EffectiveVersion = generics.Pointer(string(opt))
 			keys = append(keys, "effective version", opt)
 		default:
 			panic(fmt.Sprintf("unknown status argument type %T", a))
@@ -179,7 +178,7 @@ func (p *Processor) updateRunId(lctx model.Logging, log logging.Logger, verb str
 		}
 		err = o.(model.ExternalObject).UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), model.StatusUpdate{
 			RunId:           &rid,
-			DetectedVersion: utils.Pointer(""),
+			DetectedVersion: generics.Pointer(""),
 		})
 		if err != nil {
 			log.Error(fmt.Sprintf("cannot %s run for external object  {{extid}}", verb), "extid", extid, "error", err)
@@ -233,7 +232,7 @@ func (p *Processor) formalVersion(e _Element, inputs model.Inputs) string {
 }
 
 func formalInputVersions(inputs model.Inputs) []string {
-	return utils.MapElements(utils.TransformMap(inputs, mapInputsToVersions), version.CompareId)
+	return maputils.Values(maputils.Transform(inputs, mapInputsToVersions), version.CompareId)
 }
 
 func mapInputsToVersions(id ElementId, state model.OutputState) (version.Id, string) {

@@ -10,7 +10,10 @@ import (
 	"github.com/mandelsoft/engine/pkg/pool"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/stringutils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -149,7 +152,7 @@ func (p *Processor) handleExternalChange(lctx model.Logging, e _Element) pool.St
 	v := es.GetVersion()
 	if ov != v {
 		log.Info("state of external object {{extid}} adjusted from {{objectversion}} to {{version}}", "objectversion", ov, "version", v)
-		log.Debug("external state: {{state}}", "state", utils.DescribeObject(es))
+		log.Debug("external state: {{state}}", "state", general.DescribeObject(es))
 	}
 	if v == cur {
 		log.Info("state of external object {{extid}} not changed ({{version}})", "version", v)
@@ -261,7 +264,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 		children := ni.GetChildren(e.Id())
 		if len(children) == 0 {
 			log.Info("element {{element}} is deleting and no children found -> initiate deletion")
-			log.Info("  found links {{links}}", "links", utils.Join(curlinks))
+			log.Info("  found links {{links}}", "links", stringutils.Join(curlinks))
 			links = curlinks
 			deletion = true
 		} else {
@@ -280,7 +283,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 				log.Info("all links ready for consumption -> initiate new run")
 				return p.initiateNewRun(lctx, log, e)
 			}
-			log.Info("found still missing elements for {{element}} ({{missing}}) -> keep state blocked", "missing", utils.Join(ready.BlockingElements(), ","))
+			log.Info("found still missing elements for {{element}} ({{missing}}) -> keep state blocked", "missing", stringutils.Join(ready.BlockingElements(), ","))
 		} else {
 			log.Info("no active run for {{element}} -> skip processing")
 		}
@@ -348,13 +351,13 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			if blocked {
 				p.pending.Add(-1)
 				p.triggerChildren(log, ni, e, true)
-				log.Info("unresolvable dependencies {{waiting}}", "waiting", utils.Join(ready.Waiting))
-				return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", utils.Join(ready.Waiting)))
+				log.Info("unresolvable dependencies {{waiting}}", "waiting", stringutils.Join(ready.Waiting))
+				return pool.StatusFailed(fmt.Errorf("unresolvable dependencies %s", stringutils.Join(ready.Waiting)))
 			}
 			if ok {
 				return pool.StatusCompleted(fmt.Errorf("still waiting for predecessors"))
 				// TODO: trigger waiting by completed element of foreign run !!!!!!!!!!!!!
-				log.Info("missing dependencies {{waiting}}", "waiting", utils.Join(ready.Waiting))
+				log.Info("missing dependencies {{waiting}}", "waiting", stringutils.Join(ready.Waiting))
 				return pool.StatusCompleted(nil) // TODO: rate limiting required?
 			}
 
@@ -386,9 +389,9 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 
 			upstate := func(log logging.Logger, o model.ExternalObject) error {
 				return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
-					Status:        utils.Pointer(model.STATUS_PROCESSING),
-					FormalVersion: utils.Pointer(formalVersion),
-					Message:       utils.Pointer(fmt.Sprintf("processing phase %s", e.GetPhase())),
+					Status:        generics.Pointer(model.STATUS_PROCESSING),
+					FormalVersion: generics.Pointer(formalVersion),
+					Message:       generics.Pointer(fmt.Sprintf("processing phase %s", e.GetPhase())),
 				})
 			}
 
@@ -407,7 +410,7 @@ func (p *Processor) handleRun(lctx model.Logging, e _Element) pool.Status {
 			ready = p.checkReady(log, ni, "target", e.GetLock(), links)
 			if !ready.Ready() {
 				log.Error("unexpected state of parents, should be available, but found missing {{missing}} and/or waiting {{waiting}}",
-					"missing", utils.Join(ready.BlockingElements()), "waiting", utils.Join(ready.Waiting))
+					"missing", stringutils.Join(ready.BlockingElements()), "waiting", stringutils.Join(ready.Waiting))
 				return p.fail(lctx, log, ni, e, false, fmt.Errorf("unexpected state of parents"))
 			}
 			formalVersion = p.formalVersion(e, ready.Inputs)
@@ -672,12 +675,12 @@ func (p *Processor) notifyCompletedState(lctx model.Logging, log logging.Logger,
 func (p *Processor) notifyCurrentWaitingState(lctx model.Logging, log logging.Logger, e _Element, ready *ReadyState) bool {
 	var keys []interface{}
 
-	keys = append(keys, "found", utils.Join(utils.MapKeys(ready.Inputs)))
+	keys = append(keys, "found", stringutils.Join(maputils.Keys(ready.Inputs, CompareElementId)))
 	if !ready.ReadyForTrigger() {
-		keys = append(keys, "missing", utils.Join(ready.BlockingElements()))
+		keys = append(keys, "missing", stringutils.Join(ready.BlockingElements()))
 	}
 	if len(ready.Waiting) > 0 {
-		keys = append(keys, "waiting", utils.Join(ready.Waiting))
+		keys = append(keys, "waiting", stringutils.Join(ready.Waiting))
 		log.Info("inputs according to current state not ready", keys...)
 		return true
 	}
@@ -692,17 +695,17 @@ func (p *Processor) notifyCurrentWaitingState(lctx model.Logging, log logging.Lo
 func (p *Processor) notifyTargetWaitingState(lctx model.Logging, log logging.Logger, e _Element, ready *ReadyState) (bool, bool, error) {
 	var keys []interface{}
 	if len(ready.Inputs) > 0 {
-		keys = append(keys, "found", utils.Join(utils.MapKeys(ready.Inputs)))
+		keys = append(keys, "found", stringutils.Join(maputils.Keys(ready.Inputs, CompareElementId)))
 	}
 	if !ready.ReadyForTrigger() {
-		keys = append(keys, "missing", utils.Join(ready.BlockingElements()))
+		keys = append(keys, "missing", stringutils.Join(ready.BlockingElements()))
 	}
 	if len(ready.Waiting) > 0 {
-		keys = append(keys, "waiting", utils.Join(ready.Waiting))
+		keys = append(keys, "waiting", stringutils.Join(ready.Waiting))
 	}
 	if !ready.ReadyForTrigger() {
 		log.Info("inputs according to target state not ready", keys...)
-		return true, true, p.blocked(lctx, log, e, fmt.Sprintf("unresolved dependencies %s", utils.Join(ready.BlockingElements())))
+		return true, true, p.blocked(lctx, log, e, fmt.Sprintf("unresolved dependencies %s", stringutils.Join(ready.BlockingElements())))
 	}
 	if len(ready.Waiting) > 0 {
 		log.Info("inputs according to target state not ready", keys...)
@@ -780,13 +783,13 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 		state := e.GetExternalState(o)
 		v := state.GetVersion()
 		log.Debug("  found effective external state from {{extid}} for phase {{phase}}: {{state}}",
-			"phase", e.GetPhase(), "state", utils.DescribeObject(state))
+			"phase", e.GetPhase(), "state", general.DescribeObject(state))
 		err := o.UpdateStatus(lctx, p.processingModel.ObjectBase(), e.Id(), model.StatusUpdate{
-			RunId:           utils.Pointer(e.GetLock()),
+			RunId:           generics.Pointer(e.GetLock()),
 			DetectedVersion: &v,
 			ObservedVersion: nil,
-			Status:          utils.Pointer(model.STATUS_PREPARING),
-			Message:         utils.Pointer("preparing target state"),
+			Status:          generics.Pointer(model.STATUS_PREPARING),
+			Message:         generics.Pointer("preparing target state"),
 			ExternalState:   state,
 			ResultState:     nil,
 		})
@@ -808,7 +811,7 @@ func (p *Processor) assignTargetState(lctx model.Logging, log logging.Logger, e 
 	if extstate == nil {
 		log.Info("no external object states found for {{element}}  -> propagate empty state")
 	} else {
-		log.Info("assigning external state for processing {{element}}", "extstate", utils.DescribeObject(extstate))
+		log.Info("assigning external state for processing {{element}}", "extstate", general.DescribeObject(extstate))
 	}
 	s, err := e.GetObject().AcceptExternalState(lctx, p.processingModel.ObjectBase(), e.GetPhase(), extstate)
 	if s != model.ACCEPT_OK || err != nil {

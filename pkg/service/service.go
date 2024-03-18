@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/maputils"
 )
 
 type Service interface {
@@ -67,7 +67,7 @@ func (t *services) Start(st ...Service) error {
 	if len(st) == 0 {
 		if !t.started {
 			t.started = true
-			return t.startServices(utils.MapKeys(t.services)...)
+			return t.startServices(maputils.Keys(t.services)...)
 		}
 	} else {
 		return t.startServices(st...)

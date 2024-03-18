@@ -15,13 +15,14 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/stringutils"
 	"github.com/mandelsoft/logging"
 )
 
 func DefaultInputVersion(inputs model.Inputs) string {
-	keys := utils.MapKeys(inputs)
-	slices.SortFunc(keys, utils.CompareStringable[mmids.ElementId])
+	keys := maputils.Keys(inputs)
+	slices.SortFunc(keys, stringutils.CompareStringable[mmids.ElementId])
 
 	hash := sha256.New()
 	for _, k := range keys {

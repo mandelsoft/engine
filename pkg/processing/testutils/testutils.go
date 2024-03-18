@@ -8,8 +8,8 @@ import (
 	"time"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-	"github.com/mandelsoft/engine/pkg/service"
 	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 
 	"github.com/mandelsoft/logging"
 	"github.com/mandelsoft/logging/logrusl"
@@ -25,6 +25,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
+	"github.com/mandelsoft/engine/pkg/service"
 )
 
 var log = logging.DefaultContext().Logger(logging.NewRealm("testenv"))
@@ -206,6 +207,8 @@ func (h *handler) HandleEvent(id database.ObjectId) {
 				}
 			}
 			h.mgr.Trigger(log, STATUS_ANY, NewObjectIdFor(id))
+		} else {
+			log.LogError(err, "cannot get object {{oid}}; {{error}}", database.NewObjectIdFor(id))
 		}
 	}
 }

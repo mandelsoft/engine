@@ -3,7 +3,7 @@ package app
 import (
 	"strings"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/spf13/cobra"
@@ -28,7 +28,7 @@ func (o *Options) GetURL() string {
 
 func New(fss ...vfs.FileSystem) *cobra.Command {
 	opts := &Options{
-		fs: utils.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...),
+		fs: general.OptionalDefaulted(vfs.FileSystem(osfs.OsFs), fss...),
 	}
 
 	cfg := GetConfig()

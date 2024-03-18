@@ -17,8 +17,12 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/service"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/matcher"
+	"github.com/mandelsoft/goutils/sliceutils"
+	"github.com/mandelsoft/goutils/stringutils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -151,32 +155,32 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 
 	if len(d) > 0 || len(n) > 0 || len(dr) > 0 || len(nr) > 0 {
 		if len(n) > 0 {
-			log.Info("found new slaves {{new}}", "new", utils.Join(n, ","))
+			log.Info("found new slaves {{new}}", "new", stringutils.Join(n, ","))
 		}
 		if len(d) > 0 {
-			log.Info("found obsolete slaves {{obsolete}}", "obsolete", utils.Join(d, ","))
+			log.Info("found obsolete slaves {{obsolete}}", "obsolete", stringutils.Join(d, ","))
 		}
 		if len(nr) > 0 {
-			log.Info("found new result {{new}}", "new", utils.Join(nr, ","))
+			log.Info("found new result {{new}}", "new", stringutils.Join(nr, ","))
 		}
 		if len(dr) > 0 {
-			log.Info("found obsolete result {{obsolete}}", "obsolete", utils.Join(dr, ","))
+			log.Info("found obsolete result {{obsolete}}", "obsolete", stringutils.Join(dr, ","))
 		}
 		mod := func(o *db.Expression) bool {
 			m := false
 			// add new generated objects and remove obsolete ones
-			support.UpdateField(&o.Status.Generated.Objects, utils.Pointer(
-				utils.FilterSlice(
-					utils.AppendUnique(o.Status.Generated.Objects, n...),
-					utils.NotFilter(utils.ContainsFilter(d...)))), &m)
+			support.UpdateField(&o.Status.Generated.Objects, generics.Pointer(
+				sliceutils.Filter(
+					sliceutils.AppendUnique(o.Status.Generated.Objects, n...),
+					matcher.Not(matcher.Contains(d...)))), &m)
 			// add obsolete ones to the deletion list
 			// as a result the union of generated and deleted is enriched by the new ones
-			support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.AppendUnique(o.Status.Generated.Deleting, d...)), &m)
+			support.UpdateField(&o.Status.Generated.Deleting, generics.Pointer(sliceutils.AppendUnique(o.Status.Generated.Deleting, d...)), &m)
 			// update the new result list containing the additional triggers
-			support.UpdateField(&o.Status.Generated.Results, utils.Pointer(
-				utils.FilterSlice(
-					utils.AppendUnique(o.Status.Generated.Results, nr...),
-					utils.NotFilter(utils.ContainsFilter(dr...)))), &m)
+			support.UpdateField(&o.Status.Generated.Results, generics.Pointer(
+				sliceutils.Filter(
+					sliceutils.AppendUnique(o.Status.Generated.Results, nr...),
+					matcher.Not(matcher.Contains(dr...)))), &m)
 			return m
 		}
 		ok, err := database.DirectModify(c.db, &o, mod)
@@ -227,9 +231,9 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 		}
 
 		if len(deleted) > 0 {
-			log.Info("removing deleted objects ({{deleted}}) from status", "deleted", utils.Join(deleted, ","))
+			log.Info("removing deleted objects ({{deleted}}) from status", "deleted", stringutils.Join(deleted, ","))
 			mod := func(o *db.Expression) bool {
-				return support.UpdateField(&o.Status.Generated.Deleting, utils.Pointer(utils.FilterSlice(o.Status.Generated.Deleting, utils.NotFilter(utils.ContainsFilter(deleted...)))))
+				return support.UpdateField(&o.Status.Generated.Deleting, generics.Pointer(sliceutils.Filter(o.Status.Generated.Deleting, matcher.Not(matcher.Contains(deleted...)))))
 			}
 			ok, err := database.DirectModify(c.db, &o, mod)
 			if err != nil {
@@ -314,7 +318,7 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	out := db.ExpressionOutput{}
 
 	log.Info("setting outputs")
-	for _, n := range utils.OrderedMapKeys(o.Spec.Expressions) {
+	for _, n := range maputils.OrderedKeys(o.Spec.Expressions) {
 		out[n] = values[n]
 		log.Info("- {{output}} = {{value}}", "output", n, "value", out[n])
 	}
@@ -323,8 +327,8 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 	log.Info("operation completed for version {{version}}", "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
-		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_COMPLETED), &mod)
-		support.UpdateField(&o.Status.Message, utils.Pointer(fmt.Sprintf("%d expressions calculated", l)), &mod)
+		support.UpdateField(&o.Status.Status, generics.Pointer(model.STATUS_COMPLETED), &mod)
+		support.UpdateField(&o.Status.Message, generics.Pointer(fmt.Sprintf("%d expressions calculated", l)), &mod)
 		support.UpdateField(&o.Status.ObservedVersion, &v, &mod)
 
 		support.UpdateField(&o.Status.Output, &out, &mod)
@@ -344,8 +348,8 @@ func (c *ExpressionController) StatusFailed(log logging.Logger, o *db.Expression
 	log.LogError(err, "operation failed ({{message}}) for observed version {{version}}", "message", msg, "version", v)
 	mod := func(o *db.Expression) (bool, bool) {
 		mod := false
-		support.UpdateField(&o.Status.Status, utils.Pointer(model.STATUS_FAILED), &mod)
-		support.UpdateField(&o.Status.Message, utils.Pointer(err.Error()), &mod)
+		support.UpdateField(&o.Status.Status, generics.Pointer(model.STATUS_FAILED), &mod)
+		support.UpdateField(&o.Status.Message, generics.Pointer(err.Error()), &mod)
 		support.UpdateField(&o.Status.ObservedVersion, &v, &mod)
 		return mod, mod
 	}

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/processing"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -14,7 +15,6 @@ import (
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
@@ -66,10 +66,10 @@ func (n *ExpressionState) AcceptExternalState(lctx model.Logging, ob objectbase.
 		if s == nil {
 			s = &db.EffectiveExpressionSpec{}
 		}
-		log.Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Provider)
-		s.ApplyFormalObjectVersion(log, processing.NewState(s.ExternalExpressionSpec), t, &mod)
+		log.Info("accepting object version {{version}} provider {{provider}}", "version", state.GetVersion(), "provider", s.Extension.Provider)
+		s.ApplyFormalObjectVersion(log, t, &mod)
 		support.UpdateField(&t.Spec, s, &mod)
-		support.UpdateField(&t.ObjectVersion, utils.Pointer(state.GetVersion()), &mod)
+		support.UpdateField(&t.ObjectVersion, generics.Pointer(state.GetVersion()), &mod)
 		return mod, mod
 	})
 	return 0, err
@@ -81,10 +81,8 @@ func (n *ExpressionState) EffectiveTargetSpec(state model.ExternalState) *Effect
 		v = state.(*ExternalExpressionState).GetState()
 	}
 	return NewEffectiveExpressionState(
-		&db.EffectiveExpressionSpec{
-			ExternalExpressionSpec: v,
-			ExpressionStateSpec:    n.GetBase().(*db.ExpressionState).Spec,
-		})
+		db2.NewDefaultEffectiveSlaveObjectSpec(v, &n.GetBase().(*db.ExpressionState).Spec),
+	)
 }
 
 func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
@@ -98,10 +96,10 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 
 	var ex *db.ExpressionSpec
 
-	if target.Spec.Provider == "" {
+	if target.Spec.Extension.Provider == "" {
 		log.Info("expression has no provider -> no update")
-		ex = &n.GetTargetState(mymetamodel.PHASE_CALCULATE).(*TargetEvaluationState).GetSpec().Spec
-		log.Info("using spec from external object: {{spec}}", "spec", utils.DescribeObject(ex))
+		ex = &n.GetTargetState(mymetamodel.PHASE_CALCULATE).(*TargetEvaluationState).GetSpec().External.Spec
+		log.Info("using spec from external object: {{spec}}", "spec", general.DescribeObject(ex))
 	} else {
 		var gathered *db.GatherOutput
 		for iid, e := range req.Inputs {
@@ -131,8 +129,8 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 					log.Info("- update spec {{spec}}", "spec", ex)
 				}
 
-				if support.UpdateField(&o.Status.Provider, utils.Pointer(target.Spec.Provider), &mod) {
-					log.Info("- update provider {{provider}}", "provider", target.Spec.Provider)
+				if support.UpdateField(&o.Status.Provider, generics.Pointer(target.Spec.Extension.Provider), &mod) {
+					log.Info("- update provider {{provider}}", "provider", target.Spec.Extension.Provider)
 				}
 
 				return mod
@@ -148,20 +146,20 @@ func (n *ExpressionState) Process(req model.Request) model.ProcessingResult {
 		}
 	}
 
-	log.Info("found expression version {{version}} ", "version", target.Spec.ObservedVersion)
+	log.Info("found expression version {{version}} ", "version", target.Spec.External.ObservedVersion)
 	required := ex.GetVersion()
-	if required != target.Spec.ObservedVersion {
+	if required != target.Spec.External.ObservedVersion {
 		log.Info("required version {{required}} not reached -> wait for next change", "required", required)
 		return model.StatusWaiting()
 	}
 	log.Info("required version {{required}} reached -> propagate expression results", "required", required)
 
-	if target.Spec.Status != model.STATUS_COMPLETED {
-		log.Warn("expression processing failed with status {{status}}[{{message}}]", "status", target.Spec.Status, "message", target.Spec.Message)
-		return model.StatusFailed(fmt.Errorf("expression processing failed with status %q[%s]", target.Spec.Status, target.Spec.Message))
+	if target.Spec.External.Status != model.STATUS_COMPLETED {
+		log.Warn("expression processing failed with status {{status}}[{{message}}]", "status", target.Spec.External.Status, "message", target.Spec.External.Message)
+		return model.StatusFailed(fmt.Errorf("expression processing failed with status %q[%s]", target.Spec.External.Status, target.Spec.External.Message))
 	}
 
-	return model.StatusCompleted(NewEvaluationOutputState(req.FormalVersion, target.Spec.Output))
+	return model.StatusCompleted(NewEvaluationOutputState(req.FormalVersion, target.Spec.External.Output))
 }
 
 func (n *ExpressionState) assureSlave(log logging.Logger, ob objectbase.Objectbase, ex *db.ExpressionSpec) (bool, error) {
@@ -218,10 +216,10 @@ func (n *ExpressionState) Commit(lctx model.Logging, ob objectbase.Objectbase, p
 func (n *ExpressionState) commitTargetState(lctx model.Logging, o *db.ExpressionState, phase Phase, spec *model.CommitInfo) {
 	log := lctx.Logger(REALM)
 	if o.Target != nil && spec != nil {
-		log.Info("  output {{output}}", "output", utils.DescribeObject(spec.OutputState.(*EvaluationOutputState).GetState()))
+		log.Info("  output {{output}}", "output", general.DescribeObject(spec.OutputState.(*EvaluationOutputState).GetState()))
 		o.Current.Output = spec.OutputState.(*EvaluationOutputState).GetState()
-		log.Info("  provider {{provider}}", "output", o.Target.Spec.ExpressionStateSpec.Provider)
-		o.Current.Provider = o.Target.Spec.ExpressionStateSpec.Provider
+		log.Info("  provider {{provider}}", "output", o.Target.Spec.Extension.Provider)
+		o.Current.Provider = o.Target.Spec.Extension.Provider
 
 	} else {
 		log.Info("nothing to commit for phase {{phase}} of ExpressionState {{name}}")
@@ -287,14 +285,14 @@ func (c *TargetEvaluationState) GetLinks() []mmids.ElementId {
 		return nil
 	}
 
-	if t.Spec.Provider != "" {
-		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Provider, mymetamodel.PHASE_GATHER))
+	if t.Spec.Extension.Provider != "" {
+		r = append(r, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, c.GetNamespace(), t.Spec.Extension.Provider, mymetamodel.PHASE_GATHER))
 	}
 	return r
 }
 
 func (c *TargetEvaluationState) GetProvider() string {
-	return c.Get().Spec.Provider
+	return c.Get().Spec.Extension.Provider
 }
 
 func (c *TargetEvaluationState) GetSpec() *db.EffectiveExpressionSpec {

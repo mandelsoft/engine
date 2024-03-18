@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/mandelsoft/engine/pkg/scanner"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/sliceutils"
 )
 
 type parsedNode struct {
@@ -39,7 +39,7 @@ func (n *parsedNode) GetVersion() string {
 }
 
 func (n *parsedNode) GetLinks() []Id {
-	return utils.TransformSlice(n.links, func(n *parsedNode) Id { return n.GetId() })
+	return sliceutils.Transform(n.links, func(n *parsedNode) Id { return n.GetId() })
 }
 
 func (n *parsedNode) GetNodeLinks() []*parsedNode {

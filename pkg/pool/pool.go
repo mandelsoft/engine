@@ -9,7 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/healthz"
 	"github.com/mandelsoft/engine/pkg/service"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/logging"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -61,7 +61,7 @@ func NewPool(lctxp logging.AttributionContextProvider, name string, size int, pe
 		size:          size,
 		period:        period,
 		lctx:          lctx.AttributionContext(),
-		useKeyName:    utils.Optional(useKeyName...),
+		useKeyName:    general.Optional(useKeyName...),
 		key:           fmt.Sprintf("pool %s", name),
 		workqueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
 			Name: name,

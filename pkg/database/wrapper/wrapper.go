@@ -7,6 +7,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type Object[S database.Object] interface {
@@ -155,7 +156,7 @@ func (w *wrappingDatabase[O, W, S]) GetObject(id database.ObjectId) (O, error) {
 		return _nil, err
 	}
 	o.SetBase(b)
-	return utils.Cast[O](o), nil
+	return generics.Cast[O](o), nil
 
 }
 
@@ -168,11 +169,11 @@ func (w *wrappingDatabase[O, W, S]) WrapObject(s S) (O, error) {
 		return _nil, err
 	}
 	o.SetBase(s)
-	return utils.Cast[O](o), nil
+	return generics.Cast[O](o), nil
 }
 
 func (w *wrappingDatabase[O, W, S]) SetObject(o O) error {
-	i, ok := utils.TryCast[W](o)
+	i, ok := generics.TryCast[W](o)
 	if !ok {
 		return fmt.Errorf("invalid Go type %T", o)
 	}

@@ -3,14 +3,14 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
 
 func converFunc[D, S Object](f Initializer[D]) Initializer[S] {
 	return func(o S) {
-		f(utils.Cast[D](o))
+		f(generics.Cast[D](o))
 	}
 }
 
@@ -43,12 +43,12 @@ func (c *castingTypes[D, S]) CreateObject(typ string, init ...Initializer[D]) (D
 	if err != nil {
 		return _nil, err
 	}
-	return utils.Cast[D](o), nil
+	return generics.Cast[D](o), nil
 }
 
 func ConvertTypes[D, S Object](src SchemeTypes[S]) (SchemeTypes[D], error) {
-	if !utils.TypeOf[S]().AssignableTo(utils.TypeOf[D]()) {
-		return nil, fmt.Errorf("type %s is not assignable to %s", utils.TypeOf[S](), utils.TypeOf[D]())
+	if !generics.TypeOf[S]().AssignableTo(generics.TypeOf[D]()) {
+		return nil, fmt.Errorf("type %s is not assignable to %s", generics.TypeOf[S](), generics.TypeOf[D]())
 	}
 	return &castingTypes[D, S]{src}, nil
 }
@@ -76,7 +76,7 @@ func (c *castingConverter[D, S]) CreateObject(typ string, init ...Initializer[D]
 	if err != nil {
 		return _nil, err
 	}
-	return utils.Cast[D](o), nil
+	return generics.Cast[D](o), nil
 }
 
 func (c *castingConverter[D, S]) Decode(data []byte) (D, error) {
@@ -91,8 +91,8 @@ func (c *castingConverter[D, S]) Decode(data []byte) (D, error) {
 }
 
 func ConvertEncoding[D, S Object](src Encoding[S]) (Encoding[D], error) {
-	if !utils.TypeOf[S]().AssignableTo(utils.TypeOf[D]()) {
-		return nil, fmt.Errorf("type %s is not assignable to %s", utils.TypeOf[S](), utils.TypeOf[D]())
+	if !generics.TypeOf[S]().AssignableTo(generics.TypeOf[D]()) {
+		return nil, fmt.Errorf("type %s is not assignable to %s", generics.TypeOf[S](), generics.TypeOf[D]())
 	}
 	return &castingConverter[D, S]{src}, nil
 }

@@ -5,12 +5,11 @@ import (
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/explicit/db"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 func init() {
@@ -45,7 +44,7 @@ func (n *Value) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem 
 		support.UpdateField(&o.Status.Status, update.Status, &mod)
 		support.UpdateField(&o.Status.Message, update.Message, &mod)
 		if update.ResultState != nil {
-			support.UpdatePointerField(&o.Status.Result, utils.Pointer(update.ResultState.(*ValueOutputState).GetState().Value), &mod)
+			support.UpdatePointerField(&o.Status.Result, generics.Pointer(update.ResultState.(*ValueOutputState).GetState().Value), &mod)
 		}
 		return mod, mod
 	})

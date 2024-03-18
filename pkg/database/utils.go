@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type pointer[P any] interface {
@@ -13,7 +13,7 @@ type pointer[P any] interface {
 }
 
 func MustRegisterType[T any, O Object, P pointer[T]](s TypeScheme[O]) {
-	runtime.Register[T, P, O](s, utils.TypeOf[T]().Name())
+	runtime.Register[T, P, O](s, generics.TypeOf[T]().Name())
 }
 
 ////////////////////////////////////////////////////////////////////////////////

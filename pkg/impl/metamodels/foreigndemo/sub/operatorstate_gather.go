@@ -6,7 +6,8 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
 
 	"github.com/mandelsoft/logging"
 
@@ -154,7 +155,7 @@ func (g GatherPhase) Process(o *OperatorState, phase Phase, req model.Request) m
 		},
 		support.SlaveCreationFunc(func(o *db.ExpressionState) (bool, bool) {
 			mod := false
-			support.UpdateField(&o.Spec.Provider, utils.Pointer(req.Element.GetName()), &mod)
+			support.UpdateField(&o.Spec.Provider, generics.Pointer(req.Element.GetName()), &mod)
 			if mod {
 				log.Info("update provider for {{slaveid}} to {{provider}}", "slaveid", NewElementIdForPhase(o, mymetamodel.PHASE_PROPAGATE), req.Element.GetName())
 			} else {
@@ -204,7 +205,7 @@ func (c *CurrentGatherState) GetObservedState() model.ObservedState {
 	if c.GetObjectVersion() == c.GetObservedVersion() {
 		return c
 	}
-	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE, utils.OrderedMapElements(c.Get().ObservedOperands)...)
+	return c.GetObservedStateForTypeAndPhase(mymetamodel.TYPE_VALUE_STATE, mymetamodel.PHASE_PROPAGATE, maputils.OrderedValues(c.Get().ObservedOperands)...)
 }
 
 func (c *CurrentGatherState) GetLinks() []ElementId {
@@ -238,7 +239,7 @@ func (c *TargetGatherState) GetLinks() []ElementId {
 		return nil
 	}
 
-	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE, utils.OrderedMapElements(t.Spec.Operands)...)
+	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE, maputils.OrderedValues(t.Spec.Operands)...)
 }
 
 func (c *TargetGatherState) GetOperations() map[string]db.Operation {

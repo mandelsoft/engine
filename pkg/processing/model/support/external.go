@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type ExternalObjectSupport struct { // cannot use struct type here (Go)
@@ -13,5 +13,5 @@ type ExternalObjectSupport struct { // cannot use struct type here (Go)
 }
 
 func (n *ExternalObjectSupport) GetDBObject() db.ExternalDBObject {
-	return utils.Cast[db.ExternalDBObject](n.GetBase())
+	return generics.Cast[db.ExternalDBObject](n.GetBase())
 }

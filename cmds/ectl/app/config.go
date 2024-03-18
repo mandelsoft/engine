@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 	"sigs.k8s.io/yaml"
 )
 
@@ -29,13 +29,13 @@ func GetConfig() *Config {
 	}
 
 	if v := os.Getenv("ENGINE_SERVER"); v != "" {
-		cfg.Server = utils.Pointer(v)
+		cfg.Server = generics.Pointer(v)
 	}
 	if v := os.Getenv("ENGINE_NAMESPACE"); v != "" {
-		cfg.Namespace = utils.Pointer(v)
+		cfg.Namespace = generics.Pointer(v)
 	}
 	if cfg.Server == nil || *cfg.Server == "" {
-		cfg.Server = utils.Pointer("http://localhost:8080")
+		cfg.Server = generics.Pointer("http://localhost:8080")
 	}
 	return &cfg
 }

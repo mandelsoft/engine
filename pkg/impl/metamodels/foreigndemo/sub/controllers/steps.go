@@ -10,7 +10,9 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
 	"github.com/mandelsoft/logging"
 
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
@@ -76,7 +78,7 @@ func Validate(o *db.Expression) (map[string]*ExpressionInfo, []string, error) {
 
 	for n, v := range o.Spec.Operands {
 		exprs[n] = &ExpressionInfo{
-			Value: utils.Pointer(v),
+			Value: generics.Pointer(v),
 		}
 	}
 
@@ -163,7 +165,7 @@ var operatorMap = map[db.OperatorName]string{
 func Order(elems map[string]*ExpressionInfo) ([]string, error) {
 	var order []string
 
-	list := utils.OrderedMapKeys(elems)
+	list := maputils.OrderedKeys(elems)
 outer:
 	for _, n := range list {
 		if c := cycle(elems, n); c != nil {
@@ -182,7 +184,7 @@ outer:
 }
 
 func cycle(exprs map[string]*ExpressionInfo, n string, stack ...string) []string {
-	c := utils.Cycle(n, stack...)
+	c := general.Cycle(n, stack...)
 	if c == nil {
 		stack = append(stack, n)
 		for _, d := range exprs[n].Operands {

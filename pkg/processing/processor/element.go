@@ -3,7 +3,8 @@ package processor
 import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/processing/model"
 )
@@ -35,7 +36,7 @@ type element struct {
 }
 
 var _ _Element = (*element)(nil)
-var _element = utils.CastPointer[Element, element]
+var _element = generics.CastPointer[Element, element]
 
 func newElement(phase Phase, obj model.InternalObject) *element {
 	e := &element{
@@ -111,7 +112,7 @@ func (e *element) Rollback(lctx model.Logging, ob objectbase.Objectbase, id RunI
 		t := e.GetTargetState()
 		lctx.Logger().Info("rollback target state and update observed state {{version}}", "version", t.GetObjectVersion())
 		if len(formal) > 0 {
-			return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, t, utils.Pointer(utils.Optional(formal...)))
+			return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, t, generics.Pointer(general.Optional(formal...)))
 		}
 		return e.GetObject().Rollback(lctx, ob, e.id.GetPhase(), id, t, nil)
 	}

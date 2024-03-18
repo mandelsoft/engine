@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/logging"
 )
 
@@ -62,7 +64,7 @@ var _ HandlerRegistrationTest[Id] = (*registry[Id])(nil)
 
 func NewHandlerRegistry[I Id](l ObjectLister[I], k ...KeyFunc[I]) HandlerRegistry[I] {
 	return &registry[I]{
-		key:      utils.OptionalDefaulted[KeyFunc[I]](func(id I) I { return id }, k...),
+		key:      general.OptionalDefaulted[KeyFunc[I]](func(id I) I { return id }, k...),
 		types:    map[string]namespaces[I]{},
 		closures: map[string]namespaces[I]{},
 		lister:   l,
@@ -234,7 +236,7 @@ func assure[T any, K comparable](m map[K]T, k K) T {
 	e, ok := m[k]
 	if !ok {
 		var v reflect.Value
-		t := utils.TypeOf[T]()
+		t := generics.TypeOf[T]()
 		if t.Kind() == reflect.Map {
 			v = reflect.MakeMap(t)
 		} else {

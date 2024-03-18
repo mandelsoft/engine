@@ -2,6 +2,7 @@ package mmids
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mandelsoft/engine/pkg/database"
@@ -150,4 +151,15 @@ func (e ElementId) TypeId() TypeId {
 
 func (e ElementId) String() string {
 	return fmt.Sprintf("%s:%s", e._objectId, e.phase)
+}
+
+func CompareElementId(a, b ElementId) int {
+	d := strings.Compare(a.GetType(), b.GetType())
+	if d == 0 {
+		d = strings.Compare(a.GetNamespace(), b.GetNamespace())
+	}
+	if d == 0 {
+		d = strings.Compare(a.GetName(), b.GetName())
+	}
+	return d
 }

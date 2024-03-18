@@ -7,25 +7,26 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
+
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/yaml"
 
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
+	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/controllers"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
+	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/processing/model/support"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
-	"github.com/mandelsoft/engine/pkg/utils"
-
-	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple"
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/controllers"
-	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
-	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 )
 
 const NS = "testspace"
@@ -121,7 +122,7 @@ var _ = Describe("Processing", func() {
 
 			fmt.Printf("*** modify value A ***\n")
 			_ = Must(database.Modify(env.Database(), &vA, func(o *db.Value) (bool, bool) {
-				support.UpdateField(&o.Spec.Value, utils.Pointer(4))
+				support.UpdateField(&o.Spec.Value, generics.Pointer(4))
 				return true, true
 			}))
 
@@ -238,7 +239,7 @@ func (m *ValueMon) Wait(ctx context.Context) bool {
 }
 
 func (m *ValueMon) WaitUntil(env *TestEnv, value int, provider string, omax ...int) bool {
-	max := utils.Optional(omax...)
+	max := general.Optional(omax...)
 	// max==0 means endless
 	for {
 		max--

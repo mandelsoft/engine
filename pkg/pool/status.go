@@ -3,7 +3,7 @@ package pool
 import (
 	"time"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 )
 
 // Status Interface is the interface which actions have to implement .
@@ -65,7 +65,7 @@ func (s Status) StopIfSucceeded() Status {
 }
 
 func StatusCompleted(err ...error) Status {
-	return Status{Completed: true, Error: utils.Optional(err...), Interval: -1}
+	return Status{Completed: true, Error: general.Optional(err...), Interval: -1}
 }
 
 func StatusFailed(err error) Status {

@@ -9,7 +9,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/mandelsoft/engine/pkg/service"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
 )
 
 type Client[R, E any] struct {
@@ -19,7 +19,7 @@ type Client[R, E any] struct {
 
 func NewClient[R, E any](url string, dialer ...ws.Dialer) *Client[R, E] {
 	return &Client[R, E]{
-		dialer: utils.OptionalDefaulted(ws.DefaultDialer, dialer...),
+		dialer: general.OptionalDefaulted(ws.DefaultDialer, dialer...),
 		url:    url,
 	}
 }

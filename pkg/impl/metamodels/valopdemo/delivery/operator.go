@@ -5,13 +5,12 @@ import (
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 func init() {
@@ -33,7 +32,7 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 	_, err := wrapped2.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		o := _o.(*db.Operator)
 		mod := false
-		support.UpdateField(&o.Status.Phase, utils.Pointer(elem.GetPhase()), &mod)
+		support.UpdateField(&o.Status.Phase, generics.Pointer(elem.GetPhase()), &mod)
 		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
 		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
 		if elem.GetPhase() == mymetamodel.PHASE_CALCULATION {
@@ -46,7 +45,7 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
 			}
 			if update.ResultState != nil {
-				support.UpdateField(&o.Status.Result, utils.Pointer(update.ResultState.(*CalcOutputState).GetState()), &mod)
+				support.UpdateField(&o.Status.Result, generics.Pointer(update.ResultState.(*CalcOutputState).GetState()), &mod)
 			}
 		} else {
 			support.UpdateField(&o.Status.Status, update.Status, &mod)

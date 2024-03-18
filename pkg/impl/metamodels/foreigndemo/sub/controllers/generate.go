@@ -6,8 +6,8 @@ import (
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
-	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"
+	"github.com/mandelsoft/goutils/maputils"
 	"github.com/mandelsoft/logging"
 )
 
@@ -20,7 +20,7 @@ func Generate(log logging.Logger, namespace string, infos map[string]*Expression
 
 		generate(log, namespace, values, n, e.Node, nodes, 0)
 	}
-	return graph.NewGraph(version.Composed, utils.MapElements(nodes)...)
+	return graph.NewGraph(version.Composed, maputils.Values(nodes)...)
 }
 func generate(log logging.Logger, namespace string, values map[string]int, base string, n *expression.Node, nodes map[string]graph.Node, index int) (string, int) {
 	if n.Value != nil {

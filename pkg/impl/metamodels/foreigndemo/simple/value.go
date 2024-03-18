@@ -6,12 +6,11 @@ import (
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	wrapped2 "github.com/mandelsoft/engine/pkg/processing/objectbase/wrapped"
-
-	"github.com/mandelsoft/engine/pkg/processing/model"
-	"github.com/mandelsoft/engine/pkg/processing/model/support"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/simple/db"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/model/support"
 )
 
 func init() {
@@ -57,7 +56,7 @@ func (n *Value) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, elem 
 				provider = r.Origin.GetName()
 			}
 			log.Debug("Update provider for Value {{name}} to {{provider}}", "provider", provider)
-			support.UpdateField(&o.Status.Provider, utils.Pointer(provider), &mod)
+			support.UpdateField(&o.Status.Provider, generics.Pointer(provider), &mod)
 		}
 		return mod, mod
 	})

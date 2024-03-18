@@ -9,14 +9,15 @@ import (
 	"sync"
 	"time"
 
+	. "github.com/mandelsoft/goutils/testutils"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"github.com/mandelsoft/engine/pkg/ctxutil"
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/service"
-	. "github.com/mandelsoft/engine/pkg/testutils"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/logging"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 
 	me "github.com/mandelsoft/engine/pkg/pool"
 )

@@ -11,7 +11,8 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/matcher"
+	"github.com/mandelsoft/goutils/sliceutils"
 )
 
 type EventHandler[E any] interface {
@@ -90,7 +91,7 @@ func (h *RequestHandler[R, E]) removeHandler(c *handler[R, E]) {
 	log.Info("unregistering watch handler")
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	h.connections = utils.FilterSlice(h.connections, utils.NotFilter(utils.EqualsFilter(c)))
+	h.connections = sliceutils.Filter(h.connections, matcher.Not(matcher.Equals(c)))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

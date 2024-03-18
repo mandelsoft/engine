@@ -3,10 +3,11 @@ package delivery_test
 import (
 	"bytes"
 
-	"github.com/mandelsoft/engine/pkg/processing/objectbase"
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/valopdemo/delivery"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/valopdemo"

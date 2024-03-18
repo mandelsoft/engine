@@ -3,7 +3,8 @@ package processing
 import (
 	"encoding/json"
 
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/general"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type Describable interface {
@@ -23,7 +24,7 @@ func NewState[O any](o O) *State[O] {
 var _ Describable = (*State[any])(nil)
 
 func (s *State[O]) GetVersion() string {
-	return utils.HashData(s.state)
+	return general.HashData(s.state)
 }
 
 func (e *State[O]) GetState() O {
@@ -31,7 +32,7 @@ func (e *State[O]) GetState() O {
 }
 
 func (s *State[O]) GetDescription() string {
-	if d, ok := utils.TryCast[Describable](s.state); ok {
+	if d, ok := generics.TryCast[Describable](s.state); ok {
 		return d.GetDescription()
 	}
 	data, err := json.Marshal(s.state)

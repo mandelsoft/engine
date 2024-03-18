@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"path"
 
-	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 	. "github.com/mandelsoft/engine/pkg/processing/testutils"
-	. "github.com/mandelsoft/engine/pkg/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -14,12 +13,12 @@ import (
 	"github.com/mandelsoft/logging/logrusl"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/processing/model"
-
 	mymodel "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub"
 	me "github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/controllers"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/engine/pkg/processing/model"
+	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
 )
 
 var _ = Describe("Controller Test", func() {

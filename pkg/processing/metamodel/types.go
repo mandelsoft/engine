@@ -5,8 +5,9 @@ import (
 	"strings"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
-
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
+	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/sliceutils"
 )
 
 const DEFAULT_PHASE = Phase("PhaseUpdating")
@@ -26,7 +27,7 @@ type elementType struct {
 }
 
 var _ ElementType = (*elementType)(nil)
-var _elementType = utils.CastPointer[ElementType, elementType]
+var _elementType = generics.CastPointer[ElementType, elementType]
 
 func newElementType(objtype string, phase Phase) *elementType {
 	return &elementType{
@@ -61,7 +62,7 @@ func (e *elementType) setTrigger(typ string) {
 func dependencyElement(d dependency) ElementType { return d.elementType }
 
 func (e *elementType) Dependencies() []ElementType {
-	return utils.TransformSlice(e.dependencies, dependencyElement)
+	return sliceutils.Transform(e.dependencies, dependencyElement)
 }
 
 func (e *elementType) HasDependency(name TypeId) bool {
@@ -111,7 +112,7 @@ type externalObjectType struct {
 }
 
 var _ ExternalObjectType = (*externalObjectType)(nil)
-var _externalObjectType = utils.CastPointer[ExternalObjectType, externalObjectType]
+var _externalObjectType = generics.CastPointer[ExternalObjectType, externalObjectType]
 
 func newExternalObjectType(name string, trigger *elementType, foreign bool) *externalObjectType {
 	return &externalObjectType{
@@ -141,7 +142,7 @@ type internalObjectType struct {
 }
 
 var _ InternalObjectType = (*internalObjectType)(nil)
-var _internalObjectType = utils.CastPointer[InternalObjectType, internalObjectType]
+var _internalObjectType = generics.CastPointer[InternalObjectType, internalObjectType]
 
 func newInternalObjectType(name string, phases map[Phase]*elementType) *internalObjectType {
 	return &internalObjectType{
@@ -155,7 +156,7 @@ func (o *internalObjectType) Name() string {
 }
 
 func (o *internalObjectType) Phases() []Phase {
-	return utils.OrderedMapKeys(o.phases)
+	return maputils.OrderedKeys(o.phases)
 }
 
 func (o *internalObjectType) Element(phase Phase) ElementType {

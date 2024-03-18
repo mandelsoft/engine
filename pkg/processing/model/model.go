@@ -9,7 +9,7 @@ import (
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	"github.com/mandelsoft/engine/pkg/runtime"
-	"github.com/mandelsoft/engine/pkg/utils"
+	"github.com/mandelsoft/goutils/generics"
 )
 
 type Model interface {
@@ -65,7 +65,7 @@ type pointer[P any] interface {
 
 func MustRegisterType[T any, P pointer[T]](s objectbase.Scheme) {
 	var i any = s
-	runtime.Register[T, P](i.(runtime.TypeScheme[Object]), utils.TypeOf[T]().Name()) // Goland
+	runtime.Register[T, P](i.(runtime.TypeScheme[Object]), generics.TypeOf[T]().Name()) // Goland
 }
 
 ////////////////////////////////////////////////////////////////////////////////
