@@ -1,7 +1,7 @@
 package expression_test
 
 import (
-	"github.com/mandelsoft/engine/pkg/expression"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
 	. "github.com/mandelsoft/engine/pkg/testutils"
 	"github.com/mandelsoft/engine/pkg/utils"
 	. "github.com/onsi/ginkgo/v2"

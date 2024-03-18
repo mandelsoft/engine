@@ -57,19 +57,28 @@ func (s *DefaultSlaveStateSpec) ApplyFormalObjectVersion(log logging.Logger, sta
 	return m
 }
 
-// EffectiveSlaveObjectSpec describes the effective object
-// specification provided by a state object for an external
-// objects potentially usable as slave. It consists
-// of the spec of the extenal object plus an extension
-// provided by the state object to keep the provider
-// (see DefaultSlaveStateSpec).
-type EffectiveSlaveObjectSpec[S any, E SlaveStateSpec] struct {
-	Spec      *S
-	Extension E
+type SlaveStateSpecPointer[P any] interface {
+	SlaveStateSpec
+	*P
 }
 
-func (s *EffectiveSlaveObjectSpec[S, E]) ApplyFormalObjectVersion(log logging.Logger, t TargetState, mod *bool) bool {
-	return s.Extension.ApplyFormalObjectVersion(log, processing.NewState(s.Spec), t, mod)
+// StandardEffectiveSlaveObjectSpec describes the effective object
+// specification provided by a state object for an external
+// object potentially usable as slave. It consists
+// of the spec of the external object plus an extension
+// provided by the state object to keep the provider
+// (see DefaultSlaveStateSpec).
+type StandardEffectiveSlaveObjectSpec[S any, E any, P SlaveStateSpecPointer[E]] struct {
+	Spec      *S `json:"spec,omitempty"`
+	Extension E  `json:"state,omitempty"`
+}
+
+func (s *StandardEffectiveSlaveObjectSpec[S, E, P]) ApplyFormalObjectVersion(log logging.Logger, t TargetState, mod *bool) bool {
+	return P(&s.Extension).ApplyFormalObjectVersion(log, processing.NewState(s.Spec), t, mod)
+}
+
+type DefaultEffectiveSlaveObjectSpec[S any] struct {
+	StandardEffectiveSlaveObjectSpec[S, DefaultSlaveStateSpec, *DefaultSlaveStateSpec]
 }
 
 ////////////////////////////////////////////////////////////////////////////////

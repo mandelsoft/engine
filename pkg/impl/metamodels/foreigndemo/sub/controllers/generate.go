@@ -3,8 +3,8 @@ package controllers
 import (
 	"fmt"
 
-	"github.com/mandelsoft/engine/pkg/expression"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
 	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/engine/pkg/version"

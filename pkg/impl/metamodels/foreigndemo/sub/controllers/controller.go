@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/mandelsoft/engine/pkg/database"
-	"github.com/mandelsoft/engine/pkg/expression"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/db"
+	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/expression"
 	"github.com/mandelsoft/engine/pkg/impl/metamodels/foreigndemo/sub/graph"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/pool"
