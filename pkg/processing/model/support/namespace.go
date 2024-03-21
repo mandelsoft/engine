@@ -63,7 +63,7 @@ func (n *Namespace) TryLock(ob objectbase2.Objectbase, id mmids.RunId) (bool, er
 		ns := generics.Cast[db.DBNamespace](o)
 		b := ns.GetRunLock()
 		if b != "" {
-			return false, false
+			return b == id, false
 		}
 		ns.SetRunLock(id)
 		return true, true

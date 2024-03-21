@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/mandelsoft/engine/pkg/database"
@@ -10,6 +11,16 @@ import (
 type Action interface {
 	Reconcile(Pool, MessageContext, database.ObjectId) Status
 	Command(Pool, MessageContext, Command) Status
+}
+
+type DefaultAction struct{}
+
+func (a DefaultAction) Reconcile(_ Pool, _ MessageContext, id database.ObjectId) Status {
+	return StatusFailed(fmt.Errorf("unexpected reconcile request for %q", id))
+}
+
+func (a DefaultAction) Command(_ Pool, _ MessageContext, c Command) Status {
+	return StatusFailed(fmt.Errorf("unexpected command request for %q", c))
 }
 
 type Command string

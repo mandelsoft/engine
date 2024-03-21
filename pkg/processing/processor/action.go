@@ -14,17 +14,17 @@ import (
 
 const ACTION_CMD = "element"
 
-type action struct {
+type modelAction struct {
 	proc *Processor
 }
 
-var _ pool.Action = (*action)(nil)
+var _ pool.Action = (*modelAction)(nil)
 
-func (a *action) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.ObjectId) pool.Status {
+func (a *modelAction) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.ObjectId) pool.Status {
 	return a.proc.processExternalObject(a.proc.logging.Logger(logging.ExcludeFromMessageContext[logging.Realm](ctx)), id)
 }
 
-func (a *action) Command(p pool.Pool, ctx pool.MessageContext, command pool.Command) pool.Status {
+func (a *modelAction) Command(p pool.Pool, ctx pool.MessageContext, command pool.Command) pool.Status {
 	// ctx = logging.ExcludeFromMessageContext[logging.Realm](ctx)
 	ctx = ctx.WithContext(REALM)
 	cmd, ns, id := DecodeCommand(command)
@@ -82,4 +82,17 @@ func DecodeCommand(c pool.Command) (string, string, *ElementId) {
 		ns = ns[:i]
 	}
 	return cmd, "", generics.Pointer(NewElementId(t, ns, n, Phase(p)))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type requestAction struct {
+	pool.DefaultAction
+	proc *Processor
+}
+
+var _ pool.Action = (*requestAction)(nil)
+
+func (a *requestAction) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.ObjectId) pool.Status {
+	return a.proc.processUpdateRequest(ctx, a.proc.logging.Logger(logging.ExcludeFromMessageContext[logging.Realm](ctx)), id)
 }

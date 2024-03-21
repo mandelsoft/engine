@@ -1,6 +1,9 @@
 package internal
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 )
@@ -17,6 +20,45 @@ type NamespaceObject interface {
 
 	ClearLock(ob Objectbase, id RunId) (bool, error)
 	TryLock(db Objectbase, id RunId) (bool, error)
+}
+
+type UpdateRequestObject interface {
+	Object
+
+	// GetAction provides info about the requested action.
+	GetAction() *UpdateAction
+	// SetAction can be used to update the requested action.
+	SetAction(ob Objectbase, action *UpdateAction) (bool, error)
+
+	// GetStatus provides info about the current action status.
+	GetStatus() *UpdateStatus
+	// SetStatus is used by the engine to update the request sttaus.
+	SetStatus(ob Objectbase, status *UpdateStatus) (bool, error)
+}
+
+type UpdateAction struct {
+	Action   string       `json:"action"`
+	Elements []ElementRef `json:"elements"`
+}
+
+func (a UpdateAction) Copy() *UpdateAction {
+	a.Elements = slices.Clone(a.Elements)
+	return &a
+}
+
+type ElementRef struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Phase Phase  `json:"phase"`
+}
+
+func (e ElementRef) String() string {
+	return fmt.Sprintf("%s:%s:%s", e.Type, e.Name, e.Phase)
+}
+
+type UpdateStatus struct {
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
 }
 
 type ExternalObject interface {

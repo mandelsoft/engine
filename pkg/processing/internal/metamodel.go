@@ -32,6 +32,7 @@ type MetaModel interface {
 	Name() string
 
 	NamespaceType() string
+	UpdateRequestType() string
 	InternalTypes() []string
 	Phases(objtype string) []Phase
 	ExternalTypes() []string

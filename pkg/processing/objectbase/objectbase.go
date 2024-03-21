@@ -50,3 +50,15 @@ func GetDatabase[O database.Object](ob Objectbase) database.Database[O] {
 	}
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+type lister struct {
+	ob Objectbase
+}
+
+var _ database.ObjectLister = (*lister)(nil)
+
+func (l lister) ListObjectIds(typ string, closure bool, ns string, atomic ...func()) ([]database.ObjectId, error) {
+	return l.ob.ListObjectIds(typ, closure, ns, atomic...)
+}

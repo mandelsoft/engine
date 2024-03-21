@@ -19,9 +19,10 @@ type metaModel struct {
 	name     string
 	elements map[TypeId]*elementType
 
-	internal  map[string]*intDef
-	external  map[string]*externalObjectType
-	namespace string
+	internal      map[string]*intDef
+	external      map[string]*externalObjectType
+	namespace     string
+	updateRequest string
 }
 
 var _ MetaModel = (*metaModel)(nil)
@@ -34,11 +35,12 @@ type intDef struct {
 
 func NewMetaModel(name string, spec MetaModelSpecification) (MetaModel, error) {
 	m := &metaModel{
-		name:      name,
-		elements:  map[TypeId]*elementType{},
-		internal:  map[string]*intDef{},
-		external:  map[string]*externalObjectType{},
-		namespace: spec.NamespaceType,
+		name:          name,
+		elements:      map[TypeId]*elementType{},
+		internal:      map[string]*intDef{},
+		external:      map[string]*externalObjectType{},
+		namespace:     spec.NamespaceType,
+		updateRequest: spec.UpdateRequestType,
 	}
 
 	for _, i := range spec.InternalTypes {
@@ -126,6 +128,10 @@ func (m *metaModel) Name() string {
 
 func (m *metaModel) NamespaceType() string {
 	return m.namespace
+}
+
+func (m *metaModel) UpdateRequestType() string {
+	return m.updateRequest
 }
 
 func (m *metaModel) InternalTypes() []string {

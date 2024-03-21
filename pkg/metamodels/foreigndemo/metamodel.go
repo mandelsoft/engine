@@ -7,6 +7,7 @@ import (
 )
 
 const TYPE_NAMESPACE = "Namespace"
+const TYPE_UPDATEREQUEST = "UpdateRequest" // not available for all implementations
 
 const TYPE_VALUE = "Value"
 const TYPE_VALUE_STATE = "ValueState"

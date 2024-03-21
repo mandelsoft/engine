@@ -8,6 +8,7 @@ import (
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/matcher"
 
 	"github.com/mandelsoft/engine/pkg/processing/internal"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
@@ -57,6 +58,10 @@ func (ni *namespaceInfo) _GetElement(id ElementId) _Element {
 	return ni.elements[id]
 }
 
+func (ni *namespaceInfo) _getElement(id ElementId) _Element {
+	return ni.elements[id]
+}
+
 func (ni *namespaceInfo) _AddElement(i model.InternalObject, phase Phase) _Element {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
@@ -77,6 +82,10 @@ func (ni *namespaceInfo) _addElement(i model.InternalObject, phase Phase) _Eleme
 	e := newElement(phase, i)
 	ni.elements[id] = e
 	return e
+}
+
+func (ni *namespaceInfo) filterElements(m matcher.Matcher[_Element]) map[ElementId]_Element {
+	return maputils.FilterByValue(ni.elements, m)
 }
 
 func (ni *namespaceInfo) tryLock(p *Processor, runid RunId) (bool, error) {
@@ -136,9 +145,21 @@ func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *P
 			}
 		}
 	}
-	_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), ni.namespace.GetLock())
+
+	if IsObjectLock(ni.namespace.GetLock()) != nil {
+		return nil
+	}
+	return ni.clearLock(log, ni.namespace.GetLock(), p)
+}
+
+func (ni *namespaceInfo) clearLock(log logging.Logger, rid RunId, p *Processor) error {
+	cur := ni.namespace.GetLock()
+	if rid != cur {
+		return nil
+	}
+	_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), rid)
 	if err == nil {
-		log.Info("namespace {{namespace}} unlocked")
+		log.Info("namespace {{namespace}} unlocked", "namespace", ni.namespace.GetNamespaceName())
 		p.events.TriggerNamespaceEvent(ni)
 	}
 	return err

@@ -851,34 +851,42 @@ func (p *Processor) lockGraph(lctx model.Logging, log logging.Logger, elem _Elem
 		if err != nil {
 			log.Error("cannot clear namespace lock for {{namespace}} -> requeue", "error", err)
 			p.EnqueueNamespace(ni.GetNamespaceName())
-		} else {
-
 		}
 	}()
 
-	elems := NewOrderedElementSet()
-	ok, err = p._tryLockGraph(log, ni, elem, elems)
-	if !ok || err != nil {
-		return nil, err
-	}
-	ok, err = p._lockGraph(log, ni, elems, id)
+	ok, err = p.doLockGraph(log, ni, id, false, elem)
 	if !ok || err != nil {
 		return nil, err
 	}
 	return &id, nil
 }
 
-func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, elem _Element, elems OrderedElementSet) (bool, error) {
+func (p *Processor) doLockGraph(log logging.Logger, ni *namespaceInfo, runid RunId, keep bool, candidates ..._Element) (bool, error) {
+	elems := NewOrderedElementSet()
+	for _, elem := range candidates {
+		ok, err := p._tryLockGraph(log, ni, runid, elem, elems)
+		if !ok || err != nil {
+			return false, err
+		}
+		ok, err = p._lockGraph(log, ni, runid, keep, elems)
+		if !ok || err != nil {
+			return ok, err
+		}
+	}
+	return true, nil
+}
+
+func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, runid RunId, elem _Element, elems OrderedElementSet) (bool, error) {
 	if !elems.Has(elem.Id()) {
 		cur := elem.GetLock()
-		if cur != "" {
+		if cur != "" && cur != runid {
 			log.Info("element {{candidate}} already locked for {{lock}}", "candidate", elem.Id(), "lock", cur)
 			return false, nil
 		}
 		elems.Add(elem)
 
 		for _, d := range ni.getChildren(elem.Id()) {
-			ok, err := p._tryLockGraph(log, ni, d.(_Element), elems)
+			ok, err := p._tryLockGraph(log, ni, runid, d.(_Element), elems)
 			if !ok || err != nil {
 				return false, err
 			}
@@ -887,7 +895,7 @@ func (p *Processor) _tryLockGraph(log logging.Logger, ni *namespaceInfo, elem _E
 	return true, nil
 }
 
-func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems OrderedElementSet, id RunId) (bool, error) {
+func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, id RunId, keep bool, elems OrderedElementSet) (bool, error) {
 	var ok bool
 	var err error
 
@@ -897,14 +905,18 @@ func (p *Processor) _lockGraph(log logging.Logger, ns *namespaceInfo, elems Orde
 	for _, elem := range elems.Order() {
 		log.Debug("locking {{nestedelem}}", "nestedelem", elem.Id())
 		ok, err = elem.TryLock(p.processingModel.ObjectBase(), id)
-		if !ok || err != nil {
+		if err != nil {
 			log.Debug("locking failed for {{nestedelem}}", "nestedelem", elem.Id(), "error", err)
 			return false, err
 		}
-		ns.pendingElements[elem.Id()] = elem
-		// log.Debug("successfully locked {{nestedelem}}", "nestedelem", elem.Id())
-		p.events.TriggerElementEvent(elem)
-		p.pending.Add(1)
+		if !keep {
+			ns.pendingElements[elem.Id()] = elem
+		}
+		if ok {
+			// log.Debug("successfully locked {{nestedelem}}", "nestedelem", elem.Id())
+			p.events.TriggerElementEvent(elem)
+			p.pending.Add(1)
+		}
 	}
 	ns.pendingElements = nil
 	return true, nil

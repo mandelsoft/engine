@@ -110,14 +110,21 @@ func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher
 
 	p.handler = newHandler(p.pool)
 
-	act := &action{p}
-	reg := database.NewHandlerRegistry(nil)
+	act := &modelAction{p}
+	reg := database.NewHandlerRegistry(p.processingModel.ObjectBase())
 	reg.RegisterHandler(p.handler, false, p.processingModel.MetaModel().NamespaceType(), true, "/")
 	for _, t := range p.processingModel.MetaModel().ExternalTypes() {
 		log.Debug("register handler for external type {{exttype}}", "exttype", t)
 		reg.RegisterHandler(p.handler, false, t, true, "/")
 		p.pool.AddAction(pool.ObjectType(t), act)
 	}
+
+	if req := p.processingModel.MetaModel().UpdateRequestType(); req != "" {
+		log.Debug("register handler for update request type {{reqtype}}", "reqtype", req)
+		reg.RegisterHandler(p.handler, true, req, true, "/")
+		p.pool.AddAction(pool.ObjectType(req), &requestAction{proc: p})
+	}
+
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_NS+":*"), act)
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_ELEM+":*"), act)
 	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_EXT+":*"), act)
@@ -177,10 +184,16 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 				log.Debug("      found phase {{phase}}", "phase", ph)
 				e := ni._AddElement(o, ph)
 				if curlock != "" {
-					// reset lock for all partially locked objects belonging to the locked run id.
-					err := ni.clearElementLock(lctx, log, p, e, curlock)
-					if err != nil {
-						return err
+					if owner := IsObjectLock(curlock); owner != nil {
+						id := (*owner).Id(o.GetNamespace(), p.processingModel.MetaModel())
+						log.Info("triggering locked request {{oid}}", "oid", id)
+						p.EnqueueObject(id)
+					} else {
+						// reset lock for all partially locked objects belonging to the locked run id.
+						err := ni.clearElementLock(lctx, log, p, e, curlock)
+						if err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -199,6 +212,7 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 			// target state must not already be linked
 		}
 	}
+
 	return nil
 }
 
@@ -214,6 +228,10 @@ func (p *Processor) Enqueue(cmd string, e Element) {
 
 func (p *Processor) EnqueueNamespace(name string) {
 	p.pool.EnqueueCommand(EncodeNamespace(name))
+}
+
+func (p *Processor) EnqueueObject(id database.ObjectId) {
+	p.pool.EnqueueKey(id)
 }
 
 func (p *Processor) GetElement(id ElementId) _Element {

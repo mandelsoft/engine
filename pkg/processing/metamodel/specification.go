@@ -86,7 +86,8 @@ func (s ExternalTypeSpecification) Foreign() ExternalTypeSpecification {
 }
 
 type MetaModelSpecification struct {
-	NamespaceType string
+	NamespaceType     string
+	UpdateRequestType string
 
 	ExternalTypes []ExternalTypeSpecification
 	InternalTypes []InternalTypeSpecification

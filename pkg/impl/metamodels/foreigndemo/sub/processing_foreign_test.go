@@ -195,7 +195,7 @@ func (m *ValueMon) Test(env *TestEnv, value int, provider string) bool {
 	odb := objectbase.GetDatabase[db2.Object](env.Processor().Model().ObjectBase())
 	v, err := odb.GetObject(m.oid)
 	ExpectWithOffset(1, err).To(Succeed())
-	if v.(*db.Value).Status.Provider != provider {
+	if provider != "" && v.(*db.Value).Status.Provider != provider {
 		return false
 	}
 	if v.(*db.Value).Spec.Value != value {
