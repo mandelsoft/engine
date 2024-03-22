@@ -1,11 +1,11 @@
 package internal
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/general"
 )
 
 type NamespaceObject interface {
@@ -37,28 +37,23 @@ type UpdateRequestObject interface {
 }
 
 type UpdateAction struct {
-	Action   string       `json:"action"`
-	Elements []ElementRef `json:"elements"`
+	Action  string                    `json:"action"`
+	Objects []database.LocalObjectRef `json:"objects"`
 }
 
 func (a UpdateAction) Copy() *UpdateAction {
-	a.Elements = slices.Clone(a.Elements)
+	a.Objects = slices.Clone(a.Objects)
 	return &a
 }
 
-type ElementRef struct {
-	Name  string `json:"name"`
-	Type  string `json:"type"`
-	Phase Phase  `json:"phase"`
-}
-
-func (e ElementRef) String() string {
-	return fmt.Sprintf("%s:%s:%s", e.Type, e.Name, e.Phase)
+func (a UpdateAction) Version() string {
+	return general.HashData(a.Action)
 }
 
 type UpdateStatus struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
+	Status          string `json:"status"`
+	Message         string `json:"message,omitempty"`
+	ObservedVersion string `json:"observedVersion,omitempty"`
 }
 
 type ExternalObject interface {

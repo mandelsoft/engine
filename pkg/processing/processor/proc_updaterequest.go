@@ -49,7 +49,8 @@ func (p *Processor) processUpdateRequest(lctx model.Logging, log logging.Logger,
 
 	status := ur.GetStatus()
 	action := ur.GetAction()
-	if action.Action == model.REQ_ACTION_RELEASE && status.Status == model.REQ_STATUS_RELEASED {
+	if action.Action == model.REQ_ACTION_RELEASE &&
+		(status.Status == model.REQ_STATUS_RELEASED || status.Status == model.REQ_STATUS_INVALID) {
 		log.Info("request already done")
 		return pool.StatusCompleted(p.clearNamespaceLockForObject(log, ni, id))
 	}
@@ -65,6 +66,11 @@ func (p *Processor) processUpdateRequest(lctx model.Logging, log logging.Logger,
 			log.Info("updated status to {{status}}: {{message}}", "status", model.REQ_STATUS_INVALID, "message", err.Error())
 		}
 		return pool.StatusCompleted(r)
+	}
+
+	ni, err = p.processingModel.assureNamespace(log, o.GetNamespace(), true)
+	if err != nil {
+		return pool.StatusCompleted(err)
 	}
 
 	// step 1: assure namespace locked
@@ -93,15 +99,15 @@ func (p *Processor) processUpdateRequest(lctx model.Logging, log logging.Logger,
 	case model.REQ_ACTION_LOCK, model.REQ_ACTION_RELEASE:
 		var elems []_Element
 
-		for _, es := range action.Elements {
-			tid := NewTypeId(es.Type, es.Phase)
-			eid := NewElementIdForType(tid, id.GetNamespace(), es.Name)
+		for _, es := range action.Objects {
+			tid := p.processingModel.MetaModel().GetPhaseFor(es.Type)
+			eid := NewElementIdForType(*tid, id.GetNamespace(), es.Name)
 			e := ni._getElement(eid)
 			if e != nil {
 				elems = append(elems, e)
 			}
 		}
-		log.Info("step 2: locking elements for {{runid}}; {{elements}}", "elements", stringutils.Join(action.Elements, ", "))
+		log.Info("step 2: locking elements for {{runid}}; {{elements}}", "elements", stringutils.Join(action.Objects, ", "))
 		ok, err := p.doLockGraph(log, ni, runid, true, elems...)
 		if err != nil {
 			if ok {
@@ -117,13 +123,38 @@ func (p *Processor) processUpdateRequest(lctx model.Logging, log logging.Logger,
 		if err != nil {
 			return pool.StatusCompleted(err)
 		}
-		log.Info("  elements locked {{elemens}}", stringutils.Join(action.Elements, ", "))
+		log.Info("  elements locked {{elements}}", "elements", stringutils.Join(action.Objects, ", "))
 	}
 
 	// step 3: release locks
 	switch action.Action {
 	case model.REQ_ACTION_RELEASE:
 		log.Info("step 3: releasing namespace lock {{runid}}")
+		for _, es := range action.Objects {
+			tid := p.processingModel.MetaModel().GetPhaseFor(es.Type)
+			eid := NewElementIdForType(*tid, id.GetNamespace(), es.Name)
+			e := ni._getElement(eid)
+			if e == nil {
+				oid := es.In(o.GetNamespace())
+				_, err := ob.GetObject(oid)
+				if err != nil {
+					if !errors.Is(err, database.ErrNotExist) {
+						return pool.StatusCompleted(err)
+					}
+					log.Info("- object {{oid}} does not exist", "oid", oid)
+					_, err = setRequestStatus(ur, ob, model.REQ_STATUS_INVALID, fmt.Sprintf("object %q does not exist", oid))
+					if err != nil {
+						return pool.StatusCompleted(err)
+					}
+					return pool.StatusCompleted(p.clearNamespaceLockForObject(log, ni, ur))
+				}
+				log.Info("- object {{oid}} exists, but is not yet reconciled -> dely", "oid", oid)
+				return pool.StatusCompleted(fmt.Errorf("waiting for object %q to be reconciled", oid))
+			}
+			log.Info("- object {{oid}} ready for release", "oid", oid)
+		}
+
+		log.Info("all objects ready: releasing namespace lock {{runid}}")
 		err := p.clearNamespaceLockForObject(log, ni, id)
 		if err != nil {
 			return pool.StatusCompleted(err)
@@ -143,10 +174,14 @@ func setRequestStatus(ur model.UpdateRequestObject, ob objectbase.Objectbase, st
 	snew := *ur.GetStatus()
 	snew.Status = status
 	snew.Message = message
+	snew.ObservedVersion = ur.GetAction().Version()
 	return ur.SetStatus(ob, &snew)
 }
 
 func (p *Processor) clearNamespaceLockForObject(log logging.Logger, ni *namespaceInfo, id database.ObjectId) error {
+	if ni == nil {
+		return nil
+	}
 	runid := ni.namespace.GetLock()
 	owner := IsObjectLock(runid)
 	if owner != nil && database.CompareObject((*owner).Id(id.GetNamespace(), p.processingModel.mm), id) == 0 {
@@ -204,16 +239,14 @@ func validateUpdateRequest(mm metamodel.MetaModel, action *model.UpdateAction) e
 		return fmt.Errorf("invalid action %q", action.Action)
 	}
 
-	for i, e := range action.Elements {
-		tid := NewTypeId(e.Type, Phase(e.Phase))
-
-		it := mm.GetInternalType(tid.GetType())
-		if it == nil {
-			return fmt.Errorf("invalid internal type %q for element index %d", tid.GetType(), i+1)
+	for i, e := range action.Objects {
+		et := mm.GetExternalType(e.GetType())
+		if et == nil {
+			return fmt.Errorf("invalid external type %q for element index %d", e.GetType(), i+1)
 		}
-		phase := it.Element(tid.GetPhase())
+		phase := mm.GetPhaseFor(e.GetType())
 		if phase == nil {
-			return fmt.Errorf("invalid phase %q for internal type %q for element index %d", tid.GetPhase(), tid.GetType(), i+1)
+			return fmt.Errorf("no trigger defined for external type %q for object index %d", e.GetType(), i+1)
 		}
 	}
 	return nil

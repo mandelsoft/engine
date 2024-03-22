@@ -54,9 +54,9 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			MustBeSuccessful(Modify(env, &orA, func(o *db.UpdateRequest) (bool, bool) {
 				o.SetAction(&model.UpdateAction{
 					Action: model.REQ_ACTION_LOCK,
-					Elements: []model.ElementRef{
-						model.NewElementRef(mymetamodel.TYPE_VALUE_STATE, "A", mymetamodel.PHASE_PROPAGATE),
-						model.NewElementRef(mymetamodel.TYPE_VALUE_STATE, "B", mymetamodel.PHASE_PROPAGATE),
+					Objects: []database.LocalObjectRef{
+						database.NewLocalObjectRefFor(ovA),
+						database.NewLocalObjectRefFor(ovB),
 					},
 				})
 				return true, true
@@ -85,8 +85,8 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			log.Info("STEP 4:release request")
 			MustBeSuccessful(Modify(env, &orA, func(o *db.UpdateRequest) (bool, bool) {
 				o.SetAction(&model.UpdateAction{
-					Action:   model.REQ_ACTION_RELEASE,
-					Elements: o.Spec.Elements,
+					Action:  model.REQ_ACTION_RELEASE,
+					Objects: o.Spec.Objects,
 				})
 				return true, true
 			}))

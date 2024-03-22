@@ -64,6 +64,46 @@ func CreateOrModify[O Object, DBO Object](db Database[DBO], obj *O, mod func(O) 
 	}
 }
 
+func ModifyExisting[O Object, DBO Object](db Database[DBO], obj *O, mod func(O) bool) (bool, error) {
+	for {
+		_o, err := db.GetObject(*obj)
+		if err != nil {
+			if !errors.Is(err, ErrNotExist) {
+				return false, err
+			}
+			return false, nil
+		}
+		o, ok := generics.TryCast[O](_o)
+		if !ok {
+			return false, fmt.Errorf("non-matching Go type %T for %q", _o, _o.GetType())
+		}
+		ok = mod(o)
+		if ok {
+			err = db.SetObject(_o)
+			if errors.Is(err, ErrModified) {
+				continue
+			}
+		}
+		return ok, err
+	}
+}
+
+func IsModified[O Object, DBO Object](db Database[DBO], obj *O, mod func(O) bool) (bool, error) {
+	_o, err := db.GetObject(*obj)
+	if err != nil {
+		if !errors.Is(err, ErrNotExist) {
+			return false, err
+		}
+		return true, nil
+	}
+	o, ok := generics.TryCast[O](_o)
+	if !ok {
+		return false, fmt.Errorf("non-matching Go type %T for %q", _o, _o.GetType())
+	}
+	ok = mod(o)
+	return ok, err
+}
+
 // DirectModify is like Modify, but does not do retries.
 // The first run must work on a up-to-date object.
 // It returns true, if this update succeeds.

@@ -30,6 +30,7 @@ const FINALIZER = "expression"
 
 type ExpressionController struct {
 	pool    pool.Pool
+	sync    bool
 	db      database.Database[db2.Object]
 	handler *Handler
 	log     logging.Logger
@@ -44,9 +45,14 @@ func NewExpressionController(lctx logging.AttributionContextProvider, size int, 
 	c := &ExpressionController{
 		pool: p,
 		db:   db,
+		sync: true,
 		log:  logging.DynamicLogger(logging.DefaultContext().AttributionContext().WithContext(REALM)),
 	}
 	return c
+}
+
+func (c *ExpressionController) SetSyncMode(b bool) {
+	c.sync = b
 }
 
 func (c *ExpressionController) Wait() error {
@@ -55,6 +61,7 @@ func (c *ExpressionController) Wait() error {
 
 func (c *ExpressionController) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
 	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_EXPRESSION), c)
+	c.pool.AddAction(pool.ObjectType(mymetamodel.TYPE_UPDATEREQUEST), c)
 	c.handler = NewHandler(c)
 	c.handler.Register()
 	return c.pool.Start(ctx)
@@ -65,7 +72,9 @@ func (c *ExpressionController) GetTriggers() map[database.ObjectId]database.Obje
 }
 
 func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.MessageContext, id database.ObjectId) pool.Status {
-	log := messageContext.Logger(REALM).WithValues("expression", id)
+
+	log := messageContext.Logger(REALM)
+	log = log.WithValues("expression", id)
 
 	_o, err := c.db.GetObject(id)
 	if errors.Is(err, database.ErrNotExist) {
@@ -278,16 +287,37 @@ func (c *ExpressionController) Reconcile(p pool.Pool, messageContext pool.Messag
 			}
 		}
 
-		mod, err := g.UpdateDB(log, c.db)
-		if mod || err != nil {
-			if err != nil {
-				log.LogError(err, "db update for generated object failed")
-			}
-			if mod {
-				log.Info("generated graph updated on db -> skip further processing")
-			}
+		changes, err := g.IsModifiedDB(log, c.db)
+		if err != nil {
 			return pool.StatusCompleted(err)
 		}
+
+		if len(changes) > 0 {
+			locked, err := c.requestUpdate(log, changes, namespace, o.GetName())
+			if err != nil || !locked {
+				return pool.StatusCompleted(err)
+			}
+
+			mod, err := g.UpdateDB(log, c.db)
+			if mod || err != nil {
+				if err != nil {
+					log.LogError(err, "db update for generated object failed")
+				}
+				if mod {
+					log.Info("generated graph updated on db -> skip further processing")
+				}
+				return pool.StatusCompleted(err)
+			}
+		}
+
+		ur := db.NewUpdateRequest(namespace, o.GetName()).RequestAction(model.REQ_ACTION_RELEASE)
+		_, err = database.ModifyExisting(c.db, &ur, func(o *db.UpdateRequest) bool {
+			mod := false
+			if support.UpdateField(&o.Spec.Action, generics.Pointer(model.REQ_ACTION_RELEASE), &mod) {
+				log.Info(" update action:  release")
+			}
+			return mod
+		})
 
 		final, status, err := g.CheckDB(log, c.db)
 		if err != nil {
@@ -367,6 +397,55 @@ func (c *ExpressionController) assureTriggers(log logging.Logger, o *db.Expressi
 			log.Info("re-establish trigger for {{oid}}", "oid", id)
 		}
 	}
+}
+
+func (c *ExpressionController) requestUpdate(log logging.Logger, changes []database.LocalObjectRef, namespace, name string) (bool, error) {
+	if !c.sync {
+		return true, nil
+	}
+
+	log.Info("initiate change request for {{elements}}", "elements", stringutils.Join(changes, ", "))
+	var ur *db.UpdateRequest
+	uo, err := c.db.GetObject(database.NewObjectId(mymetamodel.TYPE_UPDATEREQUEST, namespace, name))
+	if err != nil {
+		if !errors.Is(err, database.ErrNotExist) {
+			return false, err
+		}
+		ur = db.NewUpdateRequest(namespace, name).RequestAction(model.REQ_ACTION_ACQUIRE)
+	} else {
+		ur = uo.(*db.UpdateRequest)
+	}
+	locked := false
+	_, err = database.CreateOrModify(c.db, &ur, func(o *db.UpdateRequest) bool {
+		mod := false
+		switch o.Status.Status {
+		case model.REQ_STATUS_RELEASED, model.REQ_STATUS_INVALID:
+			if support.UpdateField(&o.Spec.Action, generics.Pointer(model.REQ_ACTION_ACQUIRE), &mod) {
+				log.Info(" update action:  acquire")
+			}
+		case model.REQ_STATUS_ACQUIRED, model.REQ_STATUS_PENDING:
+			if support.UpdateField(&o.Spec.Action, generics.Pointer(model.REQ_ACTION_LOCK), &mod) {
+				log.Info(" update action:  lock")
+			}
+			if support.UpdateField(&o.Spec.Objects, generics.Pointer(changes), &mod) {
+				log.Info("  update objects: {{elements}}", "elements", stringutils.Join(changes, ", "))
+			}
+		case model.REQ_STATUS_LOCKED:
+			if support.UpdateField(&o.Spec.Objects, generics.Pointer(changes), &mod) {
+				log.Info("  update elements: {{elements)", "elements", stringutils.Join(changes, ", "))
+			} else {
+				locked = o.GetAction().Version() == o.GetStatus().ObservedVersion
+				if locked {
+					log.Info("  modification list finally locked")
+				} else {
+					log.Info("  modification list locked, but not up-to-date")
+				}
+			}
+		}
+		return mod
+	})
+	log.Info("update status: {{status}}", "status", ur.Status.Status)
+	return locked, err
 }
 
 type ExpressionInfo struct {

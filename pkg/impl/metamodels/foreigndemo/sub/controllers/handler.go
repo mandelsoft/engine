@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"maps"
+	"path"
 	"sync"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
+	"github.com/mandelsoft/goutils/errors"
 )
 
 type Handler struct {
@@ -26,6 +28,8 @@ func NewHandler(c *ExpressionController) *Handler {
 }
 
 func (h *Handler) Register() {
+	h.c.db.RegisterHandler(h, false, mymetamodel.TYPE_UPDATEREQUEST, true, "")
+
 	h.c.db.RegisterHandler(h, true, mymetamodel.TYPE_EXPRESSION, true, "")
 
 	h.c.db.RegisterHandler(h, false, mymetamodel.TYPE_VALUE, true, "")
@@ -34,6 +38,23 @@ func (h *Handler) Register() {
 
 func (h *Handler) HandleEvent(id database.ObjectId) {
 	id = database.NewObjectIdFor(id)
+
+	if id.GetType() == mymetamodel.TYPE_UPDATEREQUEST {
+		var err error
+		pp := path.Dir(id.GetNamespace())
+		if pp != "." {
+			eid := database.NewObjectId(mymetamodel.TYPE_EXPRESSION, pp, id.GetName())
+			_, err = h.c.db.GetObject(eid)
+			if err != nil {
+				if errors.Is(err, database.ErrNotExist) {
+					err = nil
+				}
+			} else {
+				h.c.pool.EnqueueKey(eid)
+			}
+		}
+		return
+	}
 
 	if id.GetType() == mymetamodel.TYPE_EXPRESSION {
 		h.c.pool.EnqueueKey(id)

@@ -64,6 +64,7 @@ type Graph interface {
 	GetObject(id database.ObjectId) database.Object
 	IsEmpty() bool
 
+	IsModifiedDB(log logging.Logger, odb database.Database[db.Object]) ([]database.LocalObjectRef, error)
 	UpdateDB(log logging.Logger, odb database.Database[db.Object]) (bool, error)
 	CheckDB(log logging.Logger, odb database.Database[db.Object]) (bool, model.Status, error)
 
@@ -204,6 +205,29 @@ func (g *graph) UpdateDB(log logging.Logger, odb database.Database[db.Object]) (
 		mod = mod || m
 	}
 	return mod, nil
+}
+
+func (g *graph) IsModifiedDB(log logging.Logger, odb database.Database[db.Object]) ([]database.LocalObjectRef, error) {
+	var result []database.LocalObjectRef
+	objs := g.Objects()
+	log.Info("update generated expression graph on db", "ids", objs)
+	for _, id := range objs {
+		n := g.nodes[id]
+		o := n.Object()
+		m, err := database.IsModified(odb, &o, func(o database.Object) bool { return n.DBUpdate(o) })
+		if err != nil {
+			log.LogError(err, "- update checked failed for object {{oid}}: {{error}}", "oid", id)
+			return nil, err
+		}
+		if m {
+			log.Info("- object {{oid}} requires update", "oid", id)
+			result = append(result, database.NewLocalObjectRefFor(id))
+		} else {
+			log.Debug("- unchanged object {{oid}}", "oid", id)
+		}
+	}
+	slices.SortFunc(result, database.CompareLocalObjectRef)
+	return result, nil
 }
 
 func (g *graph) CheckDB(log logging.Logger, odb database.Database[db.Object]) (bool, model.Status, error) {

@@ -2,7 +2,6 @@ package model
 
 import (
 	"github.com/mandelsoft/engine/pkg/processing/internal"
-	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/goutils/general"
 )
 
@@ -12,7 +11,6 @@ type ExternalObject = internal.ExternalObject
 type NamespaceObject = internal.NamespaceObject
 type UpdateRequestObject = internal.UpdateRequestObject
 type UpdateAction = internal.UpdateAction
-type ElementRef = internal.ElementRef
 type UpdateStatus = internal.UpdateStatus
 
 type CommitInfo = internal.CommitInfo
@@ -101,13 +99,5 @@ func StatusDeleted() ProcessingResult {
 func StatusWaiting() ProcessingResult {
 	return ProcessingResult{
 		Status: STATUS_WAITING,
-	}
-}
-
-func NewElementRef(typ, name string, phase mmids.Phase) ElementRef {
-	return ElementRef{
-		Name:  name,
-		Type:  typ,
-		Phase: phase,
 	}
 }

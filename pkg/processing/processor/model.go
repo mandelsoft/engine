@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
+	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/goutils/maputils"
 	"github.com/mandelsoft/logging"
 
@@ -59,7 +60,7 @@ func (m *processingModel) Namespaces() []string {
 func (m *processingModel) GetNamespace(name string) Namespace {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return m.namespaces[name]
+	return generics.CastPointer[Namespace](m.namespaces[name])
 }
 
 func (p *processingModel) GetElement(id ElementId) Element {

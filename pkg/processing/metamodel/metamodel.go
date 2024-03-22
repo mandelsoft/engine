@@ -264,6 +264,14 @@ func (m *metaModel) GetExternalTypesFor(id TypeId) []string {
 	return e.ExternalStates()
 }
 
+func (m *metaModel) GetTriggedElementType(ext string) ElementType {
+	e := m.external[ext]
+	if e == nil {
+		return nil
+	}
+	return e.Trigger()
+}
+
 func (m *metaModel) GetTriggerTypeForElementType(id TypeId) *string {
 	e := m.elements[id]
 	if e == nil {

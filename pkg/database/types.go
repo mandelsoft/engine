@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/mandelsoft/engine/pkg/runtime"
 	"github.com/mandelsoft/engine/pkg/utils"
@@ -223,6 +224,14 @@ func (r LocalObjectRef) String() string {
 
 func (r LocalObjectRef) In(ns string) ObjectId {
 	return NewObjectId(r.Type, ns, r.Name)
+}
+
+func CompareLocalObjectRef(a, b LocalObjectRef) int {
+	d := strings.Compare(a.GetType(), b.GetType())
+	if d == 0 {
+		d = strings.Compare(a.GetName(), b.GetName())
+	}
+	return d
 }
 
 type ObjectRef struct {

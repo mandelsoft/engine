@@ -3,6 +3,7 @@ package db
 import (
 	"slices"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/goutils/generics"
 )
@@ -38,8 +39,8 @@ func (u *UpdateRequest) SetStatus(status *model.UpdateStatus) {
 	u.Status = *status
 }
 
-func (u *UpdateRequest) RequestAction(a string, refs ...model.ElementRef) *UpdateRequest {
+func (u *UpdateRequest) RequestAction(a string, refs ...database.LocalObjectRef) *UpdateRequest {
 	u.Spec.Action = a
-	u.Spec.Elements = slices.Clone(refs)
+	u.Spec.Objects = slices.Clone(refs)
 	return u
 }
