@@ -98,7 +98,24 @@ var _ = Describe("Controller Scenario Test Environment", func() {
 			env.WaitWithTimeout(feEXPR)
 			oeEXPR = Must(env.GetObject(oeEXPR)).(*db.Expression)
 			Expect(oeEXPR.Status.Output).To(Equal(db.ExpressionOutput{"E": 3, "oA": 2}))
+		})
 
+		It("handles expression with constant", func() {
+			env.AddService(me.NewExpressionController(env.Logging(), 1, env.Database()))
+			env.Start()
+
+			oeEXPR := db.NewExpression(NS, "EXPR").
+				AddOperand("A", 1).
+				AddOperand("B", 2).
+				AddOperation("oA", db.OP_ADD, "A", "1").
+				AddExpressionOperation("E", "oA+2*B")
+
+			feEXPR := env.FutureForObjectStatus(model.STATUS_COMPLETED, oeEXPR)
+			MustBeSuccessful(env.SetObject(oeEXPR))
+
+			env.WaitWithTimeout(feEXPR)
+			oeEXPR = Must(env.GetObject(oeEXPR)).(*db.Expression)
+			Expect(oeEXPR.Status.Output).To(Equal(db.ExpressionOutput{"E": 6, "oA": 2}))
 		})
 
 		It("modifies expression operand for controller test scenario", func() {

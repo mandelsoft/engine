@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/mandelsoft/engine/pkg/database"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	db2 "github.com/mandelsoft/engine/pkg/processing/model/support/db"
+	"github.com/mandelsoft/engine/pkg/utils"
 	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/goutils/maputils"
+	"github.com/mandelsoft/goutils/sliceutils"
 
 	"github.com/mandelsoft/logging"
 
@@ -212,7 +215,9 @@ func (c *CurrentGatherState) GetLinks() []ElementId {
 	var r []ElementId
 
 	for _, o := range c.Get().Output.Operands {
-		r = append(r, NewElementId(mymetamodel.TYPE_VALUE_STATE, o.Origin.GetNamespace(), o.Origin.GetName(), mymetamodel.PHASE_PROPAGATE))
+		if database.CompareObjectId(c, o.Origin) != 0 {
+			r = append(r, NewElementId(mymetamodel.TYPE_VALUE_STATE, o.Origin.GetNamespace(), o.Origin.GetName(), mymetamodel.PHASE_PROPAGATE))
+		}
 	}
 	return r
 }
@@ -239,7 +244,8 @@ func (c *TargetGatherState) GetLinks() []ElementId {
 		return nil
 	}
 
-	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE, maputils.OrderedValues(t.Spec.Operands)...)
+	return support.LinksForTypePhase(mymetamodel.TYPE_VALUE_STATE, c.GetNamespace(), mymetamodel.PHASE_PROPAGATE,
+		sliceutils.Filter(maputils.OrderedValues(t.Spec.Operands), utils.IsNoNumber)...)
 }
 
 func (c *TargetGatherState) GetOperations() map[string]db.Operation {

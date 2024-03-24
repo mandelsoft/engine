@@ -57,6 +57,44 @@ var _ = Describe("Processing", func() {
 			mn5.Check(env, 5, "")
 		})
 
+		It("operator with constant", func() {
+			env.AddService(controllers.NewExpressionController(env.Logging(), 1, env.Database()))
+			env.Start()
+
+			vA := db.NewValueNode(NS, "A", 5)
+			MustBeSuccessful(env.SetObject(vA))
+
+			opC := db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperand("iB", "2").
+				AddOperation("eA", db.OP_ADD, "iA", "iB").
+				AddOutput("C-A", "eA")
+
+			fvA := graph.NewValue(vA)
+			fopC := graph.NewOperator(opC)
+
+			g := Must(graph.NewGraph(version.Composed, fvA, fopC))
+
+			rid := database.NewObjectId(mymetamodel.TYPE_VALUE, NS, "C-A")
+			expected := g.FormalVersion(g.MapToPhaseId(rid))
+
+			mCA := ValueCompleted(env, "C-A")
+			MustBeSuccessful(env.SetObject(opC))
+
+			Expect(env.Wait(mCA)).To(BeTrue())
+			mCA.Check(env, 7, "C")
+
+			o := Must(env.GetObject(rid))
+			fmt.Printf("\n%s\n", expected)
+			fmt.Printf("%s\n", o.(*db.Value).Status.FormalVersion)
+			Expect(o.(*db.Value).Status.FormalVersion).To(Equal(expected))
+
+			fmt.Println("************** deleting operator ****************")
+			fuOpC := env.FutureForObjectStatus(model.STATUS_DELETED, opC)
+			MustBeSuccessful(env.DeleteObject(opC))
+			Expect(env.WaitWithTimeout(fuOpC)).To(BeTrue())
+		})
+
 		It("operator with two operands (in order)", func() {
 			env.AddService(controllers.NewExpressionController(env.Logging(), 1, env.Database()))
 			env.Start()

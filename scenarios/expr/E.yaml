@@ -4,14 +4,15 @@ metadata:
   name: E
 spec:
   operands:
-    A: 5
-    B: 6
+    iA: 5
+    iB: 6
   expressions:
     oA: 
       operator: add
       operands:
-      - A
-      - 1
+      - iA
+      - iB 
     E:
       operator: expr
-      expression: oA+B+A
+      #expression: iA+oA-2*iB
+      expression: iA+oA-iB

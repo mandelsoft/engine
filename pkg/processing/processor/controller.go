@@ -302,9 +302,9 @@ func (p *Controller) setStatus(log logging.Logger, e _Element, status model.Stat
 	}
 	if ok {
 		log.Info("status updated to {{status}} for {{element}}", "status", status, "element", e.Id())
-		if len(trigger) == 0 || general.Optional(trigger...) {
-			p.events.TriggerStatusEvent(log, e)
-		}
+	}
+	if ok || general.Optional(trigger...) {
+		p.events.TriggerStatusEvent(log, e)
 	}
 	return nil
 }

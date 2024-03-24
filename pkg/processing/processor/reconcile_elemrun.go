@@ -172,7 +172,7 @@ func (r *elementRunReconcilation) Reconcile() pool.Status {
 				r.Info("effective version unchanged -> skip processing of phase")
 				err := r.notifyCompletedState("no processing required", nil, ready.Inputs)
 				if err == nil {
-					_, err = r.SetStatus(r.processingModel.ObjectBase(), model.STATUS_COMPLETED)
+					err = r.setStatus(r, r._Element, model.STATUS_COMPLETED, true)
 					if err == nil {
 						r.pending.Add(-1)
 						r.triggerChildren(true)
