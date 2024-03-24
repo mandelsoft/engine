@@ -7,36 +7,8 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/goutils/generics"
 
-	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
-	"github.com/mandelsoft/logging"
 )
-
-const ACTION_CMD = "element"
-
-type modelAction struct {
-	proc *Processor
-}
-
-var _ pool.Action = (*modelAction)(nil)
-
-func (a *modelAction) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.ObjectId) pool.Status {
-	return a.proc.processExternalObject(a.proc.logging.Logger(logging.ExcludeFromMessageContext[logging.Realm](ctx)), id)
-}
-
-func (a *modelAction) Command(p pool.Pool, ctx pool.MessageContext, command pool.Command) pool.Status {
-	// ctx = logging.ExcludeFromMessageContext[logging.Realm](ctx)
-	ctx = ctx.WithContext(REALM)
-	cmd, ns, id := DecodeCommand(command)
-	if cmd == CMD_NS {
-		a.proc.processNamespace(ctx, a.proc.logging.Logger(ctx), ns)
-	}
-	if id != nil {
-		return a.proc.processElement(a.proc.logging.AttributionContext().WithContext(ctx), cmd, *id)
-	} else {
-		return pool.StatusFailed(fmt.Errorf("invalid processor command %q", command))
-	}
-}
 
 func EncodeElement(cmd string, id ElementId) pool.Command {
 	return pool.Command(fmt.Sprintf("%s:%s", cmd, id.String()))
@@ -82,17 +54,4 @@ func DecodeCommand(c pool.Command) (string, string, *ElementId) {
 		ns = ns[:i]
 	}
 	return cmd, "", generics.Pointer(NewElementId(t, ns, n, Phase(p)))
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-type requestAction struct {
-	pool.DefaultAction
-	proc *Processor
-}
-
-var _ pool.Action = (*requestAction)(nil)
-
-func (a *requestAction) Reconcile(p pool.Pool, ctx pool.MessageContext, id database.ObjectId) pool.Status {
-	return a.proc.processUpdateRequest(ctx, a.proc.logging.Logger(logging.ExcludeFromMessageContext[logging.Realm](ctx)), id)
 }

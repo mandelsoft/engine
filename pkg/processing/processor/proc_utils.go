@@ -10,7 +10,6 @@ import (
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
 	"github.com/mandelsoft/engine/pkg/version"
-	"github.com/mandelsoft/goutils/general"
 	"github.com/mandelsoft/goutils/generics"
 	"github.com/mandelsoft/goutils/maputils"
 	"github.com/mandelsoft/logging"
@@ -47,7 +46,7 @@ func GetResultState(args ...interface{}) model.OutputState {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func TriggeringObject(p *Processor, id TypeId) []string {
+func TriggeringObject(p *Controller, id TypeId) []string {
 	trigger := p.processingModel.MetaModel().GetTriggerTypeForElementType(id)
 	if trigger == nil {
 		return nil
@@ -55,75 +54,11 @@ func TriggeringObject(p *Processor, id TypeId) []string {
 	return []string{*trigger}
 }
 
-func UpdateObjects(p *Processor, id TypeId) []string {
+func UpdateObjects(p *Controller, id TypeId) []string {
 	return p.processingModel.MetaModel().GetExternalTypesFor(id)
 }
 
-func (p *Processor) forExtObjects(log logging.Logger, e _Element, f func(log logging.Logger, object model.ExternalObject) error, set func(p *Processor, id TypeId) []string) error {
-	exttypes := set(p, e.Id().TypeId())
-	for _, t := range exttypes {
-		id := NewObjectId(t, e.GetNamespace(), e.GetName())
-		log = log.WithValues("extid", id)
-		_o, err := p.processingModel.ObjectBase().GetObject(database.NewObjectId(id.GetType(), id.GetNamespace(), id.GetName()))
-		if err != nil {
-			if !errors.Is(err, database.ErrNotExist) {
-				log.Error("cannot get external object {{extid}}", "error", err)
-				return err
-			}
-			log.Info("external object {{extid}} not found -> skip")
-			continue
-		}
-		err = f(log, _o.(model.ExternalObject))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (p *Processor) updateStatus(lctx model.Logging, log logging.Logger, elem _Element, status model.Status, message string, args ...any) error {
-	update := model.StatusUpdate{
-		Status:  &status,
-		Message: &message,
-	}
-	keys := []interface{}{
-		"newstatus", status,
-		"message", message,
-	}
-
-	for _, a := range args {
-		switch opt := a.(type) {
-		case RunId:
-			update.RunId = generics.Pointer(opt)
-			keys = append(keys, "runid", update.RunId)
-		case model.OutputState:
-			update.ResultState = opt
-			keys = append(keys, "result", general.DescribeObject(opt))
-		case FormalVersion:
-			update.FormalVersion = generics.Pointer(string(opt))
-			keys = append(keys, "formal version", opt)
-		case ObservedVersion:
-			update.ObservedVersion = generics.Pointer(string(opt))
-			keys = append(keys, "observed version", opt)
-		case DetectedVersion:
-			update.DetectedVersion = generics.Pointer(string(opt))
-			keys = append(keys, "detected version", opt)
-		case EffectiveVersion:
-			update.EffectiveVersion = generics.Pointer(string(opt))
-			keys = append(keys, "effective version", opt)
-		default:
-			panic(fmt.Sprintf("unknown status argument type %T", a))
-		}
-	}
-	log.Info(" updating status of external objects to {{newstatus}}: {{message}}", keys...)
-
-	mod := func(log logging.Logger, o model.ExternalObject) error {
-		return o.UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), update)
-	}
-	return p.forExtObjects(log, elem, mod, UpdateObjects)
-}
-
-func (p *Processor) triggerLinks(log logging.Logger, msg string, links ...ElementId) {
+func (p *Controller) triggerLinks(log logging.Logger, msg string, links ...ElementId) {
 	log.Info(fmt.Sprintf("trigger %s elements", msg))
 	for _, l := range links {
 		log.Info(fmt.Sprintf(" - trigger %s element {{parent}}", msg), "parent", l)
@@ -131,64 +66,31 @@ func (p *Processor) triggerLinks(log logging.Logger, msg string, links ...Elemen
 	}
 }
 
-func (p *Processor) triggerChildren(log logging.Logger, ni *namespaceInfo, elem _Element, release bool) {
-	ni.lock.Lock()
-	defer ni.lock.Unlock()
-	// TODO: dependency check must be synchronized with this trigger
-
-	id := elem.Id()
-	log.Info("triggering children for {{element}} (checking {{amount}} elements in namespace)", "amount", len(ni.elements))
-	for _, e := range ni.elements {
-		if e.GetProcessingState() != nil {
-			links := e.GetProcessingState().GetLinks()
-			log.Debug("  elem {{child}} has target links {{links}}", "child", e.Id(), "links", links)
-			for _, l := range links {
-				if l == id {
-					log.Info("- trigger pending element {{waiting}} active in {{target-runid}}", "waiting", e.Id(), "target-runid", e.GetLock())
-					p.EnqueueKey(CMD_ELEM, e.Id())
-				}
-			}
-		} else if e.GetStatus() != model.STATUS_DELETED && e.GetCurrentState() != nil {
-			links := e.GetCurrentState().GetObservedState().GetLinks()
-			log.Debug("  elem {{child}} has current links {{links}}", "child", e.Id(), "links", links)
-			for _, l := range links {
-				if l == id {
-					log.Info("- trigger pending element {{waiting}}", "waiting", e.Id(), "target-runid", e.GetLock())
-					p.EnqueueKey(CMD_ELEM, e.Id())
-				}
-			}
-		}
-	}
-	if release {
-		elem.SetProcessingState(nil)
-	}
-}
-
-func (p *Processor) updateRunId(lctx model.Logging, log logging.Logger, verb string, elem Element, rid RunId) error {
-	types := p.processingModel.MetaModel().GetExternalTypesFor(elem.Id().TypeId())
+func (p *Controller) updateRunId(r Reconcilation, verb string, elem Element, rid RunId) error {
+	types := p.MetaModel().GetExternalTypesFor(elem.Id().TypeId())
 	for _, t := range types {
 		extid := database.NewObjectId(t, elem.GetNamespace(), elem.GetName())
-		o, err := p.processingModel.ObjectBase().GetObject(extid)
+		o, err := p.Objectbase().GetObject(extid)
 		if err != nil {
 			if errors.Is(err, database.ErrNotExist) {
 				continue
 			}
-			log.Error("cannot get external object {{extid}}", "extid", extid, "error", err)
+			r.Error("cannot get external object {{extid}}", "extid", extid, "error", err)
 			return err
 		}
-		err = o.(model.ExternalObject).UpdateStatus(lctx, p.processingModel.ObjectBase(), elem.Id(), model.StatusUpdate{
+		err = o.(model.ExternalObject).UpdateStatus(r.LoggingContext(), p.Objectbase(), elem.Id(), model.StatusUpdate{
 			RunId:           &rid,
 			DetectedVersion: generics.Pointer(""),
 		})
 		if err != nil {
-			log.Error(fmt.Sprintf("cannot %s run for external object  {{extid}}", verb), "extid", extid, "error", err)
+			r.Error(fmt.Sprintf("cannot %s run for external object  {{extid}}", verb), "extid", extid, "error", err)
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *Processor) getTriggeringExternalObject(id ElementId) (bool, model.ExternalObject, error) {
+func (p *Controller) getTriggeringExternalObject(id ElementId) (bool, model.ExternalObject, error) {
 	found := false
 
 	trigger := p.processingModel.MetaModel().GetTriggerTypeForElementType(id.TypeId())
@@ -208,7 +110,7 @@ func (p *Processor) getTriggeringExternalObject(id ElementId) (bool, model.Exter
 	return found, nil, nil
 }
 
-func (p *Processor) isDeleting(objs ...model.ExternalObject) bool {
+func (p *Controller) isDeleting(objs ...model.ExternalObject) bool {
 	for _, o := range objs {
 		if o != nil && o.IsDeleting() {
 			return true
@@ -217,18 +119,13 @@ func (p *Processor) isDeleting(objs ...model.ExternalObject) bool {
 	return false
 }
 
-func (p *Processor) verifyLinks(e _Element, links ...ElementId) error {
+func (p *Controller) verifyLinks(e _Element, links ...ElementId) error {
 	for _, l := range links {
 		if err := p.processingModel.MetaModel().VerifyLink(e.Id(), l); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (p *Processor) formalVersion(e _Element, inputs model.Inputs) string {
-	n := version.NewNode(e.Id().TypeId(), e.GetName(), e.GetTargetState().GetFormalObjectVersion())
-	return p.composer.Compose(n, formalInputVersions(inputs)...)
 }
 
 func formalInputVersions(inputs model.Inputs) []string {

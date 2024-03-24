@@ -96,7 +96,8 @@ func (s *Server) listenAndServeContext(ctx context.Context) {
 		// However, when a server is gracefully shutdown, it is safe to ignore errors
 		// returned from this method (given the select logic below), because
 		// Shutdown causes ListenAndServe to always return http.ErrServerClosed.
-		serverErr <- s.listenAndServe()
+		err := s.listenAndServe()
+		serverErr <- err
 	}()
 	var err error
 	select {
@@ -108,6 +109,7 @@ func (s *Server) listenAndServeContext(ctx context.Context) {
 		s.done.SetError(err)
 		s.done.Trigger()
 	}
+	return
 }
 
 func (s *Server) listenAndServe() error {
@@ -117,13 +119,13 @@ func (s *Server) listenAndServe() error {
 	}
 
 	ln, err := net.Listen("tcp", addr)
+	s.ready.Trigger()
 	if err != nil {
 		return err
 	}
 
 	defer ln.Close()
 
-	s.ready.Trigger()
 	if s.certFile == "" {
 		return s.server.Serve(ln)
 	}

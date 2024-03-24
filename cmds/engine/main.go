@@ -67,7 +67,7 @@ func main() {
 		Error("cannot create model: %s", err.Error())
 	}
 
-	proc, err := processor.NewProcessor(lctx, m, 1, version.Composed)
+	proc, err := processor.NewController(lctx, m, 1, version.Composed)
 	if err != nil {
 		Error("cannot create processor: %s", err.Error())
 	}
