@@ -88,60 +88,60 @@ func (ni *namespaceInfo) filterElements(m matcher.Matcher[_Element]) map[Element
 	return maputils.FilterByValue(ni.elements, m)
 }
 
-func (ni *namespaceInfo) tryLock(p *Processor, runid RunId) (bool, error) {
-	ok, err := ni.namespace.TryLock(p.processingModel.ObjectBase(), runid)
+func (ni *namespaceInfo) tryLock(r Reconcilation, runid RunId) (bool, error) {
+	ok, err := ni.namespace.TryLock(r.Objectbase(), runid)
 	if ok {
-		p.events.TriggerNamespaceEvent(ni)
+		r.TriggerNamespaceEvent(ni)
 	}
 	return ok, err
 }
 
-func (ni *namespaceInfo) clearElementLock(lctx model.Logging, log logging.Logger, p *Processor, elem _Element, rid RunId) error {
+func (ni *namespaceInfo) clearElementLock(r Reconcilation, elem _Element, rid RunId) error {
 	// first: reset run id in in external objects
-	err := p.updateRunId(lctx, log, "reset", elem, "")
+	err := r.Controller().updateRunId(r, "reset", elem, "")
 	if err != nil {
 		return err
 	}
 	// second, clear lock on internal object for given phase.
-	ok, err := elem.Rollback(lctx, p.processingModel.ObjectBase(), rid, false)
+	ok, err := elem.Rollback(r.LoggingContext(), r.Objectbase(), rid, false)
 	if err != nil {
-		log.Error("releasing lock {{runid}} for element {{element}} failed", "element", elem.Id(), "error", err)
+		r.Error("releasing lock {{runid}} for element {{element}} failed", "element", elem.Id(), "error", err)
 		return err
 	}
 	if ok {
-		p.events.TriggerElementEvent(elem)
-		p.pending.Add(-1)
+		r.TriggerElementEvent(elem)
+		r.Controller().pending.Add(-1)
 	}
 	return nil
 }
 
-func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *Processor) error {
+func (ni *namespaceInfo) clearLocks(r Reconcilation) error {
 	rid := ni.namespace.GetLock()
 	if rid == "" {
 		return nil
 	}
 	if len(ni.pendingElements) > 0 {
-		log.Info("found pending {{amount}} locks for {{runid}}", "amount", len(ni.pendingElements))
+		r.Info("found pending {{amount}} locks for {{runid}}", "amount", len(ni.pendingElements))
 		for eid, elem := range maps.Clone(ni.pendingElements) {
-			err := ni.clearElementLock(lctx, log, p, elem, rid)
+			err := ni.clearElementLock(r, elem, rid)
 			if err == nil {
 				delete(ni.pendingElements, eid)
-				p.events.TriggerElementEvent(elem)
+				r.TriggerElementEvent(elem)
 			}
 		}
 		if len(ni.pendingElements) == 0 {
-			_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), rid)
+			_, err := ni.namespace.ClearLock(r.Objectbase(), rid)
 			if err != nil {
-				log.Info("releasing namespace lock {{runid}} failed")
+				r.Info("releasing namespace lock {{runid}} failed")
 				return err
 			} else {
-				log.Info("releasing namespace lock {{runid}} succeeded")
+				r.Info("releasing namespace lock {{runid}} succeeded")
 			}
-			p.events.TriggerNamespaceEvent(ni)
+			r.TriggerNamespaceEvent(ni)
 			ni.pendingElements = nil
 		} else {
 			ni.pendingOperation = func(lctx model.Logging, log logging.Logger) error {
-				return ni.clearLocks(lctx, log, p)
+				return ni.clearLocks(r)
 			}
 		}
 	}
@@ -149,18 +149,18 @@ func (ni *namespaceInfo) clearLocks(lctx model.Logging, log logging.Logger, p *P
 	if IsObjectLock(ni.namespace.GetLock()) != nil {
 		return nil
 	}
-	return ni.clearLock(log, ni.namespace.GetLock(), p)
+	return ni.clearLock(r, ni.namespace.GetLock())
 }
 
-func (ni *namespaceInfo) clearLock(log logging.Logger, rid RunId, p *Processor) error {
+func (ni *namespaceInfo) clearLock(r Reconcilation, rid RunId) error {
 	cur := ni.namespace.GetLock()
 	if rid != cur {
 		return nil
 	}
-	_, err := ni.namespace.ClearLock(p.processingModel.ObjectBase(), rid)
+	_, err := ni.namespace.ClearLock(r.Objectbase(), rid)
 	if err == nil {
-		log.Info("namespace {{namespace}} unlocked", "namespace", ni.namespace.GetNamespaceName())
-		p.events.TriggerNamespaceEvent(ni)
+		r.Info("namespace {{namespace}} unlocked", "namespace", ni.namespace.GetNamespaceName())
+		r.TriggerNamespaceEvent(ni)
 	}
 	return err
 }
@@ -199,7 +199,7 @@ func (ni *namespaceInfo) list(typ string) []ElementId {
 	return list
 }
 
-func (ni *namespaceInfo) assureSlaves(log logging.Logger, p *Processor, check model.SlaveCheckFunction, update model.SlaveUpdateFunction, runid RunId, eids ...ElementId) error {
+func (ni *namespaceInfo) assureSlaves(log logging.Logger, p *Controller, check model.SlaveCheckFunction, update model.SlaveUpdateFunction, runid RunId, eids ...ElementId) error {
 	ni.lock.Lock()
 	defer ni.lock.Unlock()
 
@@ -240,7 +240,7 @@ func (ni *namespaceInfo) assureSlaves(log logging.Logger, p *Processor, check mo
 	return nil
 }
 
-func (ni *namespaceInfo) setupElements(log logging.Logger, p *Processor, i model.InternalObject, phase Phase, runid RunId) _Element {
+func (ni *namespaceInfo) setupElements(log logging.Logger, p *Controller, i model.InternalObject, phase Phase, runid RunId) _Element {
 	var elem _Element
 	log.Info("setup new internal object {{id}} for required phase {{reqphase}}", "id", NewObjectIdFor(i), "reqphase", phase)
 	tolock, _ := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
@@ -272,4 +272,99 @@ func (ni *namespaceInfo) RemoveInternal(log logging.Logger, m *processingModel, 
 	}
 	delete(ni.internal, oid)
 	return len(ni.internal) == 0
+}
+
+func (ni *namespaceInfo) LockGraph(r Reconcilation, elem _Element) (*RunId, error) {
+	id := NewRunId()
+
+	if !ni.lock.TryLock() {
+		return nil, nil
+	}
+	defer ni.lock.Unlock()
+
+	log := r.WithValues("runid", id)
+	ok, err := ni.tryLock(r, id)
+	if err != nil {
+		log.Info("locking namespace {{namespace}} for new runid {{runid}} failed", "error", err)
+		return nil, err
+	}
+	if !ok {
+		log.Info("cannot lock namespace {{namespace}} already locked for {{current}}", "current", ni.namespace.GetLock())
+		return nil, nil
+	}
+	log.Info("namespace {{namespace}} locked for new runid {{runid}}")
+	defer func() {
+		err := ni.clearLocks(r)
+		if err != nil {
+			log.Error("cannot clear namespace lock for {{namespace}} -> requeue", "error", err)
+			r.Controller().EnqueueNamespace(ni.GetNamespaceName())
+		}
+	}()
+
+	ok, err = ni.doLockGraph(r, id, false, elem)
+	if !ok || err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
+func (ni *namespaceInfo) doLockGraph(r Reconcilation, runid RunId, keep bool, candidates ..._Element) (bool, error) {
+	elems := NewOrderedElementSet()
+	for _, elem := range candidates {
+		ok, err := ni._tryLockGraph(r, runid, elem, elems)
+		if !ok || err != nil {
+			return false, err
+		}
+		ok, err = ni._lockGraph(r, runid, keep, elems)
+		if !ok || err != nil {
+			return ok, err
+		}
+	}
+	return true, nil
+}
+
+func (ni *namespaceInfo) _tryLockGraph(r Reconcilation, runid RunId, elem _Element, elems OrderedElementSet) (bool, error) {
+	if !elems.Has(elem.Id()) {
+		cur := elem.GetLock()
+		if cur != "" && cur != runid {
+			r.Info("element {{candidate}} already locked for {{lock}}", "candidate", elem.Id(), "lock", cur)
+			return false, nil
+		}
+		elems.Add(elem)
+
+		for _, d := range ni.getChildren(elem.Id()) {
+			ok, err := ni._tryLockGraph(r, runid, d.(_Element), elems)
+			if !ok || err != nil {
+				return false, err
+			}
+		}
+	}
+	return true, nil
+}
+
+func (ni *namespaceInfo) _lockGraph(r Reconcilation, id RunId, keep bool, elems OrderedElementSet) (bool, error) {
+	var ok bool
+	var err error
+
+	ni.pendingElements = map[ElementId]_Element{}
+
+	r.Debug("found {{amount}} elements in graph", "amount", elems.Size())
+	for _, elem := range elems.Order() {
+		r.Debug("locking {{nestedelem}}", "nestedelem", elem.Id())
+		ok, err = elem.TryLock(r.Objectbase(), id)
+		if err != nil {
+			r.Debug("locking failed for {{nestedelem}}", "nestedelem", elem.Id(), "error", err)
+			return false, err
+		}
+		if !keep {
+			ni.pendingElements[elem.Id()] = elem
+		}
+		if ok {
+			// log.Debug("successfully locked {{nestedelem}}", "nestedelem", elem.Id())
+			r.Controller().events.TriggerElementEvent(elem)
+			r.Controller().pending.Add(1)
+		}
+	}
+	ni.pendingElements = nil
+	return true, nil
 }

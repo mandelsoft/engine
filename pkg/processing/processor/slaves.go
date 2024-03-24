@@ -13,17 +13,17 @@ import (
 
 type SlaveManagement struct {
 	log  logging.Logger
-	p    *Processor
+	p    *Controller
 	ni   *namespaceInfo
 	elem _Element
 }
 
 var _ model.SlaveManagement = (*SlaveManagement)(nil)
 
-func newSlaveManagement(log logging.Logger, p *Processor, ni *namespaceInfo, elem _Element) model.SlaveManagement {
+func newSlaveManagement(r Reconcilation, ni *namespaceInfo, elem _Element) model.SlaveManagement {
 	return &SlaveManagement{
-		log:  log,
-		p:    p,
+		log:  r,
+		p:    r.Controller(),
 		ni:   ni,
 		elem: elem,
 	}

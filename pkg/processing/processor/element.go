@@ -12,10 +12,11 @@ import (
 type _Element interface {
 	Element
 
-	model.StatusSource
+	// GetExternalState(o model.ExternalObject) model.ExternalState
+	// model.StatusSource
+	// GetLock() RunId
+
 	SetStatus(ob objectbase.Objectbase, s model.Status) (bool, error)
-	GetLock() RunId
-	GetExternalState(o model.ExternalObject) model.ExternalState
 	GetCurrentState() model.CurrentState
 	GetTargetState() model.TargetState
 	GetProcessingState() ProcessingState

@@ -27,9 +27,8 @@ type future struct {
 	waiting   chan struct{}
 }
 
-func NewFuture(retrigger bool) *future {
-	f := &future{retrigger: retrigger}
-	return f
+func NewFuture(retrigger ...bool) *future {
+	return &future{retrigger: general.Optional(retrigger...)}
 }
 
 func (f *future) FinalWait(ctx context.Context) bool {

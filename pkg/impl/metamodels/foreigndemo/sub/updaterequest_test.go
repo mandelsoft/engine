@@ -1,14 +1,15 @@
 package sub_test
 
 import (
+	. "github.com/mandelsoft/engine/pkg/processing/testutils"
+	. "github.com/mandelsoft/goutils/testutils"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"github.com/mandelsoft/engine/pkg/database"
 	mymetamodel "github.com/mandelsoft/engine/pkg/metamodels/foreigndemo"
 	"github.com/mandelsoft/engine/pkg/processing/processor"
-	. "github.com/mandelsoft/engine/pkg/processing/testutils"
-	. "github.com/mandelsoft/goutils/testutils"
 	"github.com/mandelsoft/logging"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 
 	"github.com/mandelsoft/engine/pkg/processing/model"
 

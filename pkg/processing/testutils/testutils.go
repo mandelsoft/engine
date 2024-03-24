@@ -40,7 +40,7 @@ type TestEnv struct {
 	lctx         logging.Context
 	logbuf       *bytes.Buffer
 	db           database.Database[db.Object]
-	proc         *processor.Processor
+	proc         *processor.Controller
 	startables   []Startable
 	started      bool
 	objectStatus future.EventManager[ObjectId, model.Status]
@@ -89,7 +89,7 @@ func NewTestEnv(name string, path string, creator ModelCreator, opts ...Option) 
 		vfs.Cleanup(fs)
 		return nil, err
 	}
-	proc := Must(processor.NewProcessor(lctx, m, options.numWorker))
+	proc := Must(processor.NewController(lctx, m, options.numWorker))
 	db := objectbase.GetDatabase[db.Object](proc.Model().ObjectBase())
 
 	mgr := future.NewEventManager[ObjectId, model.Status]()
@@ -117,7 +117,7 @@ func (t *TestEnv) Logging() logging.Context {
 	return t.lctx
 }
 
-func (t *TestEnv) Processor() *processor.Processor {
+func (t *TestEnv) Processor() *processor.Controller {
 	return t.proc
 }
 

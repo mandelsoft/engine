@@ -44,7 +44,7 @@ var _ = Describe("Processing", func() {
 	var ctx context.Context
 	var lctx logging.Context
 	var logbuf *bytes.Buffer
-	var proc *processor.Processor
+	var proc *processor.Controller
 	var odb database.Database[db2.Object]
 
 	BeforeEach(func() {
@@ -64,7 +64,7 @@ var _ = Describe("Processing", func() {
 		ctx = ctxutil.CancelContext(context.Background())
 
 		m := Must(model.NewModel(spec))
-		proc = Must(processor.NewProcessor(lctx, m, 1))
+		proc = Must(processor.NewController(lctx, m, 1))
 		odb = objectbase.GetDatabase[db2.Object](proc.Model().ObjectBase())
 		_ = logbuf
 	})

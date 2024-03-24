@@ -2,13 +2,17 @@ package processor
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"time"
 
 	"github.com/mandelsoft/engine/pkg/database"
 	"github.com/mandelsoft/engine/pkg/pool"
+	"github.com/mandelsoft/engine/pkg/processing/metamodel"
 	"github.com/mandelsoft/engine/pkg/processing/mmids"
 	. "github.com/mandelsoft/engine/pkg/processing/mmids"
 	"github.com/mandelsoft/engine/pkg/processing/model"
+	"github.com/mandelsoft/engine/pkg/processing/objectbase"
 	elemwatch "github.com/mandelsoft/engine/pkg/processing/watch"
 	"github.com/mandelsoft/engine/pkg/server"
 	"github.com/mandelsoft/engine/pkg/service"
@@ -27,7 +31,7 @@ const CMD_EXT = "ext"
 const CMD_ELEM = "elem"
 const CMD_NS = "ns"
 
-type Processor struct {
+type Controller struct {
 	lctx   logging.Context
 	worker int
 
@@ -47,10 +51,10 @@ type Processor struct {
 	delay time.Duration
 }
 
-var _ service.Service = (*Processor)(nil)
+var _ service.Service = (*Controller)(nil)
 
-func NewProcessor(lctx logging.Context, m model.Model, worker int, cmps ...version.Composer) (*Processor, error) {
-	p := &Processor{
+func NewController(lctx logging.Context, m model.Model, worker int, cmps ...version.Composer) (*Controller, error) {
+	p := &Controller{
 		pool:            pool.NewPool(lctx, m.MetaModel().Name(), worker, 0, false),
 		logging:         lctx.WithContext(REALM),
 		processingModel: newProcessingModel(m),
@@ -60,44 +64,52 @@ func NewProcessor(lctx logging.Context, m model.Model, worker int, cmps ...versi
 	return p, nil
 }
 
-func (p *Processor) RegisterWatchHandler(s *server.Server, pattern string) {
+func (p *Controller) RegisterWatchHandler(s *server.Server, pattern string) {
 	s.Handle(pattern, watch.WatchHttpHandler[elemwatch.Request, elemwatch.Event](p.events.registry))
 }
 
-func (p *Processor) RegisterHandler(handler EventHandler, current bool, kind string, closure bool, ns string) {
+func (p *Controller) RegisterHandler(handler EventHandler, current bool, kind string, closure bool, ns string) {
 	p.events.RegisterHandler(handler, current, kind, closure, ns)
 }
 
-func (p *Processor) UnregisterHandler(handler EventHandler, kind string, closure bool, ns string) {
+func (p *Controller) UnregisterHandler(handler EventHandler, kind string, closure bool, ns string) {
 	p.events.UnregisterHandler(handler, kind, closure, ns)
 }
 
-func (p *Processor) Model() ProcessingModel {
+func (p *Controller) Model() ProcessingModel {
 	return p.processingModel
 }
 
-func (p *Processor) WaitFor(ctx context.Context, etype EventType, id ElementId) bool {
+func (p *Controller) WaitFor(ctx context.Context, etype EventType, id ElementId) bool {
 	return p.events.Wait(ctx, etype, id)
 }
 
-func (p *Processor) FutureFor(etype EventType, id ElementId, retrigger ...bool) Future {
+func (p *Controller) FutureFor(etype EventType, id ElementId, retrigger ...bool) Future {
 	return p.events.Future(etype, id, retrigger...)
 }
 
-func (p *Processor) getNamespace(name string) *namespaceInfo {
+func (p *Controller) getNamespaceInfo(name string) *namespaceInfo {
 	n, _ := p.processingModel.AssureNamespace(p.logging.Logger(), name, false)
 	return n
 }
 
-func (p *Processor) Wait() error {
+func (p *Controller) Wait() error {
 	return p.syncher.Wait()
 }
 
-func (p *Processor) SetDelay(d time.Duration) {
+func (p *Controller) SetDelay(d time.Duration) {
 	p.delay = d
 }
 
-func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
+func (p *Controller) MetaModel() metamodel.MetaModel {
+	return p.processingModel.MetaModel()
+}
+
+func (p *Controller) Objectbase() objectbase.Objectbase {
+	return p.processingModel.ObjectBase()
+}
+
+func (p *Controller) Start(ctx context.Context) (service.Syncher, service.Syncher, error) {
 	if p.syncher != nil {
 		return p.ready, p.syncher, nil
 	}
@@ -110,24 +122,25 @@ func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher
 
 	p.handler = newHandler(p.pool)
 
-	act := &modelAction{p}
+	extReconcile := newExternalObjectReconciler(p)
 	reg := database.NewHandlerRegistry(p.processingModel.ObjectBase())
 	reg.RegisterHandler(p.handler, false, p.processingModel.MetaModel().NamespaceType(), true, "/")
 	for _, t := range p.processingModel.MetaModel().ExternalTypes() {
 		log.Debug("register handler for external type {{exttype}}", "exttype", t)
 		reg.RegisterHandler(p.handler, false, t, true, "/")
-		p.pool.AddAction(pool.ObjectType(t), act)
+		p.pool.AddAction(pool.ObjectType(t), extReconcile)
 	}
 
 	if req := p.processingModel.MetaModel().UpdateRequestType(); req != "" {
 		log.Debug("register handler for update request type {{reqtype}}", "reqtype", req)
 		reg.RegisterHandler(p.handler, true, req, true, "/")
-		p.pool.AddAction(pool.ObjectType(req), &requestAction{proc: p})
+		p.pool.AddAction(pool.ObjectType(req), newUpdateRequestReconciler(p))
 	}
 
-	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_NS+":*"), act)
-	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_ELEM+":*"), act)
-	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_EXT+":*"), act)
+	elemReconcile := newElementReconciler(p)
+	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_NS+":*"), newNamespaceReconciler(p))
+	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_ELEM+":*"), elemReconcile)
+	p.pool.AddAction(utils.NewStringGlobMatcher(CMD_EXT+":*"), elemReconcile)
 
 	p.processingModel.ObjectBase().RegisterHandler(reg, true, "", true, "")
 
@@ -159,12 +172,30 @@ func (p *Processor) Start(ctx context.Context) (service.Syncher, service.Syncher
 	return p.ready, sy, nil
 }
 
-func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error {
+type setup struct {
+	reconciler
+	logging.Logger
+	lctx      model.Logging
+	namespace string
+}
+
+var _ Reconcilation = (*setup)(nil)
+
+func (s *setup) LoggingContext() model.Logging {
+	return s.lctx
+}
+
+func (s *setup) GetNamespace() string {
+	return s.namespace
+}
+
+func (p *Controller) setupElements(lctx model.Logging, log logging.Logger) error {
 	// step 1: create processing elements and cleanup pending locks
 	log.Info("setup internal objects...")
-	for _, t := range p.processingModel.MetaModel().InternalTypes() {
+
+	for _, t := range p.MetaModel().InternalTypes() {
 		log.Debug("  for type {{inttype}}", "inttype", t)
-		objs, err := p.processingModel.ObjectBase().ListObjects(t, true, "")
+		objs, err := p.Objectbase().ListObjects(t, true, "")
 		if err != nil {
 			return err
 		}
@@ -172,15 +203,20 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 		for _, _o := range objs {
 			log.Debug("    found {{intid}}", "intid", database.NewObjectIdFor(_o))
 			o := _o.(model.InternalObject)
-			ons := o.GetNamespace()
-			ni, err := p.processingModel.AssureNamespace(log, ons, true)
+			r := &setup{
+				reconciler: reconciler{controller: p},
+				Logger:     log,
+				lctx:       lctx,
+				namespace:  o.GetNamespace(),
+			}
+			ni, err := p.processingModel.AssureNamespace(r, r.GetNamespace(), true)
 			if err != nil {
 				return err
 			}
 			ni.internal[mmids.NewObjectIdFor(o)] = o
 			curlock := ni.namespace.GetLock()
 
-			for _, ph := range p.processingModel.MetaModel().Phases(o.GetType()) {
+			for _, ph := range p.MetaModel().Phases(o.GetType()) {
 				log.Debug("      found phase {{phase}}", "phase", ph)
 				e := ni._AddElement(o, ph)
 				if curlock != "" {
@@ -190,7 +226,7 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 						p.EnqueueObject(id)
 					} else {
 						// reset lock for all partially locked objects belonging to the locked run id.
-						err := ni.clearElementLock(lctx, log, p, e, curlock)
+						err := ni.clearElementLock(r, e, curlock)
 						if err != nil {
 							return err
 						}
@@ -216,29 +252,50 @@ func (p *Processor) setupElements(lctx model.Logging, log logging.Logger) error 
 	return nil
 }
 
-func (p *Processor) EnqueueKey(cmd string, id ElementId) {
+func (p *Controller) setupNewInternalObject(log logging.Logger, ni *namespaceInfo, i model.InternalObject, phase Phase, runid RunId) Element {
+	var elem Element
+	log.Info("setup new internal object {{id}} for required phase {{reqphase}}", "id", NewObjectIdFor(i), "reqphase", phase)
+	tolock, _ := p.processingModel.MetaModel().GetDependentTypePhases(NewTypeId(i.GetType(), phase))
+	for _, ph := range p.processingModel.MetaModel().Phases(i.GetType()) {
+		n := ni._AddElement(i, ph)
+		log.Info("  setup new phase {{newelem}}", "newelem", n.Id())
+		if ph == phase {
+			elem = n
+		}
+		if slices.Contains(tolock, ph) {
+			ok, err := n.TryLock(p.processingModel.ObjectBase(), runid)
+			if !ok { // new object should already be locked correctly provide atomic phase creation
+				panic(fmt.Sprintf("cannot lock incorrectly locked new element: %s", err))
+			}
+			log.Info("  dependent phase {{depphase}} locked", "depphase", ph)
+		}
+	}
+	return elem
+}
+
+func (p *Controller) EnqueueKey(cmd string, id ElementId) {
 	k := EncodeElement(cmd, id)
 	p.pool.EnqueueCommand(k)
 }
 
-func (p *Processor) Enqueue(cmd string, e Element) {
+func (p *Controller) Enqueue(cmd string, e Element) {
 	k := EncodeElement(cmd, e.Id())
 	p.pool.EnqueueCommand(k)
 }
 
-func (p *Processor) EnqueueNamespace(name string) {
+func (p *Controller) EnqueueNamespace(name string) {
 	p.pool.EnqueueCommand(EncodeNamespace(name))
 }
 
-func (p *Processor) EnqueueObject(id database.ObjectId) {
+func (p *Controller) EnqueueObject(id database.ObjectId) {
 	p.pool.EnqueueKey(id)
 }
 
-func (p *Processor) GetElement(id ElementId) _Element {
+func (p *Controller) GetElement(id ElementId) _Element {
 	return p.processingModel._GetElement(id)
 }
 
-func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Status, trigger ...bool) error {
+func (p *Controller) setStatus(log logging.Logger, e _Element, status model.Status, trigger ...bool) error {
 	ok, err := e.SetStatus(p.processingModel.ObjectBase(), status)
 	if err != nil {
 		return err
@@ -250,4 +307,41 @@ func (p *Processor) setStatus(log logging.Logger, e _Element, status model.Statu
 		}
 	}
 	return nil
+}
+
+type Reconciler interface {
+	Controller() *Controller
+	TriggerElementEvent(elem _Element)
+	TriggerNamespaceEvent(ni *namespaceInfo)
+}
+
+type controller = *Controller
+
+type reconciler struct {
+	pool.DefaultAction
+	controller
+}
+
+func (r *reconciler) Controller() *Controller {
+	return r.controller
+}
+
+func (r *reconciler) TriggerElementEvent(elem _Element) {
+	r.events.TriggerElementEvent(elem)
+}
+
+func (r *reconciler) TriggerNamespaceEvent(ni *namespaceInfo) {
+	r.events.TriggerNamespaceEvent(ni)
+}
+
+type Reconcilation interface {
+	logging.Logger
+	Reconciler
+
+	MetaModel() metamodel.MetaModel
+	Objectbase() objectbase.Objectbase
+	Controller() *Controller
+
+	LoggingContext() model.Logging
+	GetNamespace() string
 }
