@@ -28,13 +28,17 @@ func newElementRunReconcilation(r *elementReconciler, bctx model.Logging, eid El
 }
 
 func (r *elementRunReconcilation) Reconcile() pool.Status {
+	if r._Element == nil {
+		r.Debug("skip not existing element {{element}}")
+		return pool.StatusCompleted()
+	}
 	if r._Element != nil && r.GetStatus() == model.STATUS_DELETED {
 		r.Debug("skip deleted element {{element}}")
 		return pool.StatusCompleted()
 	}
 
 	runid := r.GetLock()
-	r.lctx = r.bctx.WithValues("namespace", r.GetNamespace(), "element", r.eid, "runid", runid).WithName(string(runid)).WithName(database.StringId(r.eid))
+	r.lctx = r.bctx.WithValues("namespace", r.GetNamespace(), "element", r.eid, "runid", runid).WithName(string(runid)).WithName(r.eid.String())
 	r.Logger = r.lctx.Logger().WithValues("status", r.GetStatus())
 	r.ni = r.getNamespaceInfo(r.GetNamespace())
 

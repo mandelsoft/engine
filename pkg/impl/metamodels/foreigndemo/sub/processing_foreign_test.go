@@ -158,6 +158,24 @@ var _ = Describe("Processing", func() {
 
 			Expect(env.WaitWithTimeout(fopC)).To(BeTrue())
 		})
+
+		It("operator blocks for missing operand", func() {
+			env.AddService(controllers.NewExpressionController(env.Logging(), 1, env.Database()))
+			env.Start()
+
+			opC := db.NewOperatorNode(NS, "C").
+				AddOperand("iA", "A").
+				AddOperation("eA", db.OP_ADD, "iA", "iA").
+				AddOutput("C-A", "eA")
+
+			foC := env.FutureFor(model.STATUS_BLOCKED, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.PHASE_GATHER))
+			MustBeSuccessful(env.SetObject(opC))
+			Expect(env.WaitWithTimeout(foC)).To(BeTrue())
+
+			foC = env.FutureFor(model.STATUS_DELETED, NewElementId(mymetamodel.TYPE_OPERATOR_STATE, NS, "C", mymetamodel.PHASE_GATHER))
+			MustBeSuccessful(env.DeleteObject(opC))
+			Expect(env.WaitWithTimeout(foC)).To(BeTrue())
+		})
 	})
 })
 
