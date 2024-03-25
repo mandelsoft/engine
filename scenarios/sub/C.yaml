@@ -15,6 +15,7 @@ spec:
     oE:
       operator: expr
       expression: iA+oA-iB
+      #expression: iA+oA-2*iB
   outputs:
     C-A: oA
     C-E: oE
