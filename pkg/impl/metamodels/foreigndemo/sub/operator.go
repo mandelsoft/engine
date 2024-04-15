@@ -33,36 +33,40 @@ func (n *Operator) UpdateStatus(lctx model.Logging, ob objectbase.Objectbase, el
 	_, err := wrapped.Modify(ob, n, func(_o db2.Object) (bool, bool) {
 		o := _o.(*db.Operator)
 		mod := false
-		support.UpdateField(&o.Status.Phase, generics.Pointer(elem.GetPhase()), &mod)
-		support.UpdateField(&o.Status.RunId, update.RunId, &mod)
-
-		if update.ObservedVersion != nil {
-			log.Debug("Update observed version for Node {{name}}}} to {{state}}", "state", *update.ObservedVersion)
-		}
-		support.UpdateField(&o.Status.ObservedVersion, update.ObservedVersion, &mod)
-		if update.DetectedVersion != nil {
-			log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
-		}
-		support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
-		if update.FormalVersion != nil {
-			log.Debug("Update formal version for Node {{name}}}} to {{state}}", "state", *update.FormalVersion)
-		}
-		support.UpdateField(&o.Status.FormalVersion, update.FormalVersion, &mod)
-
-		if elem.GetPhase() == mymetamodel.PHASE_EXPOSE {
-			support.UpdateField(&o.Status.EffectiveVersion, update.EffectiveVersion, &mod)
-			if update.ResultState != nil {
-				support.UpdateField(&o.Status.Result, generics.Pointer(update.ResultState.(*ExposeOutputState).GetState()), &mod)
+		if elem.GetPhase() == Phase(o.Status.Phase) || elem.GetPhase() == mymetamodel.PHASE_GATHER ||
+			o.Status.Status == model.STATUS_COMPLETED {
+			support.UpdateField(&o.Status.RunId, update.RunId, &mod)
+			if support.UpdateField(&o.Status.Phase, generics.Pointer(elem.GetPhase()), &mod) {
+				log.Debug("Update phase for {{name}}}} to {{phase}}", "phase", generics.Pointer(elem.GetPhase()))
 			}
-		} else {
-			support.UpdateField(&o.Status.Status, update.Status, &mod)
-		}
-		if update.ObservedVersion != nil {
-			log.Debug("Update observed version for Node {{name}} to {{state}}", "state", *update.ObservedVersion)
+			if support.UpdateField(&o.Status.Status, update.Status, &mod) {
+				log.Debug("Update status for {{name}}}} to {{status}}", "status", *update.Status)
+			}
+			support.UpdateField(&o.Status.Message, update.Message, &mod)
 
-		}
+			if update.ObservedVersion != nil {
+				log.Debug("Update observed version for Node {{name}}}} to {{state}}", "state", *update.ObservedVersion)
+			}
+			support.UpdateField(&o.Status.ObservedVersion, update.ObservedVersion, &mod)
+			if update.DetectedVersion != nil {
+				log.Debug("Update detected version for Node {{name}}}} to {{state}}", "state", *update.DetectedVersion)
+			}
+			support.UpdateField(&o.Status.DetectedVersion, update.DetectedVersion, &mod)
+			if update.FormalVersion != nil {
+				log.Debug("Update formal version for Node {{name}}}} to {{state}}", "state", *update.FormalVersion)
+			}
+			support.UpdateField(&o.Status.FormalVersion, update.FormalVersion, &mod)
 
-		support.UpdateField(&o.Status.Message, update.Message, &mod)
+			if elem.GetPhase() == mymetamodel.PHASE_EXPOSE {
+				support.UpdateField(&o.Status.EffectiveVersion, update.EffectiveVersion, &mod)
+				if update.ResultState != nil {
+					support.UpdateField(&o.Status.Result, generics.Pointer(update.ResultState.(*ExposeOutputState).GetState()), &mod)
+				}
+			}
+			if update.ObservedVersion != nil {
+				log.Debug("Update observed version for Node {{name}} to {{state}}", "state", *update.ObservedVersion)
+			}
+		}
 		return mod, mod
 	})
 	return err

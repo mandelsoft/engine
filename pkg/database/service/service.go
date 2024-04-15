@@ -46,29 +46,29 @@ func (a *DatabaseAccess[O]) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 		data, _ = json.Marshal(e)
 		status = http.StatusInternalServerError
 	} else {
-
 		switch req.Method {
 		case http.MethodGet:
 			if len(comps) < 2 {
 				e := &Error{"invalid path"}
 				data, _ = json.Marshal(e)
 				status = http.StatusInternalServerError
-			}
-			name := comps[len(comps)-1]
-			ns := strings.Join(comps[1:len(comps)-1], "/")
-			oid := database.NewObjectId(typ, ns, name)
-
-			obj, err := a.database.GetObject(oid)
-			if err != nil {
-				if errors.Is(err, database.ErrNotExist) {
-					status = http.StatusNotFound
-				} else {
-					e := &Error{err.Error()}
-					data, _ = json.Marshal(e)
-					status = http.StatusInternalServerError
-				}
 			} else {
-				data, _ = json.Marshal(obj)
+				name := comps[len(comps)-1]
+				ns := strings.Join(comps[1:len(comps)-1], "/")
+				oid := database.NewObjectId(typ, ns, name)
+
+				obj, err := a.database.GetObject(oid)
+				if err != nil {
+					if errors.Is(err, database.ErrNotExist) {
+						status = http.StatusNotFound
+					} else {
+						e := &Error{err.Error()}
+						data, _ = json.Marshal(e)
+						status = http.StatusInternalServerError
+					}
+				} else {
+					data, _ = json.Marshal(obj)
+				}
 			}
 
 		case http.MethodDelete:

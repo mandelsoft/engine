@@ -48,10 +48,15 @@ func (c *Get) Run(args []string) error {
 	if len(args) == 0 {
 		args = []string{"*"}
 	}
-	typ := args[0]
-	if typ == "" {
+
+	t := args[0]
+	if t == "" {
 		return fmt.Errorf("non-empty type required")
 	}
+	if strings.Contains(t, "/") {
+		return fmt.Errorf("invalid / in type name")
+	}
+	typlist := sliceutils.Transform(strings.Split(t, ","), strings.TrimSpace)
 
 	var list []Object
 	useList := len(args) > 2
@@ -74,21 +79,23 @@ func (c *Get) Run(args []string) error {
 				arg = arg[i+1:]
 			}
 
-			get, err := http.Get(c.mainopts.GetURL() + path.Join(typ, ns, arg))
-			if err != nil {
-				return fmt.Errorf("%s: %w", orig, err)
-			}
-			data, err := ResponseData(get)
-			if err != nil {
-				return fmt.Errorf("%s: %w", orig, err)
-			}
+			for _, typ := range typlist {
+				get, err := http.Get(c.mainopts.GetURL() + path.Join(typ, ns, arg))
+				if err != nil {
+					return fmt.Errorf("%s: %w", orig, err)
+				}
+				data, err := ResponseData(get)
+				if err != nil {
+					return fmt.Errorf("%s: %w", orig, err)
+				}
 
-			var o Object
-			err = json.Unmarshal(data, &o)
-			if err != nil {
-				return fmt.Errorf("%s: %w", orig, err)
+				var o Object
+				err = json.Unmarshal(data, &o)
+				if err != nil {
+					return fmt.Errorf("%s: %w", orig, err)
+				}
+				list = append(list, o)
 			}
-			list = append(list, o)
 		}
 	} else {
 		useList = true
@@ -97,24 +104,26 @@ func (c *Get) Run(args []string) error {
 			ns += "*"
 		}
 
-		req, err := http.NewRequest("LIST", c.mainopts.GetURL()+path.Join(typ, ns), nil)
-		if err != nil {
-			return err
+		for _, typ := range typlist {
+			req, err := http.NewRequest("LIST", c.mainopts.GetURL()+path.Join(typ, ns), nil)
+			if err != nil {
+				return err
+			}
+			r, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return err
+			}
+			data, err := ResponseData(r)
+			if err != nil {
+				return fmt.Errorf("get failed with status code %s", r.Status)
+			}
+			var l List
+			err = json.Unmarshal(data, &l)
+			if err != nil {
+				return err
+			}
+			list = append(list, l.Items...)
 		}
-		r, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-		data, err := ResponseData(r)
-		if err != nil {
-			return fmt.Errorf("get failed with status code %s", r.Status)
-		}
-		var l List
-		err = json.Unmarshal(data, &l)
-		if err != nil {
-			return err
-		}
-		list = append(list, l.Items...)
 	}
 
 	slices.SortFunc(list, database.CompareObject[Object])
@@ -216,13 +225,21 @@ func MapFields(list []Object, typeField bool) [][]string {
 	for _, o := range list {
 		var l []string
 
+		s := o.GetStatusValue()
+		if o.IsDeleting() {
+			if s == "" {
+				s = "<deleting>"
+			} else {
+				s += ",<deleting>"
+			}
+		}
 		if typeField {
 			l = []string{
-				o.GetNamespace(), o.GetName(), o.GetType(), o.GetStatusValue(),
+				o.GetNamespace(), o.GetName(), o.GetType(), s,
 			}
 		} else {
 			l = []string{
-				o.GetNamespace(), o.GetName(), o.GetStatusValue(),
+				o.GetNamespace(), o.GetName(), s,
 			}
 		}
 		r = append(r, l)

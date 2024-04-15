@@ -29,10 +29,12 @@ func NewWatchEventForNamespace(ni *namespaceInfo) *elemwatch.Event {
 func NewWatchEvent(e _Element) *elemwatch.Event {
 	id := elemwatch.NewId(e.Id())
 
+	e.IsMarkedForDeletion()
 	evt := &elemwatch.Event{
-		Node:   id,
-		Lock:   string(e.GetLock()),
-		Status: string(e.GetStatus()),
+		Node:     id,
+		Deletion: e.IsMarkedForDeletion(),
+		Lock:     string(e.GetLock()),
+		Status:   string(e.GetStatus()),
 	}
 
 	var links []ElementId

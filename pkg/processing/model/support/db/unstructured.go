@@ -45,6 +45,21 @@ func (u *Unstructured) GetStatusValue() string {
 	return ""
 }
 
+func (u *Unstructured) IsDeleting() bool {
+	meta := u.Other["metadata"]
+	if meta == nil {
+		return false
+	}
+	if m, ok := meta.(map[string]interface{}); ok {
+		s := m["deletionTime"]
+		if s == nil {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 func (u *Unstructured) UnmarshalJSON(data []byte) error {
 	err := yaml.Unmarshal(data, &u.ObjectMeta)
 	if err != nil {

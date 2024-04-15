@@ -223,6 +223,9 @@ func (p *Controller) setupElements(lctx model.Logging, log logging.Logger) error
 					if owner := IsObjectLock(curlock); owner != nil {
 						id := (*owner).Id(o.GetNamespace(), p.processingModel.MetaModel())
 						log.Info("triggering locked request {{oid}}", "oid", id)
+						if inProcess(e) {
+							e.SetProcessingState(NewTargetState(e))
+						}
 						p.EnqueueObject(id)
 					} else {
 						// reset lock for all partially locked objects belonging to the locked run id.

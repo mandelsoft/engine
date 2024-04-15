@@ -38,7 +38,8 @@ func (i Id) String() string {
 type Event struct {
 	Node Id `json:"node"`
 
-	Lock string `json:"lock"`
+	Lock     string `json:"lock"`
+	Deletion bool   `json:"deletion,omitempty"`
 
 	Links []Id `json:"links,omitempty"`
 
