@@ -1,2 +1,2 @@
 server: http://localhost:8080
-namespace: package
+namespace: complex

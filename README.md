@@ -1,8 +1,8 @@
 ## An Egine to process Flow Graphs described by Resource Manifests
 
 This project provides a controller working on an
-objectspace, which processes a flow graph described by resource
-objects stored in the objectspace.
+object space, which processes a flow graph described by resource
+objects stored in the object space.
 
 The graph is an instance of a graph metamodel, which is passed
 to the controller. The controller itself provides a metamodel
@@ -11,7 +11,7 @@ used to describe graph metamodels.
 ![engine metamodel](images/engine-metamodel.png)
 
 A graph metamodel defines the node types (whose instances
-are stores in the object space) and the potential dependencies
+are stored in the object space) and the potential dependencies
 among instances of such types.
 
 A concrete model with dedicated instances, their types and
@@ -19,8 +19,9 @@ dependencies is then stored in the objectspace.
 
 The processing is based on a model of shadow elements, which
 implement the concrete processing steps.
+They are wrapping persistent objects stored in the object space.
 
-There are the user facing defining object type (external objects),
+There are the user facing defining object types (external objects),
 which describe the desired state of the processing graph.
 
 Every external object is typically shadowed by an internal (state) 
@@ -29,10 +30,10 @@ object, which keeps the processing state.
 On top of those persistent objects, the programming
 model uses implementation objects, which must be provided 
 by an implementation of the graph metamodel.
-Those objects are instantiated by engine in memory and must implement
+Those objects are instantiated by the engine in memory and must implement
 the engine interface. They are used by the engine to provide
-standardized informations, like the external desired state,
-or the dependency information. And the execute the payload
+standardized information, like the external desired state,
+or the dependency information. And they execute the payload
 related processing steps. The flow control is completely done
 by engine. 
 
@@ -42,7 +43,7 @@ The processing of an internal object is divided into one or more
 processing phases. Every phase has the same interface towards the
 engine:
 - provide current state
-- accepting target state from an triggering external object
+- accepting target state from a triggering external object
 - providing dependency information according to current and target
   state
 - providing a processing step (which might provide incremental progress)
@@ -52,7 +53,7 @@ The engine then handles the dataflow among the
 processing graph defined by the current and target state
 of the phases and their dependencies. The output of input dependencies
 is provided to the processing, and if it is successful the output
-is again used as input for dependent phases.
+of the processing is again used as input for dependent phases.
 
 Every external object has an assigned internal object (which is created by engine on demand), which handles the concrete processing.
 Therefore, changes on the external object trigger the processing of

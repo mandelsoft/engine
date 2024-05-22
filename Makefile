@@ -10,7 +10,6 @@ run:
 	go run ./cmds/engine -L debug -d local/db -F ./ui -P /watch -c 2>&1 | tee local/logrun:
 
 run-ui:
-	@sleep 10
 	firefox http://localhost:8080/ui/
 
 test:
